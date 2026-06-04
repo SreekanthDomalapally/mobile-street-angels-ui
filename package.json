@@ -41,7 +41,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "eas-cli": "^16.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -49,14 +48,14 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "eas:init": "eas init",
-    "eas:credentials:android": "eas credentials:configure-build -p android --profile production",
-    "eas:credentials:ios": "eas credentials:configure-build -p ios --profile production",
-    "eas:build:preview": "eas build --profile preview --platform all",
-    "eas:build:android": "eas build --profile production --platform android",
-    "eas:build:ios": "eas build --profile production --platform ios",
-    "eas:submit:android": "eas submit --profile production --platform android --latest",
-    "eas:submit:ios": "eas submit --profile production --platform ios --latest"
+    "eas:init": "npx eas-cli init",
+    "eas:credentials:android": "npx eas-cli credentials:configure-build -p android --profile production",
+    "eas:credentials:ios": "npx eas-cli credentials:configure-build -p ios --profile production",
+    "eas:build:preview": "npx eas-cli build --profile preview --platform all",
+    "eas:build:android": "npx eas-cli build --profile production --platform android",
+    "eas:build:ios": "npx eas-cli build --profile production --platform ios",
+    "eas:submit:android": "npx eas-cli submit --profile production --platform android --latest",
+    "eas:submit:ios": "npx eas-cli submit --profile production --platform ios --latest"
   },
   "private": true
 }
