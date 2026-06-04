@@ -1,0 +1,70 @@
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@/components/ui/Text';
+import { useAuthStore } from '@/stores/authStore';
+
+export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
+  const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
+
+  const continueFlow = () => {
+    completeOnboarding();
+    router.replace('/(auth)/login');
+  };
+
+  return (
+    <View className="flex-1 bg-charcoal-950">
+      <LinearGradient
+        colors={['#1a1a1e', '#0f0f12', '#0f0f12']}
+        className="flex-1"
+        style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
+        <View className="flex-1 justify-center px-8">
+          <View className="mb-8 h-20 w-20 items-center justify-center rounded-full bg-emergency/15">
+            <Text variant="hero" className="text-emergency">
+              ◎
+            </Text>
+          </View>
+          <Text variant="label" className="mb-4 text-responder-light">
+            Street Angels
+          </Text>
+          <Text variant="hero" className="mb-4 leading-tight">
+            Help is closer than you think.
+          </Text>
+          <Text variant="body" muted className="mb-12 leading-relaxed">
+            A calm, trusted way to reach people who care — when seconds matter. Not social media.
+            Real help, nearby.
+          </Text>
+          <View className="gap-4">
+            <View className="flex-row items-start gap-3">
+              <Text className="text-responder">✓</Text>
+              <Text variant="body" muted className="flex-1">
+                SOS in 2 taps — hold, confirm, help is on the way
+              </Text>
+            </View>
+            <View className="flex-row items-start gap-3">
+              <Text className="text-responder">✓</Text>
+              <Text variant="body" muted className="flex-1">
+                Live location shared only when you need it
+              </Text>
+            </View>
+            <View className="flex-row items-start gap-3">
+              <Text className="text-responder">✓</Text>
+              <Text variant="body" muted className="flex-1">
+                Trusted contacts — never strangers on a feed
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View className="px-8">
+          <Button title="Get started" size="lg" onPress={continueFlow} />
+          <Text variant="caption" muted className="mt-4 text-center">
+            Free forever · Optional donations only
+          </Text>
+        </View>
+      </LinearGradient>
+    </View>
+  );
+}

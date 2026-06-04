@@ -1,31 +1,72 @@
-import { StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EmergencyTypePicker } from '@/components/sos/EmergencyTypePicker';
+import { SOSButton } from '@/components/sos/SOSButton';
+import { CountdownOverlay } from '@/components/sos/CountdownOverlay';
+import { NearbyResponders } from '@/components/home/NearbyResponders';
+import { StatusIndicator } from '@/components/home/StatusIndicator';
+import { Text } from '@/components/ui/Text';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { useSOSStore } from '@/stores/sosStore';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const countdownSeconds = useSettingsStore((s) => s.emergency.countdownSeconds);
+  const { status, countdown, setCountdown, activateSOS, cancelArming } = useSOSStore();
 
-export default function TabOneScreen() {
+  const handleSOSComplete = () => {
+    setCountdown(countdownSeconds);
+  };
+
+  const handleCountdownComplete = () => {
+    activateSOS();
+    router.push('/sos/active');
+  };
+
+  const handleCountdownCancel = () => {
+    setCountdown(null);
+    cancelArming();
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+    <View className="flex-1 bg-charcoal-950">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingTop: insets.top + 16,
+          paddingBottom: insets.bottom + 100,
+          paddingHorizontal: 20,
+        }}
+        showsVerticalScrollIndicator={false}>
+        <View className="mb-6 flex-row items-center justify-between">
+          <View>
+            <Text variant="label" muted className="normal-case">
+              Street Angels
+            </Text>
+            <Text variant="title">You're protected</Text>
+          </View>
+          <StatusIndicator />
+        </View>
+
+        <View className="my-8 items-center">
+          <SOSButton onActivate={handleSOSComplete} />
+        </View>
+
+        <EmergencyTypePicker />
+
+        <View className="mt-10">
+          <NearbyResponders />
+        </View>
+      </ScrollView>
+
+      {countdown !== null && status !== 'active' && (
+        <CountdownOverlay
+          seconds={countdown}
+          onComplete={handleCountdownComplete}
+          onCancel={handleCountdownCancel}
+        />
+      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
-});

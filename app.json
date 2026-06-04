@@ -1,23 +1,48 @@
 {
   "expo": {
-    "name": "mobile-street-angels-ui",
+    "name": "Street Angels",
     "slug": "mobile-street-angels-ui",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobilestreetangelsui",
-    "userInterfaceStyle": "automatic",
+    "scheme": "streetangels",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f12"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.streetangels.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Street Angels uses your location only during active SOS alerts to share with trusted responders.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Location is used during emergencies to help trusted contacts find you.",
+        "UIBackgroundModes": ["location", "remote-notification"]
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyB61yKLKHL1TZNAu4IoZb4ZDvcrzeFOhz0"
+      }
     },
     "android": {
+      "package": "com.streetangels.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0f0f12",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB61yKLKHL1TZNAu4IoZb4ZDvcrzeFOhz0"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -31,12 +56,30 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0f0f12"
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Street Angels to use your location during active alerts."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#c94a4a",
+          "sounds": []
+        }
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {}
     }
   }
 }
