@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "YouHoo Alert",
-    "slug": "mobile-street-angels-ui",
+    "slug": "mobile-youhoo-alert",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/YouHooAlert.png",
@@ -82,7 +82,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "d37e827f-a71b-47c3-b0df-a2b912af8063"
+      }
     }
   }
 }

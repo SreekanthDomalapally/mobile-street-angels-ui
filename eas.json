@@ -5,7 +5,10 @@
   },
   "build": {
     "base": {
-      "node": "22.14.0"
+      "node": "22.14.0",
+      "env": {
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "d37e827f-a71b-47c3-b0df-a2b912af8063"
+      }
     },
     "preview": {
       "extends": "base",

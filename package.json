@@ -50,6 +50,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "eas:init": "eas init",
+    "eas:credentials:android": "eas credentials:configure-build -p android --profile production",
+    "eas:credentials:ios": "eas credentials:configure-build -p ios --profile production",
     "eas:build:preview": "eas build --profile preview --platform all",
     "eas:build:android": "eas build --profile production --platform android",
     "eas:build:ios": "eas build --profile production --platform ios",
