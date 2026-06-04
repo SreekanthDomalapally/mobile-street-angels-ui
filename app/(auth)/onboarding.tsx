@@ -2,8 +2,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
+import { APP_CAPTION } from '@/constants/branding';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function OnboardingScreen() {
@@ -22,16 +24,11 @@ export default function OnboardingScreen() {
         className="flex-1"
         style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
         <View className="flex-1 justify-center px-8">
-          <View className="mb-8 h-20 w-20 items-center justify-center rounded-full bg-emergency/15">
-            <Text variant="hero" className="text-emergency">
-              ◎
-            </Text>
+          <View className="mb-8">
+            <AppLogo size="lg" />
           </View>
-          <Text variant="label" className="mb-4 text-responder-light">
-            Street Angels
-          </Text>
           <Text variant="hero" className="mb-4 leading-tight">
-            Help is closer than you think.
+            {APP_CAPTION}
           </Text>
           <Text variant="body" muted className="mb-12 leading-relaxed">
             A calm, trusted way to reach people who care — when seconds matter. Not social media.

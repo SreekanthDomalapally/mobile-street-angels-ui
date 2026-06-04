@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { requestLocationPermission } from '@/services/location';
@@ -61,6 +62,9 @@ export default function PermissionsScreen() {
     <View
       className="flex-1 bg-charcoal-950 px-8"
       style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}>
+      <View className="mb-6">
+        <AppLogo size="sm" />
+      </View>
       <Text variant="label" className="mb-2">
         Step {stepIndex + 1} of {steps.length}
       </Text>

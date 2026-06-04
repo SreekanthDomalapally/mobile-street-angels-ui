@@ -5,6 +5,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { SettingsRow } from '@/components/profile/SettingsRow';
+import { APP_NAME } from '@/constants/branding';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
@@ -97,7 +98,7 @@ export default function ProfileScreen() {
 
       <Button title="Sign out" variant="ghost" onPress={handleSignOut} className="mb-4" />
       <Text variant="caption" muted className="text-center">
-        Street Angels v1.0 · Free to use
+        {APP_NAME} v1.0 · Free to use
       </Text>
     </ScrollView>
   );

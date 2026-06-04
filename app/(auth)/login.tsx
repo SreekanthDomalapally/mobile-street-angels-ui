@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { signInWithAppleMock, signInWithGoogleMock } from '@/services/firebase';
@@ -32,6 +33,9 @@ export default function LoginScreen() {
     <View
       className="flex-1 bg-charcoal-950 px-8"
       style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}>
+      <View className="mb-8 items-center">
+        <AppLogo size="md" />
+      </View>
       <Text variant="hero" className="mb-2">
         Welcome
       </Text>

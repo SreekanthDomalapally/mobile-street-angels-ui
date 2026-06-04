@@ -1,17 +1,49 @@
-import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+/** Remote push is unavailable in Expo Go (SDK 53+). Use a development build for production push. */
+export function arePushNotificationsSupported(): boolean {
+  return !isRunningInExpoGo();
+}
+
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationHandlerConfigured = false;
+
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  if (!arePushNotificationsSupported()) {
+    return null;
+  }
+
+  const Notifications = await import('expo-notifications');
+
+  if (!notificationHandlerConfigured) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    notificationHandlerConfigured = true;
+  }
+
+  return Notifications;
+}
 
 export async function registerForPushNotifications(): Promise<string | null> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    if (__DEV__) {
+      console.info(
+        '[notifications] Skipped in Expo Go. Build with expo-dev-client for push tokens.'
+      );
+    }
+    return null;
+  }
+
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
 
@@ -39,6 +71,9 @@ export async function registerForPushNotifications(): Promise<string | null> {
 }
 
 export async function scheduleEmergencyNotification(title: string, body: string) {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
+
   await Notifications.scheduleNotificationAsync({
     content: {
       title,

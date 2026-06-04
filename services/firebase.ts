@@ -1,12 +1,16 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
+  initializeAuth,
+  getReactNativePersistence,
   signInWithCredential,
   GoogleAuthProvider,
   OAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
+  type Auth,
 } from 'firebase/auth';
 import type { User } from '@/types';
 
@@ -20,6 +24,7 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
+let auth: Auth | undefined;
 
 export function getFirebaseApp(): FirebaseApp {
   if (!getApps().length) {
@@ -28,8 +33,18 @@ export function getFirebaseApp(): FirebaseApp {
   return app ?? getApps()[0];
 }
 
-export function getFirebaseAuth() {
-  return getAuth(getFirebaseApp());
+export function getFirebaseAuth(): Auth {
+  if (auth) return auth;
+
+  const firebaseApp = getFirebaseApp();
+  try {
+    auth = initializeAuth(firebaseApp, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch {
+    auth = getAuth(firebaseApp);
+  }
+  return auth;
 }
 
 export function mapFirebaseUser(fbUser: FirebaseUser): User {

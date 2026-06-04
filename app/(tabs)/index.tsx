@@ -6,6 +6,7 @@ import { SOSButton } from '@/components/sos/SOSButton';
 import { CountdownOverlay } from '@/components/sos/CountdownOverlay';
 import { NearbyResponders } from '@/components/home/NearbyResponders';
 import { StatusIndicator } from '@/components/home/StatusIndicator';
+import { AppLogo } from '@/components/ui/AppLogo';
 import { Text } from '@/components/ui/Text';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useSOSStore } from '@/stores/sosStore';
@@ -40,10 +41,8 @@ export default function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}>
         <View className="mb-6 flex-row items-center justify-between">
-          <View>
-            <Text variant="label" muted className="normal-case">
-              Street Angels
-            </Text>
+          <View className="flex-1 gap-2">
+            <AppLogo size="sm" />
             <Text variant="title">You're protected</Text>
           </View>
           <StatusIndicator />
