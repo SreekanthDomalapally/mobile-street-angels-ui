@@ -60,6 +60,7 @@
     "lint": "expo lint",
     "test": "jest",
     "typecheck": "tsc --noEmit",
+    "prebuild:check": "node scripts/prebuild-check.mjs",
     "eas:init": "npx eas-cli init",
     "eas:credentials:android": "npx eas-cli credentials:configure-build -p android --profile production",
     "eas:credentials:ios": "npx eas-cli credentials:configure-build -p ios --profile production",
