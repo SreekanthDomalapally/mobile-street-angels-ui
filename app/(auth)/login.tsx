@@ -1,29 +1,31 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Platform, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { AppLogo } from '@/components/ui/AppLogo';
-import { Button } from '@/components/ui/Button';
-import { Text } from '@/components/ui/Text';
-import { signInWithAppleMock, signInWithGoogleMock } from '@/services/firebase';
-import { useAuthStore } from '@/stores/authStore';
+import { AppLogo } from "@/components/ui/AppLogo";
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
+import { signInWithAppleMock, signInWithGoogleMock } from "@/services/firebase";
+import { useAuthStore } from "@/stores/authStore";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import { Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { setUser, setLoading, isLoading } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
-  const handleSignIn = async (provider: 'google' | 'apple') => {
+  const handleSignIn = async (provider: "google" | "apple") => {
     setError(null);
     setLoading(true);
     try {
       const user =
-        provider === 'google' ? await signInWithGoogleMock() : await signInWithAppleMock();
+        provider === "google"
+          ? await signInWithGoogleMock()
+          : await signInWithAppleMock();
       setUser(user);
-      router.replace('/(auth)/permissions');
+      router.replace("/(auth)/permissions");
     } catch {
-      setError('Sign in failed. Please try again.');
+      setError("Sign in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -32,7 +34,8 @@ export default function LoginScreen() {
   return (
     <View
       className="flex-1 bg-charcoal-950 px-8"
-      style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}>
+      style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
+    >
       <View className="mb-8 items-center">
         <AppLogo size="md" />
       </View>
@@ -49,7 +52,7 @@ export default function LoginScreen() {
           variant="secondary"
           size="lg"
           loading={isLoading}
-          onPress={() => handleSignIn('google')}
+          onPress={() => handleSignIn("google")}
           icon={
             <Ionicons
               name="logo-google"
@@ -59,13 +62,13 @@ export default function LoginScreen() {
             />
           }
         />
-        {Platform.OS === 'ios' && (
+        {Platform.OS === "ios" && (
           <Button
             title="Continue with Apple"
             variant="secondary"
             size="lg"
             disabled={isLoading}
-            onPress={() => handleSignIn('apple')}
+            onPress={() => handleSignIn("apple")}
             icon={
               <Ionicons
                 name="logo-apple"
@@ -84,8 +87,13 @@ export default function LoginScreen() {
         </Text>
       )}
 
-      <Text variant="caption" muted className="mt-auto text-center leading-relaxed">
-        By continuing, you agree to our Terms and Privacy Policy. We never sell your location data.
+      <Text
+        variant="caption"
+        muted
+        className="mt-auto text-center leading-relaxed"
+      >
+        By continuing, you agree to our Terms and Privacy Policy. We never sell
+        your location data.
       </Text>
     </View>
   );

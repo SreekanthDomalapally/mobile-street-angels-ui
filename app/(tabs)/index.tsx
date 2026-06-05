@@ -1,20 +1,23 @@
-import { router } from 'expo-router';
-import { ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EmergencyTypePicker } from '@/components/sos/EmergencyTypePicker';
-import { SOSButton } from '@/components/sos/SOSButton';
-import { CountdownOverlay } from '@/components/sos/CountdownOverlay';
-import { NearbyResponders } from '@/components/home/NearbyResponders';
-import { StatusIndicator } from '@/components/home/StatusIndicator';
-import { AppLogo } from '@/components/ui/AppLogo';
-import { Text } from '@/components/ui/Text';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { useSOSStore } from '@/stores/sosStore';
+import { NearbyResponders } from "@/components/home/NearbyResponders";
+import { StatusIndicator } from "@/components/home/StatusIndicator";
+import { CountdownOverlay } from "@/components/sos/CountdownOverlay";
+import { EmergencyTypePicker } from "@/components/sos/EmergencyTypePicker";
+import { SOSButton } from "@/components/sos/SOSButton";
+import { AppLogo } from "@/components/ui/AppLogo";
+import { Text } from "@/components/ui/Text";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useSOSStore } from "@/stores/sosStore";
+import { router } from "expo-router";
+import { ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const countdownSeconds = useSettingsStore((s) => s.emergency.countdownSeconds);
-  const { status, countdown, setCountdown, activateSOS, cancelArming } = useSOSStore();
+  const countdownSeconds = useSettingsStore(
+    (s) => s.emergency.countdownSeconds,
+  );
+  const { status, countdown, setCountdown, activateSOS, cancelArming } =
+    useSOSStore();
 
   const handleSOSComplete = () => {
     setCountdown(countdownSeconds);
@@ -22,7 +25,7 @@ export default function HomeScreen() {
 
   const handleCountdownComplete = () => {
     activateSOS();
-    router.push('/sos/active');
+    router.push("/sos/active");
   };
 
   const handleCountdownCancel = () => {
@@ -39,7 +42,8 @@ export default function HomeScreen() {
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: 20,
         }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <View className="mb-6 flex-row items-center justify-between">
           <View className="flex-1 gap-2">
             <AppLogo size="sm" />
@@ -59,7 +63,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {countdown !== null && status !== 'active' && (
+      {countdown !== null && status !== "active" && (
         <CountdownOverlay
           seconds={countdown}
           onComplete={handleCountdownComplete}

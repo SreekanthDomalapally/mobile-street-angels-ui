@@ -1,13 +1,13 @@
-import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { formatRelativeTime } from '@/lib/utils';
-import type { ActivityItem } from '@/types';
+import { Text } from "@/components/ui/Text";
+import { formatRelativeTime } from "@/lib/utils";
+import type { ActivityItem } from "@/types";
+import { Ionicons } from "@expo/vector-icons";
+import { View } from "react-native";
 
-const icons: Record<ActivityItem['type'], keyof typeof Ionicons.glyphMap> = {
-  alert: 'alert-circle-outline',
-  check_in: 'checkmark-circle-outline',
-  group_update: 'people-outline',
+const icons: Record<ActivityItem["type"], keyof typeof Ionicons.glyphMap> = {
+  alert: "alert-circle-outline",
+  check_in: "checkmark-circle-outline",
+  group_update: "people-outline",
 };
 
 export function ActivityCard({ item }: { item: ActivityItem }) {
@@ -25,7 +25,7 @@ export function ActivityCard({ item }: { item: ActivityItem }) {
           {formatRelativeTime(item.timestamp)}
         </Text>
       </View>
-      {item.status === 'resolved' && (
+      {item.status === "resolved" && (
         <View className="rounded-full bg-responder/20 px-2 py-1">
           <Text variant="label" className="normal-case text-responder-light">
             Resolved

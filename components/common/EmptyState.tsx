@@ -1,7 +1,7 @@
-import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { colors } from '@/constants/theme';
+import { Text } from "@/components/ui/Text";
+import { colors } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { View } from "react-native";
 
 interface EmptyStateProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -11,7 +11,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon = 'shield-outline',
+  icon = "shield-outline",
   title,
   description,
   action,

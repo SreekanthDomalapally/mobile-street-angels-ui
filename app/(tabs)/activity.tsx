@@ -1,9 +1,9 @@
-import { ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActivityCard } from '@/components/activity/ActivityCard';
-import { Text } from '@/components/ui/Text';
-import { EmptyState } from '@/components/common/EmptyState';
-import { mockActivity } from '@/data/mock';
+import { ActivityCard } from "@/components/activity/ActivityCard";
+import { EmptyState } from "@/components/common/EmptyState";
+import { Text } from "@/components/ui/Text";
+import { mockActivity } from "@/data/mock";
+import { ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
@@ -20,8 +20,12 @@ export default function ActivityScreen() {
 
       <ScrollView
         className="flex-1 px-5"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100, paddingTop: 20 }}
-        showsVerticalScrollIndicator={false}>
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 100,
+          paddingTop: 20,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {items.length === 0 ? (
           <EmptyState
             icon="time-outline"

@@ -1,27 +1,29 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { AppLogo } from '@/components/ui/AppLogo';
-import { Button } from '@/components/ui/Button';
-import { Text } from '@/components/ui/Text';
-import { requestLocationPermission } from '@/services/location';
-import { registerForPushNotifications } from '@/services/notifications';
-import { useAuthStore } from '@/stores/authStore';
+import { AppLogo } from "@/components/ui/AppLogo";
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
+import { requestLocationPermission } from "@/services/location";
+import { registerForPushNotifications } from "@/services/notifications";
+import { useAuthStore } from "@/stores/authStore";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const steps = [
   {
-    id: 'location',
-    icon: 'location-outline' as const,
-    title: 'Location',
-    description: 'Share your live position only during an active alert — never in the background without cause.',
+    id: "location",
+    icon: "location-outline" as const,
+    title: "Location",
+    description:
+      "Share your live position only during an active alert — never in the background without cause.",
   },
   {
-    id: 'notifications',
-    icon: 'notifications-outline' as const,
-    title: 'Notifications',
-    description: 'Critical alerts from trusted responders, even on your lock screen.',
+    id: "notifications",
+    icon: "notifications-outline" as const,
+    title: "Notifications",
+    description:
+      "Critical alerts from trusted responders, even on your lock screen.",
   },
 ];
 
@@ -35,7 +37,7 @@ export default function PermissionsScreen() {
 
   const requestCurrent = async () => {
     setLoading(true);
-    if (current.id === 'location') {
+    if (current.id === "location") {
       await requestLocationPermission();
     } else {
       await registerForPushNotifications();
@@ -45,7 +47,7 @@ export default function PermissionsScreen() {
       setStepIndex(stepIndex + 1);
     } else {
       setPermissionsGranted(true);
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     }
   };
 
@@ -54,14 +56,15 @@ export default function PermissionsScreen() {
       setStepIndex(stepIndex + 1);
     } else {
       setPermissionsGranted(true);
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     }
   };
 
   return (
     <View
       className="flex-1 bg-charcoal-950 px-8"
-      style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}>
+      style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
+    >
       <View className="mb-6">
         <AppLogo size="sm" />
       </View>
@@ -79,7 +82,12 @@ export default function PermissionsScreen() {
       </Text>
 
       <View className="mt-auto gap-3">
-        <Button title="Allow access" size="lg" loading={loading} onPress={requestCurrent} />
+        <Button
+          title="Allow access"
+          size="lg"
+          loading={loading}
+          onPress={requestCurrent}
+        />
         <Button title="Not now" variant="ghost" onPress={skip} />
       </View>
     </View>

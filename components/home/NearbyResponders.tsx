@@ -1,8 +1,8 @@
-import { ScrollView, View } from 'react-native';
-import { Avatar } from '@/components/ui/Avatar';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Text } from '@/components/ui/Text';
-import { mockTrustedContacts } from '@/data/mock';
+import { Avatar } from "@/components/ui/Avatar";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { Text } from "@/components/ui/Text";
+import { mockTrustedContacts } from "@/data/mock";
+import { ScrollView, View } from "react-native";
 
 export function NearbyResponders() {
   const nearby = mockTrustedContacts.filter((c) => c.isOnline).slice(0, 4);
@@ -12,7 +12,11 @@ export function NearbyResponders() {
       <Text variant="label" className="mb-3">
         Trusted nearby
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-3">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="gap-3"
+      >
         {nearby.map((contact) => (
           <GlassCard key={contact.id} className="mr-3 w-36">
             <View className="items-center">
@@ -21,7 +25,9 @@ export function NearbyResponders() {
                 {contact.name}
               </Text>
               <Text variant="label" muted className="mt-1 normal-case">
-                {contact.distanceKm != null ? `${contact.distanceKm} km` : 'Nearby'}
+                {contact.distanceKm != null
+                  ? `${contact.distanceKm} km`
+                  : "Nearby"}
               </Text>
             </View>
           </GlassCard>

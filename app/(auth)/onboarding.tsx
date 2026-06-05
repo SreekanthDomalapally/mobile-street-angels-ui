@@ -1,12 +1,12 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppLogo } from '@/components/ui/AppLogo';
-import { Button } from '@/components/ui/Button';
-import { Text } from '@/components/ui/Text';
-import { APP_CAPTION } from '@/constants/branding';
-import { useAuthStore } from '@/stores/authStore';
+import { AppLogo } from "@/components/ui/AppLogo";
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
+import { APP_CAPTION } from "@/constants/branding";
+import { useAuthStore } from "@/stores/authStore";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
@@ -14,15 +14,19 @@ export default function OnboardingScreen() {
 
   const continueFlow = () => {
     completeOnboarding();
-    router.replace('/(auth)/login');
+    router.replace("/(auth)/login");
   };
 
   return (
     <View className="flex-1 bg-charcoal-950">
       <LinearGradient
-        colors={['#1a1a1e', '#0f0f12', '#0f0f12']}
+        colors={["#1a1a1e", "#0f0f12", "#0f0f12"]}
         className="flex-1"
-        style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
+        style={{
+          paddingTop: insets.top + 24,
+          paddingBottom: insets.bottom + 24,
+        }}
+      >
         <View className="flex-1 justify-center px-8">
           <View className="mb-8">
             <AppLogo size="lg" />
@@ -31,8 +35,8 @@ export default function OnboardingScreen() {
             {APP_CAPTION}
           </Text>
           <Text variant="body" muted className="mb-12 leading-relaxed">
-            A calm, trusted way to reach people who care — when seconds matter. Not social media.
-            Real help, nearby.
+            A calm, trusted way to reach people who care — when seconds matter.
+            Not social media. Real help, nearby.
           </Text>
           <View className="gap-4">
             <View className="flex-row items-start gap-3">

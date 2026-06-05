@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
-import { colors } from '@/constants/theme';
+import { colors } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -12,28 +12,29 @@ export default function TabLayout() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          height: Platform.OS === "ios" ? 88 : 64,
+          paddingBottom: Platform.OS === "ios" ? 28 : 8,
           paddingTop: 8,
         },
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textSubtle,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-      }}>
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
-          tabBarAccessibilityLabel: 'Home',
+          tabBarAccessibilityLabel: "Home",
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
-          title: 'Groups',
+          title: "Groups",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
@@ -42,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="activity"
         options={{
-          title: 'Activity',
+          title: "Activity",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" size={size} color={color} />
           ),
@@ -51,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),

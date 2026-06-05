@@ -1,15 +1,15 @@
-import * as Haptics from 'expo-haptics';
-import { useEffect } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
+import { useSOSStore } from "@/stores/sosStore";
+import * as Haptics from "expo-haptics";
+import { useEffect } from "react";
+import { Modal, Pressable, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withTiming,
-} from 'react-native-reanimated';
-import { Button } from '@/components/ui/Button';
-import { Text } from '@/components/ui/Text';
-import { useSOSStore } from '@/stores/sosStore';
+} from "react-native-reanimated";
 
 interface CountdownOverlayProps {
   seconds: number;
@@ -17,7 +17,11 @@ interface CountdownOverlayProps {
   onCancel: () => void;
 }
 
-export function CountdownOverlay({ seconds, onComplete, onCancel }: CountdownOverlayProps) {
+export function CountdownOverlay({
+  seconds,
+  onComplete,
+  onCancel,
+}: CountdownOverlayProps) {
   const countdown = useSOSStore((s) => s.countdown);
   const setCountdown = useSOSStore((s) => s.setCountdown);
   const scale = useSharedValue(1);
@@ -31,7 +35,7 @@ export function CountdownOverlay({ seconds, onComplete, onCancel }: CountdownOve
 
     scale.value = withSequence(
       withTiming(1.2, { duration: 150 }),
-      withTiming(1, { duration: 150 })
+      withTiming(1, { duration: 150 }),
     );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
@@ -58,7 +62,10 @@ export function CountdownOverlay({ seconds, onComplete, onCancel }: CountdownOve
         <Text variant="body" muted className="mb-8 text-center">
           Sending alert in…
         </Text>
-        <Animated.View style={animStyle} className="mb-12 h-32 w-32 items-center justify-center rounded-full border-4 border-emergency">
+        <Animated.View
+          style={animStyle}
+          className="mb-12 h-32 w-32 items-center justify-center rounded-full border-4 border-emergency"
+        >
           <Text variant="hero" className="text-emergency-glow">
             {countdown}
           </Text>
@@ -71,7 +78,8 @@ export function CountdownOverlay({ seconds, onComplete, onCancel }: CountdownOve
           className="mt-4 p-4"
           onPress={onCancel}
           accessibilityRole="button"
-          accessibilityLabel="Cancel SOS alert">
+          accessibilityLabel="Cancel SOS alert"
+        >
           <Text variant="caption" muted>
             Tap anywhere to cancel
           </Text>
