@@ -9,6 +9,7 @@
       "node": "22.14.0",
       "env": {
         "EXPO_PUBLIC_EAS_PROJECT_ID": "d37e827f-a71b-47c3-b0df-a2b912af8063",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1065150630879-prjdgu45hcopbcdbt6dr2c2sbt24u4kn.apps.googleusercontent.com",
         "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
       }
     },

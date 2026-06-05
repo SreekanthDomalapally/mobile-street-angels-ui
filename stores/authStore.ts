@@ -42,8 +42,6 @@ export const useAuthStore = create<AuthState>()(
       name: 'street-angels-auth',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         hasGrantedPermissions: state.hasGrantedPermissions,
       }),

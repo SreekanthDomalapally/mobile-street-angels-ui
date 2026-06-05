@@ -1,37 +1,28 @@
 import type { Group } from '@/types';
-import { mockGroups } from '@/data/mock';
-import { delay } from '@/lib/utils';
-import { apiRequest } from './client';
+import { authenticatedRequest } from './client';
+import { mapApiGroupToGroup, type ApiGroupOut } from './mappers';
 
-export async function getGroups(token?: string): Promise<Group[]> {
-  try {
-    return await apiRequest<Group[]>('/groups', { token });
-  } catch {
-    await delay(400);
-    return mockGroups;
-  }
+export interface CreateGroupParams {
+  name: string;
+  description?: string;
+  isTemporary?: boolean;
+  expiresAt?: string;
 }
 
-export async function createGroup(
-  name: string,
-  memberIds: string[],
-  isTemporary?: boolean,
-  token?: string
-): Promise<Group> {
-  try {
-    return await apiRequest<Group>('/groups', {
-      method: 'POST',
-      token,
-      body: JSON.stringify({ name, memberIds, isTemporary }),
-    });
-  } catch {
-    await delay(500);
-    return {
-      id: `g-${Date.now()}`,
-      name,
-      memberCount: memberIds.length,
-      members: [],
-      isTemporary,
-    };
-  }
+export async function fetchGroups(): Promise<Group[]> {
+  const groups = await authenticatedRequest<ApiGroupOut[]>('/groups');
+  return groups.map(mapApiGroupToGroup);
+}
+
+export async function createGroup(params: CreateGroupParams): Promise<Group> {
+  const group = await authenticatedRequest<ApiGroupOut>('/groups', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: params.name,
+      description: params.description,
+      is_temporary: params.isTemporary ?? false,
+      expires_at: params.expiresAt,
+    }),
+  });
+  return mapApiGroupToGroup(group);
 }

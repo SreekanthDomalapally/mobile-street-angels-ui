@@ -14,10 +14,28 @@ import {
 } from 'firebase/auth';
 import type { User } from '@/types';
 
+function requireFirebaseEnv(name: string, value: string | undefined, fallback: string): string {
+  if (value) return value;
+  if (__DEV__) return fallback;
+  throw new Error(`Missing ${name}. Set it in EAS environment variables.`);
+}
+
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? 'demo-api-key',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'demo.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? 'street-angels-demo',
+  apiKey: requireFirebaseEnv(
+    'EXPO_PUBLIC_FIREBASE_API_KEY',
+    process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    'demo-api-key'
+  ),
+  authDomain: requireFirebaseEnv(
+    'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
+    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    'demo.firebaseapp.com'
+  ),
+  projectId: requireFirebaseEnv(
+    'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
+    process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    'street-angels-demo'
+  ),
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',

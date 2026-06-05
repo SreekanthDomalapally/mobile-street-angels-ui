@@ -1,22 +1,82 @@
-import { Linking, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
+import { ErrorState } from '@/components/common/ErrorState';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
-import { mockActiveAlert } from '@/data/mock';
+import { fetchAlert, respondToAlert } from '@/services/api/alerts';
+import { ApiError } from '@/services/api/client';
+import { Ionicons } from '@expo/vector-icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Linking, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AlertResponseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const alert = mockActiveAlert;
+  const queryClient = useQueryClient();
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const {
+    data: alert,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['alert', id],
+    queryFn: () => fetchAlert(id!),
+    enabled: Boolean(id),
+    retry: 1,
+  });
+
+  const respondMutation = useMutation({
+    mutationFn: ({
+      responseType,
+      etaMinutes,
+    }: {
+      responseType: 'i_can_help' | 'on_my_way' | 'calling_now' | 'unable_to_help';
+      etaMinutes?: number;
+    }) => respondToAlert(id!, responseType, etaMinutes),
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['alert', id] });
+    },
+    onError: (error) => {
+      setActionError(
+        error instanceof ApiError ? error.message : 'Could not send response. Try again.'
+      );
+    },
+  });
+
+  if (!id) {
+    return (
+      <View className="flex-1 bg-charcoal-950 px-5" style={{ paddingTop: insets.top + 24 }}>
+        <Text variant="body">Invalid alert link.</Text>
+      </View>
+    );
+  }
+
+  if (isLoading) {
+    return <LoadingState message="Loading alert…" />;
+  }
+
+  if (isError || !alert) {
+    return <ErrorState onRetry={() => refetch()} />;
+  }
 
   const callUser = () => Linking.openURL('tel:+15550100');
   const navigate = () =>
     Linking.openURL(
       `https://maps.google.com/?q=${alert.location.latitude},${alert.location.longitude}`
     );
+
+  const respond = (
+    responseType: 'i_can_help' | 'on_my_way' | 'calling_now' | 'unable_to_help',
+    etaMinutes?: number
+  ) => {
+    respondMutation.mutate({ responseType, etaMinutes });
+  };
 
   return (
     <View
@@ -29,7 +89,7 @@ export default function AlertResponseScreen() {
         <View>
           <Text variant="title">Respond to alert</Text>
           <Text variant="caption" muted>
-            Someone needs help nearby
+            Someone in your trusted group needs help
           </Text>
         </View>
       </View>
@@ -40,18 +100,35 @@ export default function AlertResponseScreen() {
         </Text>
         <Text variant="body">{alert.message ?? 'Emergency assistance requested'}</Text>
         <Text variant="caption" muted className="mt-2">
-          Type: {alert.type} · ID: {id ?? alert.id}
+          Type: {alert.type} · Status: {alert.status}
         </Text>
       </GlassCard>
 
+      {actionError && (
+        <Text variant="caption" className="mb-4 text-emergency">
+          {actionError}
+        </Text>
+      )}
+
       <View className="gap-3">
-        <Button title="Accept & respond" variant="emergency" size="lg" onPress={() => {}} />
-        <Button title="Share ETA (4 min)" variant="primary" onPress={() => {}} />
         <Button
-          title="Call person in need"
+          title="I can help"
+          variant="emergency"
+          size="lg"
+          loading={respondMutation.isPending}
+          onPress={() => respond('i_can_help')}
+        />
+        <Button
+          title="On my way (ETA 4 min)"
+          variant="primary"
+          loading={respondMutation.isPending}
+          onPress={() => respond('on_my_way', 4)}
+        />
+        <Button
+          title="Calling now"
           variant="secondary"
-          icon={<Ionicons name="call" size={20} color="#fff" style={{ marginRight: 8 }} />}
-          onPress={callUser}
+          loading={respondMutation.isPending}
+          onPress={() => respond('calling_now')}
         />
         <Button
           title="Open navigation"
@@ -61,21 +138,18 @@ export default function AlertResponseScreen() {
           }
           onPress={navigate}
         />
-      </View>
-
-      <Text variant="label" className="mb-3 mt-8">
-        Update status
-      </Text>
-      <View className="flex-row flex-wrap gap-2">
-        {(['viewing', 'en_route', 'arrived'] as const).map((status) => (
-          <Button
-            key={status}
-            title={status.replace('_', ' ')}
-            variant="secondary"
-            size="sm"
-            onPress={() => {}}
-          />
-        ))}
+        <Button
+          title="Call person in need"
+          variant="ghost"
+          icon={<Ionicons name="call" size={20} color="#fff" style={{ marginRight: 8 }} />}
+          onPress={callUser}
+        />
+        <Button
+          title="Unable to help"
+          variant="ghost"
+          loading={respondMutation.isPending}
+          onPress={() => respond('unable_to_help')}
+        />
       </View>
     </View>
   );

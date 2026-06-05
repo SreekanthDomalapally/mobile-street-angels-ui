@@ -1,3 +1,9 @@
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+export function temporaryGroupExpiryIso(): string {
+  return new Date(Date.now() + ONE_HOUR_MS).toISOString();
+}
+
 export function formatRelativeTime(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const minutes = Math.floor(diff / 60000);

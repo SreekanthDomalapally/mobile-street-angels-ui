@@ -1,54 +1,78 @@
-import type { EmergencyType, SOSAlert } from '@/types';
-import { mockActiveAlert } from '@/data/mock';
-import { delay } from '@/lib/utils';
-import { apiRequest } from './client';
+import type { Coordinates, EmergencyType, SOSAlert } from '@/types';
+import {
+  mapApiAlertToSOSAlert,
+  mapEmergencyTypeToApi,
+  type ApiAlertOut,
+} from './mappers';
+import { authenticatedRequest } from './client';
 
-export async function createAlert(
-  type: EmergencyType,
-  location: { latitude: number; longitude: number },
-  message?: string,
-  token?: string
-): Promise<SOSAlert> {
-  try {
-    return await apiRequest<SOSAlert>('/alerts', {
-      method: 'POST',
-      token,
-      body: JSON.stringify({ type, location, message }),
-    });
-  } catch {
-    await delay(600);
-    return {
-      ...mockActiveAlert,
-      id: `alert-${Date.now()}`,
-      type,
-      createdAt: new Date().toISOString(),
-      message,
-    };
-  }
+export interface CreateAlertParams {
+  groupId: string;
+  emergencyType: EmergencyType;
+  location: Coordinates;
+  message?: string;
 }
 
-export async function getAlert(alertId: string, token?: string): Promise<SOSAlert> {
-  try {
-    return await apiRequest<SOSAlert>(`/alerts/${alertId}`, { token });
-  } catch {
-    await delay(400);
-    return { ...mockActiveAlert, id: alertId };
-  }
+export async function createSOSAlert(params: CreateAlertParams): Promise<SOSAlert> {
+  const body = {
+    group_id: params.groupId,
+    alert_type: mapEmergencyTypeToApi(params.emergencyType),
+    latitude: params.location.latitude,
+    longitude: params.location.longitude,
+    message: params.message,
+  };
+
+  const alert = await authenticatedRequest<ApiAlertOut>('/alerts', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
+  return mapApiAlertToSOSAlert(alert);
 }
 
-export async function cancelAlert(alertId: string, token?: string): Promise<void> {
-  try {
-    await apiRequest<void>(`/alerts/${alertId}/cancel`, { method: 'POST', token });
-  } catch {
-    await delay(300);
-  }
+export async function fetchAlert(alertId: string): Promise<SOSAlert> {
+  const alert = await authenticatedRequest<ApiAlertOut>(`/alerts/${alertId}`);
+  return mapApiAlertToSOSAlert(alert);
 }
 
-export async function getAlertHistory(token?: string): Promise<SOSAlert[]> {
-  try {
-    return await apiRequest<SOSAlert[]>('/alerts/history', { token });
-  } catch {
-    await delay(500);
-    return [];
-  }
+export async function resolveSOSAlert(alertId: string): Promise<SOSAlert> {
+  const alert = await authenticatedRequest<ApiAlertOut>(`/alerts/${alertId}/resolve`, {
+    method: 'POST',
+  });
+  return mapApiAlertToSOSAlert(alert);
+}
+
+export type ApiResponseType =
+  | 'i_can_help'
+  | 'on_my_way'
+  | 'calling_now'
+  | 'unable_to_help';
+
+export async function respondToAlert(
+  alertId: string,
+  responseType: ApiResponseType,
+  etaMinutes?: number
+): Promise<void> {
+  await authenticatedRequest(`/alerts/${alertId}/responses`, {
+    method: 'POST',
+    body: JSON.stringify({
+      response_type: responseType,
+      eta_minutes: etaMinutes,
+    }),
+  });
+}
+
+export async function updateAlertLocation(
+  alertId: string,
+  location: Coordinates,
+  accuracyMeters?: number
+): Promise<void> {
+  await authenticatedRequest(`/alerts/${alertId}/location`, {
+    method: 'POST',
+    body: JSON.stringify({
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy_meters: accuracyMeters,
+    }),
+  });
 }

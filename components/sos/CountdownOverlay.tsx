@@ -13,12 +13,14 @@ import Animated, {
 
 interface CountdownOverlayProps {
   seconds: number;
+  loading?: boolean;
   onComplete: () => void;
   onCancel: () => void;
 }
 
 export function CountdownOverlay({
   seconds,
+  loading = false,
   onComplete,
   onCancel,
 }: CountdownOverlayProps) {
@@ -31,7 +33,7 @@ export function CountdownOverlay({
   }, [countdown, seconds, setCountdown]);
 
   useEffect(() => {
-    if (countdown === null || countdown <= 0) return;
+    if (loading || countdown === null || countdown <= 0) return;
 
     scale.value = withSequence(
       withTiming(1.2, { duration: 150 }),
@@ -48,7 +50,7 @@ export function CountdownOverlay({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [countdown, onComplete, setCountdown, scale]);
+  }, [countdown, loading, onComplete, setCountdown, scale]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -60,20 +62,25 @@ export function CountdownOverlay({
     <Modal transparent animationType="fade" visible accessibilityViewIsModal>
       <View className="flex-1 items-center justify-center bg-black/90 px-8">
         <Text variant="body" muted className="mb-8 text-center">
-          Sending alert in…
+          {loading ? "Sending alert to your trusted group…" : "Sending alert in…"}
         </Text>
         <Animated.View
           style={animStyle}
           className="mb-12 h-32 w-32 items-center justify-center rounded-full border-4 border-emergency"
         >
           <Text variant="hero" className="text-emergency-glow">
-            {countdown}
+            {loading ? "…" : countdown}
           </Text>
         </Animated.View>
         <Text variant="caption" muted className="mb-8 text-center">
-          Release or tap cancel to stop
+          {loading ? "Please wait" : "Release or tap cancel to stop"}
         </Text>
-        <Button title="Cancel alert" variant="secondary" onPress={onCancel} />
+        <Button
+          title="Cancel alert"
+          variant="secondary"
+          onPress={onCancel}
+          disabled={loading}
+        />
         <Pressable
           className="mt-4 p-4"
           onPress={onCancel}

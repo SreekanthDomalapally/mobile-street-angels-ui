@@ -5,6 +5,8 @@ import { EmergencyTypePicker } from "@/components/sos/EmergencyTypePicker";
 import { SOSButton } from "@/components/sos/SOSButton";
 import { AppLogo } from "@/components/ui/AppLogo";
 import { Text } from "@/components/ui/Text";
+import { ApiError } from "@/services/api/client";
+import { triggerSOS } from "@/services/sos";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSOSStore } from "@/stores/sosStore";
 import { router } from "expo-router";
@@ -16,16 +18,43 @@ export default function HomeScreen() {
   const countdownSeconds = useSettingsStore(
     (s) => s.emergency.countdownSeconds,
   );
-  const { status, countdown, setCountdown, activateSOS, cancelArming } =
-    useSOSStore();
+  const {
+    status,
+    countdown,
+    emergencyType,
+    activationError,
+    isActivating,
+    setCountdown,
+    setActiveAlert,
+    setActivating,
+    setActivationError,
+    cancelArming,
+  } = useSOSStore();
 
   const handleSOSComplete = () => {
+    setActivationError(null);
     setCountdown(countdownSeconds);
   };
 
-  const handleCountdownComplete = () => {
-    activateSOS();
-    router.push("/sos/active");
+  const handleCountdownComplete = async () => {
+    setActivating(true);
+    setActivationError(null);
+    try {
+      const alert = await triggerSOS(emergencyType);
+      setActiveAlert(alert);
+      router.push("/sos/active");
+    } catch (error) {
+      setActivating(false);
+      setCountdown(null);
+      cancelArming();
+      setActivationError(
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "SOS failed. Please try again."
+      );
+    }
   };
 
   const handleCountdownCancel = () => {
@@ -52,13 +81,19 @@ export default function HomeScreen() {
             </View>
           </View>
           <Text variant="title" className="leading-tight">
-            You're protected
+            You are protected
           </Text>
         </View>
 
         <View className="my-8 items-center">
           <SOSButton onActivate={handleSOSComplete} />
         </View>
+
+        {activationError && (
+          <Text variant="caption" className="mb-4 text-center text-emergency">
+            {activationError}
+          </Text>
+        )}
 
         <EmergencyTypePicker />
 
@@ -70,6 +105,7 @@ export default function HomeScreen() {
       {countdown !== null && status !== "active" && (
         <CountdownOverlay
           seconds={countdown}
+          loading={isActivating}
           onComplete={handleCountdownComplete}
           onCancel={handleCountdownCancel}
         />

@@ -8,7 +8,7 @@ import 'react-native-reanimated';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuthBootstrap } from '@/hooks/useAuth';
 
-export { ErrorBoundary } from 'expo-router';
+export { AppErrorBoundary as ErrorBoundary } from '@/components/common/AppErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 

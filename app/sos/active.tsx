@@ -8,14 +8,24 @@ import { ResponderCard } from '@/components/sos/ResponderCard';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Text } from '@/components/ui/Text';
-import { alertSocket, simulateResponderUpdates } from '@/services/websocket';
+import { updateAlertLocation } from '@/services/api/alerts';
+import { getAccessToken } from '@/services/auth';
+import { watchLocation } from '@/services/location';
 import { scheduleEmergencyNotification } from '@/services/notifications';
+import { endSOSAlert } from '@/services/sos';
+import { alertSocket } from '@/services/websocket';
 import { useSOSStore } from '@/stores/sosStore';
 
 export default function SOSActiveScreen() {
   const insets = useSafeAreaInsets();
-  const { activeAlert, cancelSOS, resolveAlert, updateResponders, addTimelineEvent } =
-    useSOSStore();
+  const {
+    activeAlert,
+    cancelSOS,
+    resolveAlert,
+    updateResponders,
+    addTimelineEvent,
+    setActiveAlert,
+  } = useSOSStore();
 
   useEffect(() => {
     if (!activeAlert) return;
@@ -25,26 +35,64 @@ export default function SOSActiveScreen() {
       'Your trusted contacts have been notified. Help is on the way.'
     );
 
-    alertSocket.connect(activeAlert.id);
-    const cleanup = simulateResponderUpdates(
-      (responders) => updateResponders(responders),
-      addTimelineEvent
-    );
+    let stopWatching: (() => void) | undefined;
+
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+
+      alertSocket.connect(activeAlert.id, token);
+      alertSocket.onRespondersUpdate(updateResponders);
+      alertSocket.onTimelineEvent(addTimelineEvent);
+      alertSocket.onStatusChange((status) => {
+        if (status === 'resolved') {
+          resolveAlert();
+          router.replace('/(tabs)');
+        }
+      });
+
+      stopWatching = await watchLocation(async (coords) => {
+        const current = useSOSStore.getState().activeAlert;
+        if (!current) return;
+        try {
+          await updateAlertLocation(current.id, coords);
+          setActiveAlert({ ...current, location: coords });
+        } catch {
+          // Location updates are best-effort during an active alert.
+        }
+      });
+    })();
 
     return () => {
       alertSocket.disconnect();
-      cleanup();
+      stopWatching?.();
     };
-  }, [activeAlert?.id, addTimelineEvent, updateResponders]);
+    // Reconnect when alert id changes; location updates read fresh state via getState().
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeAlert object identity changes on each location tick
+  }, [activeAlert?.id, addTimelineEvent, resolveAlert, setActiveAlert, updateResponders]);
 
-  const handleCancel = () => {
-    cancelSOS();
-    router.back();
+  const handleEndAlert = async () => {
+    if (!activeAlert) return;
+    try {
+      await endSOSAlert(activeAlert.id);
+    } catch (error) {
+      console.warn('[sos] Failed to resolve alert on server:', error);
+    } finally {
+      resolveAlert();
+      router.replace('/(tabs)');
+    }
   };
 
-  const handleResolve = () => {
-    resolveAlert();
-    router.replace('/(tabs)');
+  const handleCancel = async () => {
+    if (activeAlert) {
+      try {
+        await endSOSAlert(activeAlert.id);
+      } catch {
+        // Still clear local state if network fails.
+      }
+    }
+    cancelSOS();
+    router.back();
   };
 
   if (!activeAlert) {
@@ -95,9 +143,13 @@ export default function SOSActiveScreen() {
         <Text variant="label" className="mb-3">
           Responders
         </Text>
-        {activeAlert.responders.map((r) => (
-          <ResponderCard key={r.id} responder={r} />
-        ))}
+        {activeAlert.responders.length === 0 ? (
+          <Text variant="body" muted className="mb-4">
+            Waiting for responses from your trusted group…
+          </Text>
+        ) : (
+          activeAlert.responders.map((r) => <ResponderCard key={r.id} responder={r} />)
+        )}
 
         <Text variant="label" className="mb-3 mt-6">
           Live timeline
@@ -105,7 +157,7 @@ export default function SOSActiveScreen() {
         <EventTimeline events={activeAlert.timeline} />
 
         <View className="mt-6 gap-3">
-          <Button title="I'm safe — end alert" variant="primary" onPress={handleResolve} />
+          <Button title="I'm safe — end alert" variant="primary" onPress={handleEndAlert} />
           <Button title="Cancel alert" variant="ghost" onPress={handleCancel} />
         </View>
       </ScrollView>

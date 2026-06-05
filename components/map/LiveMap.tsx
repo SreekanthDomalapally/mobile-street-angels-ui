@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import type { Coordinates, Responder } from '@/types';
@@ -14,19 +14,15 @@ export function LiveMap({
   userLocation = MOCK_USER_LOCATION,
   responders = [],
 }: LiveMapProps) {
-  const [region, setRegion] = useState({
-    ...userLocation,
-    latitudeDelta: 0.02,
-    longitudeDelta: 0.02,
-  });
-
-  useEffect(() => {
-    setRegion((r) => ({
-      ...r,
+  const region = useMemo(
+    () => ({
       latitude: userLocation.latitude,
       longitude: userLocation.longitude,
-    }));
-  }, [userLocation]);
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    }),
+    [userLocation.latitude, userLocation.longitude]
+  );
 
   return (
     <View className="flex-1 overflow-hidden rounded-none">

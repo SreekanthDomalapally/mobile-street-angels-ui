@@ -7,11 +7,13 @@ import { useAuthStore } from '@/stores/authStore';
 export function useAuthBootstrap() {
   const setUser = useAuthStore((s) => s.setUser);
   const signOut = useAuthStore((s) => s.signOut);
+  const setLoading = useAuthStore((s) => s.setLoading);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
+      setLoading(true);
       try {
         const tokens = await getAuthTokens();
         if (cancelled) return;
@@ -25,13 +27,15 @@ export function useAuthBootstrap() {
           }
         }
 
-        if (useAuthStore.getState().isAuthenticated) {
-          signOut();
-        }
+        signOut();
       } catch (error) {
         console.warn('[auth] Session bootstrap failed:', error);
-        if (!cancelled && useAuthStore.getState().isAuthenticated) {
+        if (!cancelled) {
           signOut();
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
     })();
@@ -39,5 +43,5 @@ export function useAuthBootstrap() {
     return () => {
       cancelled = true;
     };
-  }, [setUser, signOut]);
+  }, [setUser, signOut, setLoading]);
 }

@@ -1,13 +1,15 @@
 import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
+import { registerDeviceToken } from '@/services/api/auth';
+import { getAccessToken } from '@/services/auth';
 import { requestLocationPermission } from '@/services/location';
 import { registerForPushNotifications } from '@/services/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const steps = [
@@ -50,7 +52,13 @@ export default function PermissionsScreen() {
       if (current.id === 'location') {
         await requestLocationPermission();
       } else {
-        await registerForPushNotifications();
+        const pushToken = await registerForPushNotifications();
+        if (pushToken) {
+          const accessToken = await getAccessToken();
+          if (accessToken) {
+            await registerDeviceToken(accessToken, pushToken, Platform.OS);
+          }
+        }
       }
     } catch (error) {
       console.warn('[permissions] Request failed:', error);

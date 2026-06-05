@@ -1,9 +1,23 @@
-import { useQuery } from '@tanstack/react-query';
-import { getGroups } from '@/services/api/groups';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createGroup, fetchGroups } from '@/services/api/groups';
+import type { CreateGroupParams } from '@/services/api/groups';
 
 export function useGroups() {
   return useQuery({
     queryKey: ['groups'],
-    queryFn: () => getGroups(),
+    queryFn: () => fetchGroups(),
+    retry: 1,
+  });
+}
+
+export function useCreateGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: CreateGroupParams) => createGroup(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
+    },
   });
 }

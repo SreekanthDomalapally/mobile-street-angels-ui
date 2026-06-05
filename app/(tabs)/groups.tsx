@@ -4,9 +4,10 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
-import { useGroups } from "@/hooks/useGroups";
+import { useCreateGroup, useGroups } from "@/hooks/useGroups";
+import { temporaryGroupExpiryIso } from "@/lib/utils";
+import { ApiError } from "@/services/api/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { router } from "expo-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -22,8 +23,10 @@ type GroupForm = z.infer<typeof groupSchema>;
 export default function GroupsScreen() {
   const insets = useSafeAreaInsets();
   const { data: groups, isLoading, isError, refetch } = useGroups();
+  const createGroupMutation = useCreateGroup();
   const [modalVisible, setModalVisible] = useState(false);
   const [isTemporary, setIsTemporary] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     control,
@@ -35,10 +38,24 @@ export default function GroupsScreen() {
     defaultValues: { name: "" },
   });
 
-  const onCreate = (data: GroupForm) => {
-    reset();
-    setModalVisible(false);
-    refetch();
+  const onCreate = async (data: GroupForm) => {
+    setFormError(null);
+    try {
+      await createGroupMutation.mutateAsync({
+        name: data.name,
+        isTemporary,
+        expiresAt: isTemporary ? temporaryGroupExpiryIso() : undefined,
+      });
+      reset();
+      setIsTemporary(false);
+      setModalVisible(false);
+    } catch (error) {
+      setFormError(
+        error instanceof ApiError
+          ? error.message
+          : "Could not create group. Please try again."
+      );
+    }
   };
 
   return (
@@ -71,7 +88,7 @@ export default function GroupsScreen() {
             <EmptyState
               icon="people-outline"
               title="No groups yet"
-              description="Create a trusted circle for emergencies and everyday safety."
+              description="Create a trusted circle before sending SOS alerts."
               action={
                 <Button
                   title="Create group"
@@ -81,16 +98,7 @@ export default function GroupsScreen() {
             />
           ) : (
             groups?.map((group) => (
-              <GroupCard
-                key={group.id}
-                group={group}
-                onPress={() =>
-                  router.push({
-                    pathname: "/alert/[id]",
-                    params: { id: group.id },
-                  })
-                }
-              />
+              <GroupCard key={group.id} group={group} />
             ))
           )}
         </ScrollView>
@@ -128,16 +136,27 @@ export default function GroupsScreen() {
                 {errors.name.message}
               </Text>
             )}
+            {formError && (
+              <Text variant="caption" className="mb-4 text-emergency">
+                {formError}
+              </Text>
+            )}
             <Pressable
               onPress={() => setIsTemporary(!isTemporary)}
               className="mb-6 flex-row items-center gap-3 py-2"
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isTemporary }}
             >
               <View
                 className={`h-6 w-6 rounded-md border ${isTemporary ? "border-responder bg-responder" : "border-charcoal-500"}`}
               />
               <Text variant="body">Temporary group (expires in 1 hour)</Text>
             </Pressable>
-            <Button title="Create" onPress={handleSubmit(onCreate)} />
+            <Button
+              title="Create"
+              loading={createGroupMutation.isPending}
+              onPress={handleSubmit(onCreate)}
+            />
           </Pressable>
         </Pressable>
       </Modal>

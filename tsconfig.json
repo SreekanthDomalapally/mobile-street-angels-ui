@@ -16,5 +16,12 @@
     "nativewind-env.d.ts",
     "global.d.ts",
     "types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "website/**",
+    "__tests__/**",
+    "lib/googleServicesConfig.ts",
+    "app.config.ts"
   ]
 }

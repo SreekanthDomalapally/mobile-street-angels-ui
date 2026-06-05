@@ -90,9 +90,9 @@ export default function LoginScreen() {
             Web dev mode: demo sign-in only. Use an Android build for real Google auth.
           </Text>
         )}
-        {Platform.OS === "ios" && (
+        {Platform.OS === "ios" && __DEV__ && (
           <Button
-            title="Continue with Apple"
+            title="Continue with Apple (dev only)"
             variant="secondary"
             size="lg"
             disabled={isLoading}

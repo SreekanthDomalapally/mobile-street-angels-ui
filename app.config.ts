@@ -1,4 +1,5 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+import { readGoogleWebClientId } from './lib/googleServicesConfig';
 
 /** Linked EAS project: @sreekanth.domalapally/mobile-youhoo-alert */
 const EAS_PROJECT_ID = 'd37e827f-a71b-47c3-b0df-a2b912af8063';
@@ -20,18 +21,41 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ? baseConfig.extra.eas
       : {};
 
+  const androidMapsKey =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ??
+    baseConfig.android?.config?.googleMaps?.apiKey;
+  const iosMapsKey =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY ??
+    baseConfig.ios?.config?.googleMapsApiKey;
+
+  const googleWebClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
+    readGoogleWebClientId(GOOGLE_SERVICES_FILE);
+
   return {
     ...baseConfig,
     ios: {
       ...baseConfig.ios,
       googleServicesFile: GOOGLE_SERVICE_INFO_PLIST,
+      config: {
+        ...baseConfig.ios?.config,
+        ...(iosMapsKey ? { googleMapsApiKey: iosMapsKey } : {}),
+      },
     },
     android: {
       ...baseConfig.android,
       googleServicesFile: GOOGLE_SERVICES_FILE,
+      config: {
+        ...baseConfig.android?.config,
+        googleMaps: {
+          ...baseConfig.android?.config?.googleMaps,
+          ...(androidMapsKey ? { apiKey: androidMapsKey } : {}),
+        },
+      },
     },
     extra: {
       ...baseConfig.extra,
+      googleWebClientId,
       eas: {
         ...easExtra,
         projectId: EAS_PROJECT_ID,

@@ -3,6 +3,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { APP_NAME } from "@/constants/branding";
+import { getAppVersionLabel } from "@/lib/appVersion";
 import { signOut as authSignOut } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -107,7 +108,7 @@ export default function ProfileScreen() {
         className="mb-4"
       />
       <Text variant="caption" muted className="text-center">
-        {APP_NAME} v1.0 · Free to use
+        {APP_NAME} v{getAppVersionLabel()} · Free to use
       </Text>
     </ScrollView>
   );

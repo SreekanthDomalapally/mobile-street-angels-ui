@@ -1,13 +1,15 @@
 import { ActivityCard } from "@/components/activity/ActivityCard";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Text } from "@/components/ui/Text";
-import { mockActivity } from "@/data/mock";
+import { useActivity } from "@/hooks/useActivity";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
-  const items = mockActivity;
+  const { data: items, isLoading, isError, refetch } = useActivity();
 
   return (
     <View className="flex-1 bg-charcoal-950">
@@ -18,24 +20,28 @@ export default function ActivityScreen() {
         </Text>
       </View>
 
-      <ScrollView
-        className="flex-1 px-5"
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 100,
-          paddingTop: 20,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {items.length === 0 ? (
-          <EmptyState
-            icon="time-outline"
-            title="No activity yet"
-            description="Past alerts and check-ins will appear here."
-          />
-        ) : (
-          items.map((item) => <ActivityCard key={item.id} item={item} />)
-        )}
-      </ScrollView>
+      {isLoading && <LoadingState message="Loading activity…" />}
+      {isError && <ErrorState onRetry={() => refetch()} />}
+      {!isLoading && !isError && (
+        <ScrollView
+          className="flex-1 px-5"
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 100,
+            paddingTop: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {(items?.length ?? 0) === 0 ? (
+            <EmptyState
+              icon="time-outline"
+              title="No activity yet"
+              description="Your trusted groups will appear here. Alert history is coming soon."
+            />
+          ) : (
+            items?.map((item) => <ActivityCard key={item.id} item={item} />)
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { EmergencyType, Responder, SOSAlert, TimelineEvent } from '@/types';
-import { mockActiveAlert, mockTimeline } from '@/data/mock';
 
 interface SOSState {
   status: 'idle' | 'arming' | 'active' | 'responding' | 'resolved' | 'cancelled';
@@ -9,17 +8,22 @@ interface SOSState {
   countdown: number | null;
   activeAlert: SOSAlert | null;
   isOffline: boolean;
+  isActivating: boolean;
+  activationError: string | null;
   setEmergencyType: (type: EmergencyType) => void;
   setHoldProgress: (progress: number) => void;
   setCountdown: (count: number | null) => void;
   startArming: () => void;
   cancelArming: () => void;
-  activateSOS: () => void;
+  setActivating: (value: boolean) => void;
+  setActivationError: (message: string | null) => void;
+  setActiveAlert: (alert: SOSAlert) => void;
   cancelSOS: () => void;
   updateResponders: (responders: Responder[]) => void;
   addTimelineEvent: (event: TimelineEvent) => void;
   setOffline: (offline: boolean) => void;
   resolveAlert: () => void;
+  resetSOS: () => void;
 }
 
 export const useSOSStore = create<SOSState>((set, get) => ({
@@ -29,57 +33,61 @@ export const useSOSStore = create<SOSState>((set, get) => ({
   countdown: null,
   activeAlert: null,
   isOffline: false,
+  isActivating: false,
+  activationError: null,
   setEmergencyType: (emergencyType) => set({ emergencyType }),
   setHoldProgress: (holdProgress) => set({ holdProgress }),
   setCountdown: (countdown) => set({ countdown }),
-  startArming: () => set({ status: 'arming', holdProgress: 0 }),
+  startArming: () => set({ status: 'arming', holdProgress: 0, activationError: null }),
   cancelArming: () => set({ status: 'idle', holdProgress: 0, countdown: null }),
-  activateSOS: () => {
-    const { emergencyType } = get();
+  setActivating: (isActivating) => set({ isActivating }),
+  setActivationError: (activationError) => set({ activationError }),
+  setActiveAlert: (alert) =>
     set({
-      status: 'active',
+      status: alert.status === 'responding' ? 'responding' : 'active',
       holdProgress: 1,
       countdown: null,
-      activeAlert: {
-        ...mockActiveAlert,
-        id: `alert-${Date.now()}`,
-        type: emergencyType,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        timeline: [
-          {
-            id: `t-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            title: 'SOS alert sent',
-            description: 'Your trusted contacts have been notified',
-            type: 'system',
-          },
-          ...mockTimeline.slice(1),
-        ],
-      },
-    });
-    setTimeout(() => {
-      const current = get();
-      if (current.status === 'active') {
-        set({ status: 'responding', activeAlert: { ...mockActiveAlert, type: emergencyType } });
-      }
-    }, 1500);
-  },
+      activeAlert: alert,
+      isActivating: false,
+      activationError: null,
+    }),
   cancelSOS: () =>
     set({
       status: 'cancelled',
       activeAlert: null,
       holdProgress: 0,
       countdown: null,
+      isActivating: false,
     }),
   updateResponders: (responders) => {
     const alert = get().activeAlert;
-    if (alert) set({ activeAlert: { ...alert, responders } });
+    if (!alert) return;
+    set({
+      status: 'responding',
+      activeAlert: { ...alert, status: 'responding', responders },
+    });
   },
   addTimelineEvent: (event) => {
     const alert = get().activeAlert;
-    if (alert) set({ activeAlert: { ...alert, timeline: [event, ...alert.timeline] } });
+    if (!alert) return;
+    set({ activeAlert: { ...alert, timeline: [event, ...alert.timeline] } });
   },
   setOffline: (isOffline) => set({ isOffline }),
-  resolveAlert: () => set({ status: 'resolved', activeAlert: null, holdProgress: 0 }),
+  resolveAlert: () =>
+    set({
+      status: 'resolved',
+      activeAlert: null,
+      holdProgress: 0,
+      countdown: null,
+      isActivating: false,
+    }),
+  resetSOS: () =>
+    set({
+      status: 'idle',
+      holdProgress: 0,
+      countdown: null,
+      activeAlert: null,
+      isActivating: false,
+      activationError: null,
+    }),
 }));

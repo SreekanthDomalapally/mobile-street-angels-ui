@@ -1,79 +1,126 @@
+import { getAlertWebSocketUrl } from '@/services/api/client';
+import {
+  buildTimelineFromWsEvent,
+  mapWsResponseToResponder,
+} from '@/services/api/mappers';
 import type { Responder, TimelineEvent } from '@/types';
 
-type MessageHandler = (data: unknown) => void;
+type RespondersHandler = (responders: Responder[]) => void;
+type TimelineHandler = (event: TimelineEvent) => void;
+type StatusHandler = (status: string) => void;
 
-const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? 'wss://api.streetangels.example/ws';
+const MAX_RECONNECT_ATTEMPTS = 8;
 
 export class AlertWebSocket {
   private ws: WebSocket | null = null;
-  private handlers: Map<string, MessageHandler[]> = new Map();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempts = 0;
   private alertId: string | null = null;
+  private token: string | null = null;
+  private responders: Responder[] = [];
 
-  connect(alertId: string, token?: string) {
+  private onResponders?: RespondersHandler;
+  private onTimeline?: TimelineHandler;
+  private onStatus?: StatusHandler;
+
+  connect(alertId: string, token: string) {
+    this.disconnect(false);
     this.alertId = alertId;
-    const url = `${WS_URL}?alertId=${alertId}${token ? `&token=${token}` : ''}`;
+    this.token = token;
+    this.reconnectAttempts = 0;
+    this.openSocket();
+  }
+
+  private openSocket() {
+    if (!this.alertId || !this.token) return;
 
     try {
+      const url = getAlertWebSocketUrl(this.alertId, this.token);
       this.ws = new WebSocket(url);
+
       this.ws.onmessage = (event) => {
         try {
-          const payload = JSON.parse(event.data as string);
-          const type = payload.type as string;
-          const handlers = this.handlers.get(type) ?? [];
-          handlers.forEach((h) => h(payload.data));
+          const payload = JSON.parse(event.data as string) as Record<string, unknown>;
+          this.handlePayload(payload);
         } catch {
-          // Mock mode: ignore parse errors when no server
+          // Ignore malformed frames.
         }
       };
+
+      this.ws.onopen = () => {
+        this.reconnectAttempts = 0;
+      };
+
       this.ws.onclose = () => this.scheduleReconnect();
       this.ws.onerror = () => {
         this.ws?.close();
       };
     } catch {
-      // Offline / demo: no WebSocket server
+      this.scheduleReconnect();
+    }
+  }
+
+  private handlePayload(payload: Record<string, unknown>) {
+    const type = String(payload.type ?? '');
+
+    if (type === 'alert_response') {
+      const responder = mapWsResponseToResponder(payload);
+      if (responder) {
+        this.responders = [...this.responders, responder];
+        this.onResponders?.(this.responders);
+      }
+    }
+
+    const timelineEvent = buildTimelineFromWsEvent(payload);
+    if (timelineEvent) {
+      this.onTimeline?.(timelineEvent);
+    }
+
+    if (type === 'alert_resolved' || type === 'alert_created') {
+      const status = String(payload.status ?? type);
+      this.onStatus?.(status);
     }
   }
 
   private scheduleReconnect() {
-    if (!this.alertId) return;
+    if (!this.alertId || !this.token) return;
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
+
+    this.reconnectAttempts += 1;
+    const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 30_000);
+
     this.reconnectTimer = setTimeout(() => {
-      if (this.alertId) this.connect(this.alertId);
-    }, 5000);
+      this.openSocket();
+    }, delay);
   }
 
-  on(event: 'responders' | 'timeline' | 'status', handler: MessageHandler) {
-    const list = this.handlers.get(event) ?? [];
-    list.push(handler);
-    this.handlers.set(event, list);
+  onRespondersUpdate(handler: RespondersHandler) {
+    this.onResponders = handler;
   }
 
-  sendStatusUpdate(status: string) {
-    this.ws?.send(JSON.stringify({ type: 'status_update', status }));
+  onTimelineEvent(handler: TimelineHandler) {
+    this.onTimeline = handler;
   }
 
-  disconnect() {
+  onStatusChange(handler: StatusHandler) {
+    this.onStatus = handler;
+  }
+
+  disconnect(clearHandlers = true) {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     this.ws?.close();
     this.ws = null;
     this.alertId = null;
-    this.handlers.clear();
+    this.token = null;
+    this.responders = [];
+    this.reconnectAttempts = 0;
+    if (clearHandlers) {
+      this.onResponders = undefined;
+      this.onTimeline = undefined;
+      this.onStatus = undefined;
+    }
   }
 }
 
 export const alertSocket = new AlertWebSocket();
-
-export function simulateResponderUpdates(
-  onResponders: (responders: Responder[]) => void,
-  onTimeline: (event: TimelineEvent) => void
-): () => void {
-  const interval = setInterval(() => {
-    onTimeline({
-      id: `sim-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      title: 'Location updated',
-      type: 'system',
-    });
-  }, 15000);
-  return () => clearInterval(interval);
-}
