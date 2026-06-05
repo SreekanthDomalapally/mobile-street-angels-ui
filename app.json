@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.youhooalert.com",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "YouHoo Alert uses your location only during active SOS alerts to share with trusted responders.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Location is used during emergencies to help trusted contacts find you.",
