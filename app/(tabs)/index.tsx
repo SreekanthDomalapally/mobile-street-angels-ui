@@ -44,12 +44,16 @@ export default function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="mb-6 flex-row items-center justify-between">
-          <View className="flex-1 gap-2">
+        <View className="mb-6 gap-3">
+          <View className="flex-row items-start justify-between gap-3">
             <AppLogo size="sm" />
-            <Text variant="title">You're protected</Text>
+            <View className="shrink-0">
+              <StatusIndicator />
+            </View>
           </View>
-          <StatusIndicator />
+          <Text variant="title" className="leading-tight">
+            You're protected
+          </Text>
         </View>
 
         <View className="my-8 items-center">
