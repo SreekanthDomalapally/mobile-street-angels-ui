@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const ACCESS_TOKEN_KEY = 'street-angels-access-token';
 const REFRESH_TOKEN_KEY = 'street-angels-refresh-token';
@@ -8,20 +10,56 @@ export interface StoredAuthTokens {
   refreshToken: string;
 }
 
+function useSecureStore(): boolean {
+  return Platform.OS === 'ios' || Platform.OS === 'android';
+}
+
+async function setItem(key: string, value: string): Promise<void> {
+  if (useSecureStore()) {
+    await SecureStore.setItemAsync(key, value);
+    return;
+  }
+  await AsyncStorage.setItem(key, value);
+}
+
+async function getItem(key: string): Promise<string | null> {
+  if (useSecureStore()) {
+    return SecureStore.getItemAsync(key);
+  }
+  return AsyncStorage.getItem(key);
+}
+
+async function deleteItem(key: string): Promise<void> {
+  if (useSecureStore()) {
+    await SecureStore.deleteItemAsync(key);
+    return;
+  }
+  await AsyncStorage.removeItem(key);
+}
+
 export async function saveAuthTokens(accessToken: string, refreshToken: string): Promise<void> {
-  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
-  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+  await setItem(ACCESS_TOKEN_KEY, accessToken);
+  await setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 export async function getAuthTokens(): Promise<StoredAuthTokens | null> {
-  const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-  const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  try {
+    const accessToken = await getItem(ACCESS_TOKEN_KEY);
+    const refreshToken = await getItem(REFRESH_TOKEN_KEY);
 
-  if (!accessToken || !refreshToken) return null;
-  return { accessToken, refreshToken };
+    if (!accessToken || !refreshToken) return null;
+    return { accessToken, refreshToken };
+  } catch (error) {
+    console.warn('[tokenStorage] Failed to read auth tokens:', error);
+    return null;
+  }
 }
 
 export async function clearAuthTokens(): Promise<void> {
-  await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
-  await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  try {
+    await deleteItem(ACCESS_TOKEN_KEY);
+    await deleteItem(REFRESH_TOKEN_KEY);
+  } catch (error) {
+    console.warn('[tokenStorage] Failed to clear auth tokens:', error);
+  }
 }

@@ -8,14 +8,23 @@ import {
   getGoogleIdToken,
   GoogleSignInCancelledError,
   signOutGoogle,
+  usesDevGoogleSignIn,
 } from '@/services/googleSignIn';
-import { signInWithGoogle as firebaseSignInWithGoogle, signOut as firebaseSignOut } from '@/services/firebase';
+import {
+  signInWithGoogle as firebaseSignInWithGoogle,
+  signInWithGoogleMock,
+  signOut as firebaseSignOut,
+} from '@/services/firebase';
 import { clearAuthTokens, getAuthTokens, saveAuthTokens } from '@/services/tokenStorage';
 import type { User } from '@/types';
 
 export { GoogleSignInCancelledError };
 
 export async function signInWithGoogle(): Promise<User> {
+  if (usesDevGoogleSignIn()) {
+    return signInWithGoogleMock();
+  }
+
   const idToken = await getGoogleIdToken();
 
   try {

@@ -31,15 +31,21 @@ export class GoogleSignInCancelledError extends Error {
   }
 }
 
+/** Native Google Sign-In (Android/iOS builds). Web uses dev demo sign-in when __DEV__. */
 export function isGoogleSignInAvailable(): boolean {
-  return Platform.OS === 'android' || Platform.OS === 'ios';
+  if (Platform.OS === 'android' || Platform.OS === 'ios') return true;
+  return Platform.OS === 'web' && __DEV__;
+}
+
+export function usesDevGoogleSignIn(): boolean {
+  return Platform.OS === 'web' && __DEV__;
 }
 
 export async function getGoogleIdToken(): Promise<string> {
   configureGoogleSignIn();
 
-  if (!isGoogleSignInAvailable()) {
-    throw new Error('Google Sign-In is only available on Android and iOS device builds.');
+  if (Platform.OS === 'web') {
+    throw new Error('Native Google Sign-In is not available on web.');
   }
 
   if (!webClientId) {

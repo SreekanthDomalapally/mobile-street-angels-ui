@@ -12,20 +12,27 @@ export function useAuthBootstrap() {
     let cancelled = false;
 
     (async () => {
-      const tokens = await getAuthTokens();
-      if (cancelled) return;
-
-      if (tokens) {
-        const user = await restoreSession();
+      try {
+        const tokens = await getAuthTokens();
         if (cancelled) return;
-        if (user) {
-          setUser(user);
-          return;
-        }
-      }
 
-      if (useAuthStore.getState().isAuthenticated) {
-        signOut();
+        if (tokens) {
+          const user = await restoreSession();
+          if (cancelled) return;
+          if (user) {
+            setUser(user);
+            return;
+          }
+        }
+
+        if (useAuthStore.getState().isAuthenticated) {
+          signOut();
+        }
+      } catch (error) {
+        console.warn('[auth] Session bootstrap failed:', error);
+        if (!cancelled && useAuthStore.getState().isAuthenticated) {
+          signOut();
+        }
       }
     })();
 

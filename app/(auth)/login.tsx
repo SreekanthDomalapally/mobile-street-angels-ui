@@ -2,7 +2,7 @@ import { AppLogo } from "@/components/ui/AppLogo";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { GoogleSignInCancelledError, signInWithGoogle } from "@/services/auth";
-import { isGoogleSignInAvailable } from "@/services/googleSignIn";
+import { isGoogleSignInAvailable, usesDevGoogleSignIn } from "@/services/googleSignIn";
 import { signInWithAppleMock } from "@/services/firebase";
 import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
@@ -82,7 +82,12 @@ export default function LoginScreen() {
         />
         {!googleAvailable && (
           <Text variant="caption" muted className="text-center">
-            Google Sign-In requires an Android or iOS build (not Expo Go or web).
+            Google Sign-In requires an Android or iOS device build.
+          </Text>
+        )}
+        {usesDevGoogleSignIn() && (
+          <Text variant="caption" muted className="text-center">
+            Web dev mode: demo sign-in only. Use an Android build for real Google auth.
           </Text>
         )}
         {Platform.OS === "ios" && (
