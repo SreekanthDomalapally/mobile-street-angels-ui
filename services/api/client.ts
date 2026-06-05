@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.streetangels.example/v1';
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.streetangels.example/v1').replace(
+  /\/+$/,
+  ''
+);
 
 export class ApiError extends Error {
   constructor(

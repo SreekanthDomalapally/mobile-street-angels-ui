@@ -1,9 +1,9 @@
 import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 
-/** Remote push is unavailable in Expo Go (SDK 53+). Use a development build for production push. */
+/** Push is native-only: unavailable in Expo Go (SDK 53+) and on web (requires VAPID). */
 export function arePushNotificationsSupported(): boolean {
-  return !isRunningInExpoGo();
+  return Platform.OS !== 'web' && !isRunningInExpoGo();
 }
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -38,7 +38,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   if (!Notifications) {
     if (__DEV__) {
       console.info(
-        '[notifications] Skipped in Expo Go. Build with expo-dev-client for push tokens.'
+        '[notifications] Skipped on web / Expo Go. Use a development or store build on a device for push tokens.'
       );
     }
     return null;
