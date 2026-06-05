@@ -1,14 +1,46 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
-import { readGoogleWebClientId } from './lib/googleServicesConfig';
 
 /** Linked EAS project: @sreekanth.domalapally/mobile-youhoo-alert */
 const EAS_PROJECT_ID = 'd37e827f-a71b-47c3-b0df-a2b912af8063';
+const PLAY_STORE_PACKAGE = 'com.youhooalert.com';
 
 const GOOGLE_SERVICES_FILE =
   process.env.GOOGLE_SERVICES_JSON ?? './google-services.json';
 
 const GOOGLE_SERVICE_INFO_PLIST =
   process.env.GOOGLE_SERVICE_INFO_PLIST ?? './GoogleService-Info.plist';
+
+/** Web OAuth client (client_type 3) from google-services.json — used at EAS build time. */
+function readGoogleWebClientId(servicesPath: string): string | undefined {
+  try {
+    const absolutePath = path.resolve(servicesPath);
+    const json = JSON.parse(fs.readFileSync(absolutePath, 'utf8')) as {
+      client?: Array<{
+        client_info?: { android_client_info?: { package_name?: string } };
+        oauth_client?: Array<{ client_id?: string; client_type?: number }>;
+      }>;
+    };
+
+    for (const client of json.client ?? []) {
+      const packageName = client.client_info?.android_client_info?.package_name;
+      if (packageName !== PLAY_STORE_PACKAGE) continue;
+
+      const webClient = client.oauth_client?.find((entry) => entry.client_type === 3);
+      if (webClient?.client_id) return webClient.client_id;
+    }
+
+    for (const client of json.client ?? []) {
+      const webClient = client.oauth_client?.find((entry) => entry.client_type === 3);
+      if (webClient?.client_id) return webClient.client_id;
+    }
+  } catch {
+    // File may be absent in some environments; eas.json env is the fallback.
+  }
+
+  return undefined;
+}
 
 /**
  * Extends app.json. Override via EXPO_PUBLIC_EAS_PROJECT_ID in .env if needed.
