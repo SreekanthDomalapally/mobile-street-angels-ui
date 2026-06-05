@@ -1,7 +1,9 @@
 import { AppLogo } from "@/components/ui/AppLogo";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
-import { signInWithAppleMock, signInWithGoogleMock } from "@/services/firebase";
+import { GoogleSignInCancelledError, signInWithGoogle } from "@/services/auth";
+import { isGoogleSignInAvailable } from "@/services/googleSignIn";
+import { signInWithAppleMock } from "@/services/firebase";
 import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -13,15 +15,30 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { setUser, setLoading, isLoading } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
+  const googleAvailable = isGoogleSignInAvailable();
 
-  const handleSignIn = async (provider: "google" | "apple") => {
+  const handleGoogleSignIn = async () => {
     setError(null);
     setLoading(true);
     try {
-      const user =
-        provider === "google"
-          ? await signInWithGoogleMock()
-          : await signInWithAppleMock();
+      const user = await signInWithGoogle();
+      setUser(user);
+      router.replace("/(auth)/permissions");
+    } catch (err) {
+      if (err instanceof GoogleSignInCancelledError) return;
+      setError(
+        err instanceof Error ? err.message : "Sign in failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const user = await signInWithAppleMock();
       setUser(user);
       router.replace("/(auth)/permissions");
     } catch {
@@ -52,7 +69,8 @@ export default function LoginScreen() {
           variant="secondary"
           size="lg"
           loading={isLoading}
-          onPress={() => handleSignIn("google")}
+          disabled={!googleAvailable}
+          onPress={handleGoogleSignIn}
           icon={
             <Ionicons
               name="logo-google"
@@ -62,13 +80,18 @@ export default function LoginScreen() {
             />
           }
         />
+        {!googleAvailable && (
+          <Text variant="caption" muted className="text-center">
+            Google Sign-In requires an Android or iOS build (not Expo Go or web).
+          </Text>
+        )}
         {Platform.OS === "ios" && (
           <Button
             title="Continue with Apple"
             variant="secondary"
             size="lg"
             disabled={isLoading}
-            onPress={() => handleSignIn("apple")}
+            onPress={handleAppleSignIn}
             icon={
               <Ionicons
                 name="logo-apple"

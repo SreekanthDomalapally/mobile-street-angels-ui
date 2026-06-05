@@ -3,6 +3,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { APP_NAME } from "@/constants/branding";
+import { signOut as authSignOut } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { router } from "expo-router";
@@ -16,7 +17,8 @@ export default function ProfileScreen() {
   const { notifications, emergency, updateNotifications, updateEmergency } =
     useSettingsStore();
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await authSignOut();
     signOut();
     router.replace("/(auth)/login");
   };

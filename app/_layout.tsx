@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { AppProviders } from '@/providers/AppProviders';
-import { useAuthListener } from '@/hooks/useAuth';
+import { useAuthBootstrap } from '@/hooks/useAuth';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -17,7 +17,7 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  useAuthListener();
+  useAuthBootstrap();
 
   useEffect(() => {
     if (error) throw error;

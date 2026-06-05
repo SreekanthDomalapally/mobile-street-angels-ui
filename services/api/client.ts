@@ -3,6 +3,29 @@ const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.streetange
   ''
 );
 
+function parseApiErrorMessage(body: unknown, status: number): string {
+  if (!body || typeof body !== 'object') {
+    return `Request failed (${status})`;
+  }
+
+  const record = body as Record<string, unknown>;
+  if (typeof record.message === 'string') return record.message;
+  if (typeof record.detail === 'string') return record.detail;
+  if (Array.isArray(record.detail)) {
+    return record.detail
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'msg' in item) {
+          return String((item as { msg: unknown }).msg);
+        }
+        return 'Validation error';
+      })
+      .join(', ');
+  }
+
+  return `Request failed (${status})`;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -36,9 +59,9 @@ export async function apiRequest<T>(
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new ApiError(
-      body.message ?? `Request failed (${response.status})`,
+      parseApiErrorMessage(body, response.status),
       response.status,
-      body.code
+      typeof body === 'object' && body && 'code' in body ? String(body.code) : undefined
     );
   }
 
