@@ -5,11 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/YouHooAlert.png",
-    "scheme": "streetangels",
+    "scheme": "youhooalert",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.streetangels.app",
+      "bundleIdentifier": "com.youhooalert.com",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "YouHoo Alert uses your location only during active SOS alerts to share with trusted responders.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Location is used during emergencies to help trusted contacts find you.",
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "package": "com.streetangels.app",
+      "package": "com.youhooalert.com",
       "adaptiveIcon": {
         "backgroundColor": "#0f0f12",
         "foregroundImage": "./assets/images/YouHooAlert.png",

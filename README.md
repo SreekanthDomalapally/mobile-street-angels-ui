@@ -92,7 +92,7 @@ Store releases use **EAS Build** (production `.aab` / `.ipa`), not Expo Go.
 4. For Android submit, add a [Google Play service account](https://docs.expo.dev/submit/android/#creating-a-google-service-account) and set `submit.production.android.serviceAccountKeyPath` in `eas.json` (do not commit the JSON key).
 5. Configure [push credentials](https://docs.expo.dev/push-notifications/push-notifications-setup/) (FCM + APNs) before relying on notifications in production.
 
-**App IDs in `app.json`:** `com.streetangels.app` (Android package + iOS bundle). Change these before your first store upload if you want a YouHoo-specific ID (e.g. `com.youhoo.alert`).
+**App IDs in `app.json`:** `com.youhooalert.com` (Android package + iOS bundle). Must match the app created in Play Console / App Store Connect.
 
 ### 2. Build for stores
 
