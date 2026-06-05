@@ -37,6 +37,7 @@ yarn-error.*
 # EAS / store credentials (never commit)
 google-service-account.json
 *service-account*.json
+!google-service-account.json.example
 
 # typescript
 *.tsbuildinfo

@@ -34,7 +34,8 @@
     "production": {
       "android": {
         "track": "internal",
-        "releaseStatus": "draft"
+        "releaseStatus": "draft",
+        "serviceAccountKeyPath": "./google-service-account.json"
       },
       "ios": {
         "appleTeamId": "YOUR_APPLE_TEAM_ID"
