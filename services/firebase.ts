@@ -14,39 +14,46 @@ import {
 } from 'firebase/auth';
 import type { User } from '@/types';
 
-function requireFirebaseEnv(name: string, value: string | undefined, fallback: string): string {
-  if (value) return value;
-  if (__DEV__) return fallback;
-  throw new Error(`Missing ${name}. Set it in EAS environment variables.`);
-}
+/**
+ * Defaults from google-services.json (com.youhooalert.com).
+ * Public client config — safe to embed; override via EXPO_PUBLIC_FIREBASE_* in EAS.
+ */
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyBeD_i69yZneRY4eJQo492SNVlYTm2jGrE',
+  authDomain: 'youhoo-alert-app.firebaseapp.com',
+  projectId: 'youhoo-alert-app',
+  storageBucket: 'youhoo-alert-app.firebasestorage.app',
+  messagingSenderId: '1065150630879',
+  appId: '1:1065150630879:android:83296463ab35f7f73f526a',
+} as const;
 
-const firebaseConfig = {
-  apiKey: requireFirebaseEnv(
-    'EXPO_PUBLIC_FIREBASE_API_KEY',
-    process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-    'demo-api-key'
-  ),
-  authDomain: requireFirebaseEnv(
-    'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
-    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    'demo.firebaseapp.com'
-  ),
-  projectId: requireFirebaseEnv(
-    'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
-    process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-    'street-angels-demo'
-  ),
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
-};
+function buildFirebaseConfig() {
+  return {
+    apiKey:
+      process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? DEFAULT_FIREBASE_CONFIG.apiKey,
+    authDomain:
+      process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ??
+      DEFAULT_FIREBASE_CONFIG.authDomain,
+    projectId:
+      process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ??
+      DEFAULT_FIREBASE_CONFIG.projectId,
+    storageBucket:
+      process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ??
+      DEFAULT_FIREBASE_CONFIG.storageBucket,
+    messagingSenderId:
+      process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ??
+      DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+    appId:
+      process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? DEFAULT_FIREBASE_CONFIG.appId,
+  };
+}
 
 let app: FirebaseApp;
 let auth: Auth | undefined;
 
 export function getFirebaseApp(): FirebaseApp {
   if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
+    app = initializeApp(buildFirebaseConfig());
   }
   return app ?? getApps()[0];
 }

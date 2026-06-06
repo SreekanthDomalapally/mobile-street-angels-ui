@@ -53,14 +53,24 @@ try {
 
 try {
   const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
-  const webClientId = eas.build?.base?.env?.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const env = eas.build?.base?.env ?? {};
+  const webClientId = env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   assert(
     'eas.json EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
     Boolean(webClientId),
     webClientId ?? 'not set in eas.json base env'
   );
+
+  for (const key of [
+    'EXPO_PUBLIC_FIREBASE_API_KEY',
+    'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
+    'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
+    'EXPO_PUBLIC_FIREBASE_APP_ID',
+  ]) {
+    assert(`eas.json ${key}`, Boolean(env[key]), env[key] ?? 'not set in eas.json base env');
+  }
 } catch (error) {
-  assert('eas.json EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID', false, String(error));
+  assert('eas.json production env', false, String(error));
 }
 
 try {

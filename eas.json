@@ -9,8 +9,15 @@
       "node": "22.14.0",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://street-angels-api-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_WS_URL": "wss://street-angels-api-production.up.railway.app/ws/alerts",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "d37e827f-a71b-47c3-b0df-a2b912af8063",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1065150630879-prjdgu45hcopbcdbt6dr2c2sbt24u4kn.apps.googleusercontent.com",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBeD_i69yZneRY4eJQo492SNVlYTm2jGrE",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "youhoo-alert-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "youhoo-alert-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "youhoo-alert-app.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1065150630879",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1065150630879:android:83296463ab35f7f73f526a",
         "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
       }
     },

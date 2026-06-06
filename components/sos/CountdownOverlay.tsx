@@ -33,7 +33,7 @@ export function CountdownOverlay({
   }, [countdown, seconds, setCountdown]);
 
   useEffect(() => {
-    if (loading || countdown === null || countdown <= 0) return;
+    if (loading || countdown === null || countdown < 1) return;
 
     scale.value = withSequence(
       withTiming(1.2, { duration: 150 }),

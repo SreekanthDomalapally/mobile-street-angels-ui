@@ -3,7 +3,7 @@ import { sosConfig } from "@/constants/theme";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSOSStore } from "@/stores/sosStore";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
   Easing,
@@ -24,6 +24,9 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
   const { status, holdProgress, startArming, cancelArming, setHoldProgress } =
     useSOSStore();
   const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdCompleted = useRef(false);
+  const [isPressed, setIsPressed] = useState(false);
+  const [holdHint, setHoldHint] = useState<string | null>(null);
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -35,7 +38,12 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
   }, [pulse]);
 
   const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: status === "idle" ? pulse.value : 1 }],
+    transform: [
+      {
+        scale:
+          status === "idle" && !isPressed ? pulse.value : 1,
+      },
+    ],
   }));
 
   const ringStyle = useAnimatedStyle(() => ({
@@ -49,10 +57,14 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
       holdTimer.current = null;
     }
     cancelArming();
+    setIsPressed(false);
   }, [cancelArming]);
 
   const startHold = useCallback(() => {
     if (status !== "idle") return;
+    holdCompleted.current = false;
+    setHoldHint(null);
+    setIsPressed(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     startArming();
     const start = Date.now();
@@ -61,6 +73,7 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
       const progress = Math.min(elapsed / holdDuration, 1);
       setHoldProgress(progress);
       if (progress >= 1) {
+        holdCompleted.current = true;
         clearHold();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         onActivate();
@@ -75,6 +88,16 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
     onActivate,
   ]);
 
+  const endHold = useCallback(() => {
+    if (holdCompleted.current) return;
+
+    const progress = useSOSStore.getState().holdProgress;
+    if (progress > 0 && progress < 1) {
+      setHoldHint(`Keep holding for ${holdDuration / 1000} seconds to request help`);
+    }
+    clearHold();
+  }, [clearHold, holdDuration]);
+
   const isArming = status === "arming";
 
   return (
@@ -83,41 +106,50 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
       accessibilityLabel="Emergency SOS button. Press and hold to activate."
     >
       <AnimatedView
+        pointerEvents="none"
+        style={pulseStyle}
+        className="absolute h-52 w-52 rounded-full bg-emergency/10"
+      />
+      <AnimatedView
+        pointerEvents="none"
         style={ringStyle}
         className="absolute h-56 w-56 rounded-full bg-emergency/20"
       />
-      <AnimatedView style={pulseStyle}>
-        <Pressable
-          onPressIn={startHold}
-          onPressOut={clearHold}
-          disabled={status !== "idle" && status !== "arming"}
-          className="h-48 w-48 items-center justify-center rounded-full bg-emergency shadow-lg"
-          accessibilityRole="button"
-          accessibilityHint={`Hold for ${holdDuration / 1000} seconds to send SOS`}
-          accessibilityState={{ busy: isArming }}
-        >
-          <View className="items-center">
-            <Text variant="hero" className="text-white">
-              SOS
-            </Text>
-            <Text variant="caption" className="mt-1 text-white/80">
-              {isArming ? "Keep holding…" : "Hold to alert"}
-            </Text>
+      <Pressable
+        onPressIn={startHold}
+        onPressOut={endHold}
+        disabled={status !== "idle" && status !== "arming"}
+        className="h-48 w-48 items-center justify-center rounded-full bg-emergency shadow-lg"
+        accessibilityRole="button"
+        accessibilityHint={`Hold for ${holdDuration / 1000} seconds to send SOS`}
+        accessibilityState={{ busy: isArming }}
+      >
+        <View className="items-center">
+          <Text variant="hero" className="text-white">
+            SOS
+          </Text>
+          <Text variant="caption" className="mt-1 text-white/80">
+            {isArming ? "Keep holding…" : "Hold to alert"}
+          </Text>
+        </View>
+        {isArming && (
+          <View className="absolute bottom-4 left-4 right-4 h-1 overflow-hidden rounded-full bg-white/20">
+            <View
+              className="h-full rounded-full bg-white"
+              style={{ width: `${holdProgress * 100}%` }}
+            />
           </View>
-          {isArming && (
-            <View className="absolute bottom-4 left-4 right-4 h-1 overflow-hidden rounded-full bg-white/20">
-              <View
-                className="h-full rounded-full bg-white"
-                style={{ width: `${holdProgress * 100}%` }}
-              />
-            </View>
-          )}
-        </Pressable>
-      </AnimatedView>
+        )}
+      </Pressable>
       <Text variant="caption" muted className="mt-6 text-center">
         Hold {sosConfig.holdDurationMs / 1000}s · then{" "}
         {sosConfig.countdownSeconds}s countdown
       </Text>
+      {holdHint && (
+        <Text variant="caption" className="mt-2 text-center text-warning">
+          {holdHint}
+        </Text>
+      )}
     </View>
   );
 }
