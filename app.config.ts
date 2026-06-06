@@ -5,6 +5,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 /** Linked EAS project: @sreekanth.domalapally/mobile-youhoo-alert */
 const EAS_PROJECT_ID = 'd37e827f-a71b-47c3-b0df-a2b912af8063';
 const PLAY_STORE_PACKAGE = 'com.youhooalert.com';
+const PRODUCTION_API_URL = 'https://street-angels-api-production.up.railway.app/api/v1';
 
 const GOOGLE_SERVICES_FILE =
   process.env.GOOGLE_SERVICES_JSON ?? './google-services.json';
@@ -64,6 +65,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
     readGoogleWebClientId(GOOGLE_SERVICES_FILE);
 
+  const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? PRODUCTION_API_URL).replace(/\/+$/, '');
+
   return {
     ...baseConfig,
     ios: {
@@ -87,6 +90,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     extra: {
       ...baseConfig.extra,
+      apiUrl,
       googleWebClientId,
       eas: {
         ...easExtra,

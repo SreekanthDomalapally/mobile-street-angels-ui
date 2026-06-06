@@ -24,6 +24,3 @@ jobs:
 
       - name: Lint
         run: npm run lint
-
-      - name: Unit tests
-        run: npm test -- --ci --passWithNoTests

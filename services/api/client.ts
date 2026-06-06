@@ -1,9 +1,24 @@
+import Constants from 'expo-constants';
 import { getAccessToken } from '@/services/auth';
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.streetangels.example/v1').replace(
-  /\/+$/,
-  ''
-);
+const PRODUCTION_API_URL = 'https://street-angels-api-production.up.railway.app/api/v1';
+
+function resolveApiBaseUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (fromEnv && !fromEnv.includes('streetangels.example')) {
+    return fromEnv.replace(/\/+$/, '');
+  }
+
+  const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
+  const fromExtra = extra?.apiUrl?.trim();
+  if (fromExtra && !fromExtra.includes('streetangels.example')) {
+    return fromExtra.replace(/\/+$/, '');
+  }
+
+  return PRODUCTION_API_URL;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const REQUEST_TIMEOUT_MS = 20_000;
 
@@ -47,13 +62,16 @@ interface RequestOptions extends RequestInit {
   timeoutMs?: number;
 }
 
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
+
 export function getApiOrigin(): string {
   return API_BASE_URL.replace(/\/api\/v1$/, '');
 }
 
 export function getAlertWebSocketUrl(alertId: string, token: string): string {
   const configured = process.env.EXPO_PUBLIC_WS_URL?.replace(/\/+$/, '');
-  const origin = configured ?? `${getApiOrigin().replace(/^http/, 'ws')}/ws/alerts`;
   const base = configured?.includes('/ws/alerts')
     ? configured
     : `${getApiOrigin().replace(/^http/, 'ws')}/ws/alerts`;
@@ -93,7 +111,14 @@ export async function apiRequest<T>(
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiError('Request timed out. Check your connection.', 408);
+      throw new ApiError('Request timed out. Check your connection.', 408, 'timeout');
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(
+        `Cannot reach API at ${API_BASE_URL}. Check your internet connection and try again.`,
+        0,
+        'network'
+      );
     }
     throw error;
   } finally {

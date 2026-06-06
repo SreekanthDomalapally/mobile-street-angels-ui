@@ -14,6 +14,24 @@ export async function fetchGroups(): Promise<Group[]> {
   return groups.map(mapApiGroupToGroup);
 }
 
+export async function addGroupMember(
+  groupId: string,
+  userId: string,
+  role: 'owner' | 'admin' | 'member' = 'member'
+): Promise<void> {
+  await authenticatedRequest(`/groups/${groupId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+}
+
+export async function inviteToGroup(groupId: string, inviteeEmail: string): Promise<void> {
+  await authenticatedRequest(`/groups/${groupId}/invites`, {
+    method: 'POST',
+    body: JSON.stringify({ invitee_email: inviteeEmail }),
+  });
+}
+
 export async function createGroup(params: CreateGroupParams): Promise<Group> {
   const group = await authenticatedRequest<ApiGroupOut>('/groups', {
     method: 'POST',

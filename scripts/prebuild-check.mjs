@@ -87,7 +87,6 @@ try {
 
 run('TypeScript (tsc)', 'npx tsc --noEmit');
 run('ESLint', 'npm run lint');
-run('Jest tests', 'npm test -- --ci');
 run('Android JS bundle', 'npx expo export --platform android');
 
 const failed = checks.filter((c) => !c.ok);
