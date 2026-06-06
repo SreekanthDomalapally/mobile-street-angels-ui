@@ -1,4 +1,5 @@
 import { NearbyResponders } from "@/components/home/NearbyResponders";
+import { SosGroupPicker } from "@/components/home/SosGroupPicker";
 import { StatusIndicator } from "@/components/home/StatusIndicator";
 import { CountdownOverlay } from "@/components/sos/CountdownOverlay";
 import { EmergencyTypePicker } from "@/components/sos/EmergencyTypePicker";
@@ -85,7 +86,9 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        <View className="my-8 items-center">
+        <SosGroupPicker />
+
+        <View className="my-6 items-center">
           <SOSButton onActivate={handleSOSComplete} />
         </View>
 

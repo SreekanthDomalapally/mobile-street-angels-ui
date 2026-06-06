@@ -24,7 +24,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       hasCompletedOnboarding: false,
       hasGrantedPermissions: false,
-      isLoading: false,
+      isLoading: true,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       completeOnboarding: () => set({ hasCompletedOnboarding: true }),
@@ -34,8 +34,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           isAuthenticated: false,
-          hasCompletedOnboarding: false,
-          hasGrantedPermissions: false,
         }),
     }),
     {

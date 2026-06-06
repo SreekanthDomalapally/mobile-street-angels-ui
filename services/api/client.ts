@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { getAccessToken } from '@/services/auth';
+import { getAccessToken, refreshAccessToken } from '@/services/auth';
 
 const PRODUCTION_API_URL = 'https://street-angels-api-production.up.railway.app/api/v1';
 
@@ -134,5 +134,17 @@ export async function authenticatedRequest<T>(
   if (!token) {
     throw new ApiError('Please sign in to continue.', 401, 'unauthorized');
   }
-  return apiRequest<T>(endpoint, { ...options, token });
+
+  try {
+    return await apiRequest<T>(endpoint, { ...options, token });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        return apiRequest<T>(endpoint, { ...options, token: refreshed });
+      }
+      throw new ApiError('Session expired. Please sign in again.', 401, 'unauthorized');
+    }
+    throw error;
+  }
 }

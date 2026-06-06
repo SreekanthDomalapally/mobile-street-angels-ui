@@ -35,7 +35,7 @@ export default function ActivityScreen() {
             <EmptyState
               icon="time-outline"
               title="No activity yet"
-              description="Your trusted groups will appear here. Alert history is coming soon."
+              description="SOS alerts you send or receive in your trusted groups will appear here."
             />
           ) : (
             items?.map((item) => <ActivityCard key={item.id} item={item} />)

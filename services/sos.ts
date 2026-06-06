@@ -1,9 +1,11 @@
+import { getSelectedSosGroupId } from '@/components/home/SosGroupPicker';
 import { ApiError } from '@/services/api/client';
 import { createSOSAlert, resolveSOSAlert } from '@/services/api/alerts';
 import { fetchGroups } from '@/services/api/groups';
 import { getCurrentLocation } from '@/services/location';
 import { isRetryableError } from '@/lib/retryableError';
 import { enqueuePendingSOS } from '@/services/sosQueue';
+import { useSettingsStore } from '@/stores/settingsStore';
 import type { EmergencyType, SOSAlert } from '@/types';
 
 export async function triggerSOS(emergencyType: EmergencyType): Promise<SOSAlert> {
@@ -25,7 +27,11 @@ export async function triggerSOS(emergencyType: EmergencyType): Promise<SOSAlert
     );
   }
 
-  const groupId = groups[0].id;
+  const preferredGroupId = useSettingsStore.getState().emergency.defaultSosGroupId;
+  const groupId = getSelectedSosGroupId(groups, preferredGroupId);
+  if (!groupId) {
+    throw new ApiError('Select a group for SOS alerts.', 400, 'no_group');
+  }
 
   try {
     return await createSOSAlert({

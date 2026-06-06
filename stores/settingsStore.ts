@@ -9,6 +9,7 @@ interface SettingsState {
   emergency: EmergencySettings;
   updateNotifications: (prefs: Partial<NotificationPreferences>) => void;
   updateEmergency: (settings: Partial<EmergencySettings>) => void;
+  setDefaultSosGroupId: (groupId: string) => void;
 }
 
 const defaultNotifications: NotificationPreferences = {
@@ -23,6 +24,7 @@ const defaultEmergency: EmergencySettings = {
   countdownSeconds: sosConfig.countdownSeconds,
   shareLocationByDefault: true,
   silentMode: false,
+  defaultSosGroupId: null,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -37,6 +39,10 @@ export const useSettingsStore = create<SettingsState>()(
       updateEmergency: (settings) =>
         set((state) => ({
           emergency: { ...state.emergency, ...settings },
+        })),
+      setDefaultSosGroupId: (groupId) =>
+        set((state) => ({
+          emergency: { ...state.emergency, defaultSosGroupId: groupId },
         })),
     }),
     {

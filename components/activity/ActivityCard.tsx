@@ -2,7 +2,8 @@ import { Text } from "@/components/ui/Text";
 import { formatRelativeTime } from "@/lib/utils";
 import type { ActivityItem } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
-import { View } from "react-native";
+import { router } from "expo-router";
+import { Pressable, View } from "react-native";
 
 const icons: Record<ActivityItem["type"], keyof typeof Ionicons.glyphMap> = {
   alert: "alert-circle-outline",
@@ -11,8 +12,19 @@ const icons: Record<ActivityItem["type"], keyof typeof Ionicons.glyphMap> = {
 };
 
 export function ActivityCard({ item }: { item: ActivityItem }) {
+  const onPress =
+    item.type === "alert" && item.alertId
+      ? () => router.push(`/alert/${item.alertId}`)
+      : undefined;
+
   return (
-    <View className="mb-3 flex-row gap-4 rounded-2xl border border-glass-border bg-charcoal-900 p-4">
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      className="mb-3 flex-row gap-4 rounded-2xl border border-glass-border bg-charcoal-900 p-4 active:bg-charcoal-800"
+      accessibilityRole={onPress ? "button" : "text"}
+      accessibilityLabel={`${item.title}. ${item.subtitle}`}
+    >
       <View className="h-10 w-10 items-center justify-center rounded-xl bg-charcoal-800">
         <Ionicons name={icons[item.type]} size={22} color="#a0a0a8" />
       </View>
@@ -32,6 +44,6 @@ export function ActivityCard({ item }: { item: ActivityItem }) {
           </Text>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }

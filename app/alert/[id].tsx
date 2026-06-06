@@ -65,7 +65,6 @@ export default function AlertResponseScreen() {
     return <ErrorState onRetry={() => refetch()} />;
   }
 
-  const callUser = () => Linking.openURL('tel:+15550100');
   const navigate = () =>
     Linking.openURL(
       `https://maps.google.com/?q=${alert.location.latitude},${alert.location.longitude}`
@@ -137,12 +136,6 @@ export default function AlertResponseScreen() {
             <Ionicons name="navigate" size={20} color="#fff" style={{ marginRight: 8 }} />
           }
           onPress={navigate}
-        />
-        <Button
-          title="Call person in need"
-          variant="ghost"
-          icon={<Ionicons name="call" size={20} color="#fff" style={{ marginRight: 8 }} />}
-          onPress={callUser}
         />
         <Button
           title="Unable to help"

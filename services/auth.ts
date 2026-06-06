@@ -1,7 +1,11 @@
 import {
   authenticateWithGoogle,
   fetchCurrentUser,
+  loginWithEmail,
   refreshAuthTokens,
+  registerWithEmail,
+  type LoginParams,
+  type RegisterParams,
 } from '@/services/api/auth';
 import {
   configureGoogleSignIn,
@@ -20,9 +24,22 @@ import type { User } from '@/types';
 
 export { GoogleSignInCancelledError };
 
+export async function signInWithEmail(params: LoginParams): Promise<User> {
+  const tokens = await loginWithEmail(params);
+  await saveAuthTokens(tokens.access_token, tokens.refresh_token);
+  return fetchCurrentUser(tokens.access_token);
+}
+
+export async function registerAndSignIn(params: RegisterParams): Promise<User> {
+  const tokens = await registerWithEmail(params);
+  await saveAuthTokens(tokens.access_token, tokens.refresh_token);
+  return fetchCurrentUser(tokens.access_token);
+}
+
 export async function signInWithGoogle(): Promise<User> {
   if (usesDevGoogleSignIn()) {
-    return signInWithGoogleMock();
+    const user = await signInWithGoogleMock();
+    return user;
   }
 
   const idToken = await getGoogleIdToken();
@@ -64,19 +81,19 @@ export async function signOut(): Promise<void> {
 
 export async function getAccessToken(): Promise<string | null> {
   const stored = await getAuthTokens();
+  return stored?.accessToken ?? null;
+}
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const stored = await getAuthTokens();
   if (!stored) return null;
 
   try {
-    await fetchCurrentUser(stored.accessToken);
-    return stored.accessToken;
+    const tokens = await refreshAuthTokens(stored.refreshToken);
+    await saveAuthTokens(tokens.access_token, tokens.refresh_token);
+    return tokens.access_token;
   } catch {
-    try {
-      const tokens = await refreshAuthTokens(stored.refreshToken);
-      await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-      return tokens.access_token;
-    } catch {
-      await clearAuthTokens();
-      return null;
-    }
+    await clearAuthTokens();
+    return null;
   }
 }

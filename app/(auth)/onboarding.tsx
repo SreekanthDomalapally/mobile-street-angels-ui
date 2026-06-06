@@ -42,7 +42,7 @@ export default function OnboardingScreen() {
             <View className="flex-row items-start gap-3">
               <Text className="text-responder">✓</Text>
               <Text variant="body" muted className="flex-1">
-                SOS in 2 taps — hold, confirm, help is on the way
+                Hold SOS for 2 seconds, then a 3-second countdown — tap Cancel to stop
               </Text>
             </View>
             <View className="flex-row items-start gap-3">

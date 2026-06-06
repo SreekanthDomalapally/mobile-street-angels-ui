@@ -43,6 +43,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: "Groups",
         }}
       />
       <Tabs.Screen
@@ -52,6 +53,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: "Activity",
         }}
       />
       <Tabs.Screen
@@ -61,6 +63,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: "Profile",
         }}
       />
     </Tabs>

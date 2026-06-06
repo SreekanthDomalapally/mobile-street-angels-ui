@@ -3,7 +3,7 @@ import { Text } from "@/components/ui/Text";
 import { useSOSStore } from "@/stores/sosStore";
 import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
-import { Modal, Pressable, View } from "react-native";
+import { Modal, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -73,7 +73,7 @@ export function CountdownOverlay({
           </Text>
         </Animated.View>
         <Text variant="caption" muted className="mb-8 text-center">
-          {loading ? "Please wait" : "Release or tap cancel to stop"}
+          {loading ? "Please wait" : "Tap Cancel alert below to stop"}
         </Text>
         <Button
           title="Cancel alert"
@@ -81,16 +81,6 @@ export function CountdownOverlay({
           onPress={onCancel}
           disabled={loading}
         />
-        <Pressable
-          className="mt-4 p-4"
-          onPress={onCancel}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel SOS alert"
-        >
-          <Text variant="caption" muted>
-            Tap anywhere to cancel
-          </Text>
-        </Pressable>
       </View>
     </Modal>
   );

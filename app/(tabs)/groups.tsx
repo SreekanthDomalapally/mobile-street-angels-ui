@@ -8,6 +8,7 @@ import { useCreateGroup, useGroups } from "@/hooks/useGroups";
 import { temporaryGroupExpiryIso } from "@/lib/utils";
 import { ApiError } from "@/services/api/client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { type Href, router } from "expo-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -98,7 +99,11 @@ export default function GroupsScreen() {
             />
           ) : (
             groups?.map((group) => (
-              <GroupCard key={group.id} group={group} />
+              <GroupCard
+                key={group.id}
+                group={group}
+                onPress={() => router.push(`/group/${group.id}` as Href)}
+              />
             ))
           )}
         </ScrollView>

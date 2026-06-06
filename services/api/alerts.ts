@@ -30,6 +30,11 @@ export async function createSOSAlert(params: CreateAlertParams): Promise<SOSAler
   return mapApiAlertToSOSAlert(alert);
 }
 
+export async function fetchAlerts(): Promise<SOSAlert[]> {
+  const alerts = await authenticatedRequest<ApiAlertOut[]>('/alerts');
+  return alerts.map(mapApiAlertToSOSAlert);
+}
+
 export async function fetchAlert(alertId: string): Promise<SOSAlert> {
   const alert = await authenticatedRequest<ApiAlertOut>(`/alerts/${alertId}`);
   return mapApiAlertToSOSAlert(alert);

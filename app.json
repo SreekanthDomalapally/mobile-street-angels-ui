@@ -20,9 +20,7 @@
           "remote-notification"
         ]
       },
-      "config": {
-        "googleMapsApiKey": "AIzaSyB61yKLKHL1TZNAu4IoZb4ZDvcrzeFOhz0"
-      }
+      "config": {}
     },
     "android": {
       "package": "com.youhooalert.com",
@@ -40,9 +38,7 @@
         "RECEIVE_BOOT_COMPLETED"
       ],
       "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyB61yKLKHL1TZNAu4IoZb4ZDvcrzeFOhz0"
-        }
+        "googleMaps": {}
       }
     },
     "web": {

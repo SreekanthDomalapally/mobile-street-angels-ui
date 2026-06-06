@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuthBootstrap } from '@/hooks/useAuth';
+import { useNotificationRouting } from '@/hooks/useNotificationRouting';
 
 export { AppErrorBoundary as ErrorBoundary } from '@/components/common/AppErrorBoundary';
 
@@ -18,6 +19,7 @@ export default function RootLayout() {
   });
 
   useAuthBootstrap();
+  useNotificationRouting();
 
   useEffect(() => {
     if (error) throw error;
@@ -47,6 +49,10 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="alert/[id]"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="group/[id]"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
       </Stack>

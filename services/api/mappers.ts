@@ -177,6 +177,20 @@ export function mapGroupToActivityItem(group: ApiGroupOut): ActivityItem {
   };
 }
 
+export function mapAlertToActivityItem(alert: ApiAlertOut): ActivityItem {
+  const emergency = mapApiAlertTypeToEmergency(alert.alert_type);
+  const status = mapApiStatusToAlertStatus(alert.status, alert.responses.length > 0);
+  return {
+    id: `alert-${alert.id}`,
+    alertId: alert.id,
+    type: 'alert',
+    title: `SOS — ${emergency}`,
+    subtitle: alert.message ?? 'Emergency alert in your trusted group',
+    timestamp: alert.created_at,
+    status,
+  };
+}
+
 export function buildTimelineFromWsEvent(payload: Record<string, unknown>): TimelineEvent | null {
   const type = String(payload.type ?? '');
 

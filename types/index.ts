@@ -78,6 +78,7 @@ export interface SOSAlert {
 
 export interface ActivityItem {
   id: string;
+  alertId?: string;
   type: 'alert' | 'check_in' | 'group_update';
   title: string;
   subtitle: string;
@@ -97,4 +98,5 @@ export interface EmergencySettings {
   countdownSeconds: number;
   shareLocationByDefault: boolean;
   silentMode: boolean;
+  defaultSosGroupId: string | null;
 }

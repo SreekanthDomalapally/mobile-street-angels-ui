@@ -8,7 +8,7 @@ import { signOut as authSignOut } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { router } from "expo-router";
-import { ScrollView, View } from "react-native";
+import { Linking, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
@@ -87,17 +87,16 @@ export default function ProfileScreen() {
       </Text>
       <View className="mb-6 rounded-2xl border border-glass-border bg-charcoal-900 px-4">
         <SettingsRow
-          label="Support our mission"
-          description="Optional donation — app stays free"
-          icon="heart-outline"
-          showChevron
-          onPress={() => {}}
-        />
-        <SettingsRow
           label="Privacy & data"
           icon="lock-closed-outline"
           showChevron
-          onPress={() => {}}
+          onPress={() => Linking.openURL("https://youhooalert.com/privacy")}
+        />
+        <SettingsRow
+          label="Contact support"
+          icon="mail-outline"
+          showChevron
+          onPress={() => Linking.openURL("mailto:support@youhooalert.com")}
         />
       </View>
 
