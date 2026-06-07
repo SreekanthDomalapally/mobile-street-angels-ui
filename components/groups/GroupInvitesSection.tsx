@@ -53,7 +53,7 @@ export function GroupInvitesSection() {
           className="mb-3 rounded-2xl border border-responder/30 bg-charcoal-900 p-4">
           <Text variant="body">{invite.groupName}</Text>
           <Text variant="caption" muted className="mt-1">
-            {invite.inviterName} invited you to join this trusted circle.
+            {invite.inviterName} invited you to join this group.
           </Text>
           <View className="mt-3 flex-row gap-2">
             <Button

@@ -19,7 +19,7 @@ export function GroupMultiSelect({
   if (groups.length === 0) {
     return (
       <Text variant="body" muted className="py-4 text-center">
-        Create a trusted circle first to add contacts.
+        Create a group first to add contacts.
       </Text>
     );
   }
@@ -50,7 +50,7 @@ export function GroupMultiSelect({
             <View className="flex-1 pr-3">
               <Text variant="body">{group.name}</Text>
               <Text variant="caption" muted className="mt-1">
-                {group.isTemporary ? 'Temporary circle' : 'Trusted circle'} · {group.memberCount} members
+                {group.isTemporary ? 'Temporary group' : 'Group'} · {group.memberCount} members
               </Text>
             </View>
             <Ionicons

@@ -51,7 +51,7 @@ export default function ContactsScreen() {
         </View>
 
         <Text variant="body" muted className="mb-4">
-          People in your trusted circles. Tap a contact to add or remove circles.
+          People in your groups. Tap a contact to add or remove groups.
         </Text>
 
         <TextInput
@@ -66,7 +66,7 @@ export default function ContactsScreen() {
           <EmptyState
             icon="book-outline"
             title="No contacts yet"
-            description="Add family and friends to your trusted circles so they can respond when you send an SOS."
+            description="Add family and friends to your groups so they can respond when you send an SOS."
             action={<Button title="Add contact" onPress={() => setShowPicker(true)} />}
           />
         ) : (

@@ -1,15 +1,14 @@
 import { GroupMultiSelect } from '@/components/contacts/GroupMultiSelect';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { APP_INVITE_MESSAGE } from '@/constants/invites';
 import { useManagedGroups } from '@/hooks/useManagedGroups';
-import { assignInviteToGroups } from '@/services/api/contacts';
 import { ApiError } from '@/services/api/client';
-import { inviteToGroup, removeGroupMember } from '@/services/api/groups';
+import { removeGroupMember } from '@/services/api/groups';
+import { sendGroupInvites, shareInstallInvite } from '@/services/groupContactActions';
 import type { CircleContact, Group } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, Share, View } from 'react-native';
+import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ContactGroupAction = 'add-to-circle' | 'invite-to-app';
@@ -27,32 +26,6 @@ async function removeFromGroups(
       await removeGroupMember(group.id, userId);
     }
   }
-}
-
-async function sendGroupInvites(email: string, groupIds: string[], existingGroupIds: string[]) {
-  const toInvite = groupIds.filter((groupId) => !existingGroupIds.includes(groupId));
-  if (toInvite.length === 0) return;
-
-  try {
-    await assignInviteToGroups(email, toInvite);
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      await Promise.all(toInvite.map((groupId) => inviteToGroup(groupId, email)));
-      return;
-    }
-    throw err;
-  }
-}
-
-async function shareInstallInvite(contact: CircleContact) {
-  const message = `${APP_INVITE_MESSAGE}\n\n${contact.displayName}, join my trusted circles on YouHoo Alert.`;
-  if (contact.phone) {
-    const body = encodeURIComponent(message);
-    const phone = contact.phone.replace(/[^\d+]/g, '');
-    await Linking.openURL(`sms:${phone}?body=${body}`);
-    return;
-  }
-  await Share.share({ message });
 }
 
 function buildInitialSelection(
@@ -95,7 +68,7 @@ function ContactGroupsSheetContent({
 
   const handleSave = async () => {
     if (selectedIds.length === 0) {
-      setError('Select at least one circle.');
+      setError('Select at least one group.');
       return;
     }
 
@@ -112,7 +85,7 @@ function ContactGroupsSheetContent({
 
       if (toInvite.length > 0) {
         if (!canInviteByEmail) {
-          throw new Error('Add an email to this contact before inviting them to a circle.');
+          throw new Error('Add an email to this contact before inviting them to a group.');
         }
         await sendGroupInvites(inviteEmail!, toInvite, contact.groupIds);
       }
@@ -122,7 +95,7 @@ function ContactGroupsSheetContent({
           throw new Error('Add an email or phone number to send an install invite.');
         }
         await shareInstallInvite(contact);
-        setSuccess('Install invite sent. They can join your circles after signing up.');
+        setSuccess('Install invite sent. They can join your groups after signing up.');
       } else if (toInvite.length > 0) {
         setSuccess('Invitation sent. They will appear after accepting.');
       }
@@ -136,7 +109,7 @@ function ContactGroupsSheetContent({
         onClose();
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not update circles.');
+      setError(err instanceof ApiError ? err.message : 'Could not update groups.');
     } finally {
       setSaving(false);
     }
@@ -146,7 +119,7 @@ function ContactGroupsSheetContent({
     action === 'invite-to-app'
       ? 'Invite to YouHoo Alert'
       : contact.onPlatform
-        ? 'Send circle invite'
+        ? 'Send group invite'
         : 'Send invite';
 
   return (
@@ -154,7 +127,7 @@ function ContactGroupsSheetContent({
       className="flex-1 bg-charcoal-950"
       style={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }}>
       <View className="mb-4 flex-row items-center justify-between px-5">
-        <Text variant="title">{action === 'invite-to-app' ? 'Invite to install' : 'Add to circle'}</Text>
+        <Text variant="title">{action === 'invite-to-app' ? 'Invite to install' : 'Add to group'}</Text>
         <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
           <Text variant="body" className="text-responder-light">
             Close
@@ -176,8 +149,8 @@ function ContactGroupsSheetContent({
 
       <Text variant="caption" muted className="mb-3 px-5">
         {action === 'invite-to-app'
-          ? 'Choose circles to invite them to. We will send an install link and hold the invite until they sign up.'
-          : 'Choose circles to invite them to. They must accept before becoming a member.'}
+          ? 'Choose groups to invite them to. We will send an install link and hold the invite until they sign up.'
+          : 'Choose groups to invite them to. They must accept before becoming a member.'}
       </Text>
 
       {error && (

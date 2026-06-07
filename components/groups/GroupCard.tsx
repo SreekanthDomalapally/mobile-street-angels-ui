@@ -5,14 +5,17 @@ import { Pressable, View } from "react-native";
 
 interface GroupCardProps {
   group: Group;
+  selected?: boolean;
   onPress?: () => void;
 }
 
-export function GroupCard({ group, onPress }: GroupCardProps) {
+export function GroupCard({ group, selected = false, onPress }: GroupCardProps) {
   return (
     <Pressable
       onPress={onPress}
-      className="mb-3 flex-row items-center gap-4 rounded-2xl border border-glass-border bg-charcoal-900 p-4 active:bg-charcoal-800"
+      className={`mb-3 flex-row items-center gap-4 rounded-2xl border p-4 active:bg-charcoal-800 ${
+        selected ? 'border-responder bg-responder/10' : 'border-glass-border bg-charcoal-900'
+      }`}
       accessibilityRole="button"
       accessibilityLabel={`${group.name}, ${group.memberCount} members`}
     >
@@ -37,7 +40,11 @@ export function GroupCard({ group, onPress }: GroupCardProps) {
           {group.memberCount} members
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
+      {selected ? (
+        <Ionicons name="checkmark-circle" size={22} color="#6bb892" />
+      ) : (
+        <Ionicons name="ellipse-outline" size={20} color="#6d6d75" />
+      )}
     </Pressable>
   );
 }

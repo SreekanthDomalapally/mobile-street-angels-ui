@@ -30,8 +30,16 @@ function parseApiErrorMessage(body: unknown, status: number): string {
   }
 
   const record = body as Record<string, unknown>;
+  if (status === 502) {
+    return 'API server is not responding. The backend may be down or restarting — check your Railway deployment.';
+  }
   if (typeof record.error === 'string') return record.error;
-  if (typeof record.message === 'string') return record.message;
+  if (typeof record.message === 'string') {
+    if (record.message === 'Application failed to respond') {
+      return 'API server is not responding. The backend may be down or restarting — check your Railway deployment.';
+    }
+    return record.message;
+  }
   if (typeof record.detail === 'string') return record.detail;
   if (Array.isArray(record.detail)) {
     return record.detail

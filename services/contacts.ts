@@ -17,6 +17,8 @@ const CONTACT_FIELDS = [
   ContactField.PHONES,
 ] as const;
 
+const GET_ALL_BATCH_SIZE = 30;
+
 type ContactDetailsLike = {
   id?: string;
   fullName?: string | null;
@@ -46,7 +48,7 @@ function buildContactName(contact: ContactDetailsLike, emails: string[], phoneNu
   );
 }
 
-function mapToDeviceContact(contact: ContactDetailsLike): DeviceContact | null {
+function mapToDeviceContact(contact: ContactDetailsLike, fallbackKey?: string): DeviceContact {
   const emails =
     contact.emails
       ?.map((entry) => (entry.address ?? entry.email)?.trim().toLowerCase())
@@ -56,37 +58,128 @@ function mapToDeviceContact(contact: ContactDetailsLike): DeviceContact | null {
       ?.map((entry) => entry.number?.trim())
       .filter((phone): phone is string => Boolean(phone)) ?? [];
 
-  const id = contact.id?.trim();
-  if (!id) return null;
+  const name = buildContactName(contact, emails, phoneNumbers);
+  const id =
+    contact.id?.trim() ||
+    (emails[0] ? `email:${emails[0]}` : undefined) ||
+    (phoneNumbers[0] ? `phone:${phoneNumbers[0]}` : undefined) ||
+    fallbackKey ||
+    `contact:${name}`;
 
   return {
     id,
-    name: buildContactName(contact, emails, phoneNumbers),
+    name,
     emails: [...new Set(emails)],
     phoneNumbers: [...new Set(phoneNumbers)],
   };
 }
 
-async function loadFromNewApi(): Promise<DeviceContact[]> {
+function mergeDeviceContacts(sources: DeviceContact[][]): DeviceContact[] {
+  const byId = new Map<string, DeviceContact>();
+
+  for (const contacts of sources) {
+    for (const contact of contacts) {
+      const existing = byId.get(contact.id);
+      if (!existing) {
+        byId.set(contact.id, contact);
+        continue;
+      }
+
+      const emails = [...new Set([...existing.emails, ...contact.emails])];
+      const phoneNumbers = [...new Set([...existing.phoneNumbers, ...contact.phoneNumbers])];
+
+      byId.set(contact.id, {
+        id: contact.id,
+        name: existing.name.length >= contact.name.length ? existing.name : contact.name,
+        emails,
+        phoneNumbers,
+      });
+    }
+  }
+
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function loadFromNewApiBulk(): Promise<DeviceContact[]> {
   const contacts = await Contact.getAllDetails(CONTACT_FIELDS, {
     sortOrder: ContactsSortOrder.GivenName,
   });
 
-  return contacts
-    .map((contact) => mapToDeviceContact(contact))
-    .filter((contact): contact is DeviceContact => contact !== null);
+  return contacts.map((contact, index) =>
+    mapToDeviceContact(contact, `bulk:${index}`)
+  );
+}
+
+async function loadFromGetAllPath(): Promise<DeviceContact[]> {
+  const contacts = await Contact.getAll({
+    sortOrder: ContactsSortOrder.GivenName,
+  });
+
+  if (contacts.length === 0) {
+    return [];
+  }
+
+  const rows: DeviceContact[] = [];
+
+  for (let index = 0; index < contacts.length; index += GET_ALL_BATCH_SIZE) {
+    const batch = contacts.slice(index, index + GET_ALL_BATCH_SIZE);
+    const batchRows = await Promise.all(
+      batch.map(async (contact) => {
+        try {
+          const details = await contact.getDetails(CONTACT_FIELDS);
+          return mapToDeviceContact({ ...details, id: contact.id }, contact.id);
+        } catch {
+          return mapToDeviceContact({ id: contact.id }, contact.id);
+        }
+      })
+    );
+    rows.push(...batchRows);
+  }
+
+  return rows;
 }
 
 async function loadFromLegacyApi(): Promise<DeviceContact[]> {
   const { getContactsAsync, Fields, SortTypes } = await import('expo-contacts/legacy');
-  const { data } = await getContactsAsync({
-    fields: [Fields.Emails, Fields.PhoneNumbers, Fields.Name, Fields.FirstName, Fields.LastName],
+  const response = await getContactsAsync({
+    fields: [
+      Fields.Emails,
+      Fields.PhoneNumbers,
+      Fields.Name,
+      Fields.FirstName,
+      Fields.LastName,
+    ],
     sort: SortTypes.FirstName,
+    pageSize: 0,
   });
 
-  return data
-    .map((contact) => mapToDeviceContact(contact))
-    .filter((contact): contact is DeviceContact => contact !== null);
+  const contacts = response.data.map((contact, index) =>
+    mapToDeviceContact(contact, `legacy:${index}`)
+  );
+
+  return mergeDeviceContacts([contacts]);
+}
+
+async function loadFromLegacyApiAllFields(): Promise<DeviceContact[]> {
+  const { getContactsAsync, SortTypes } = await import('expo-contacts/legacy');
+  const response = await getContactsAsync({
+    sort: SortTypes.FirstName,
+    pageSize: 0,
+  });
+
+  return response.data.map((contact, index) =>
+    mapToDeviceContact(contact, `legacy-all:${index}`)
+  );
+}
+
+async function runContactLoadStrategy(
+  loader: () => Promise<DeviceContact[]>
+): Promise<DeviceContact[]> {
+  try {
+    return await loader();
+  } catch {
+    return [];
+  }
 }
 
 export async function getContactsPermissionStatus(): Promise<PermissionStatus> {
@@ -106,19 +199,24 @@ export async function requestContactsPermission(): Promise<boolean> {
   return status === PermissionStatus.GRANTED;
 }
 
-export async function deviceHasContacts(): Promise<boolean> {
-  if (Platform.OS === 'web') return false;
+export async function deviceContactCount(): Promise<number> {
+  if (Platform.OS === 'web') return 0;
 
   try {
-    return await Contact.hasAny();
+    return await Contact.getCount();
   } catch {
     try {
       const { hasContactsAsync } = await import('expo-contacts/legacy');
-      return await hasContactsAsync();
+      return (await hasContactsAsync()) ? 1 : 0;
     } catch {
-      return false;
+      return 0;
     }
   }
+}
+
+export async function deviceHasContacts(): Promise<boolean> {
+  const count = await deviceContactCount();
+  return count > 0;
 }
 
 export async function pickDeviceContact(): Promise<DeviceContact | null> {
@@ -132,24 +230,9 @@ export async function pickDeviceContact(): Promise<DeviceContact | null> {
 
   try {
     const details = await picked.getDetails(CONTACT_FIELDS);
-    const mapped = mapToDeviceContact({ ...details, id: picked.id });
-    if (mapped) return mapped;
-    return {
-      id: picked.id,
-      name: buildContactName({ ...details, id: picked.id }, [], []),
-      emails: [],
-      phoneNumbers: [],
-    };
+    return mapToDeviceContact({ ...details, id: picked.id });
   } catch {
-    const legacy = await loadFromLegacyApi();
-    const match = legacy.find((contact) => contact.id === picked.id);
-    if (match) return match;
-    return {
-      id: picked.id,
-      name: 'Contact',
-      emails: [],
-      phoneNumbers: [],
-    };
+    return mapToDeviceContact({ id: picked.id }, picked.id);
   }
 }
 
@@ -159,14 +242,13 @@ export async function loadDeviceContacts(): Promise<DeviceContact[]> {
   const granted = await requestContactsPermission();
   if (!granted) return [];
 
-  try {
-    const fromNewApi = await loadFromNewApi();
-    if (fromNewApi.length > 0) {
-      return fromNewApi;
-    }
-  } catch {
-    // Fall back to the legacy contacts API below.
-  }
+  const strategies = [
+    loadFromGetAllPath,
+    loadFromNewApiBulk,
+    loadFromLegacyApiAllFields,
+    loadFromLegacyApi,
+  ];
 
-  return loadFromLegacyApi();
+  const results = await Promise.all(strategies.map((strategy) => runContactLoadStrategy(strategy)));
+  return mergeDeviceContacts(results);
 }

@@ -1,17 +1,19 @@
-import { EmptyState } from "@/components/common/EmptyState";
-import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { GroupCard } from "@/components/groups/GroupCard";
-import { GroupInvitesSection } from "@/components/groups/GroupInvitesSection";
-import { Button } from "@/components/ui/Button";
-import { Text } from "@/components/ui/Text";
-import { useCreateGroup, useGroups } from "@/hooks/useGroups";
-import { temporaryGroupExpiryIso } from "@/lib/utils";
-import { ApiError } from "@/services/api/client";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { type Href, router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { GroupContactList } from '@/components/contacts/GroupContactList';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { LoadingState } from '@/components/common/LoadingState';
+import { GroupCard } from '@/components/groups/GroupCard';
+import { GroupInvitesSection } from '@/components/groups/GroupInvitesSection';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@/components/ui/Text';
+import { useGroup } from '@/hooks/useGroup';
+import { useCreateGroup, useGroups } from '@/hooks/useGroups';
+import { temporaryGroupExpiryIso } from '@/lib/utils';
+import { ApiError } from '@/services/api/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -21,32 +23,49 @@ import {
   ScrollView,
   TextInput,
   View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { z } from "zod";
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 
 const groupSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
 });
 
 type GroupForm = z.infer<typeof groupSchema>;
 
 export default function GroupsScreen() {
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { selected: selectedParam } = useLocalSearchParams<{ selected?: string }>();
   const { data: groups, isLoading, isError, refetch } = useGroups();
   const createGroupMutation = useCreateGroup();
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const { data: selectedGroup, refetch: refetchGroup } = useGroup(selectedGroupId ?? undefined);
   const [modalVisible, setModalVisible] = useState(false);
   const [isTemporary, setIsTemporary] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
+    if (typeof selectedParam === 'string' && selectedParam) {
+      setSelectedGroupId(selectedParam);
+    }
+  }, [selectedParam]);
+
+  useEffect(() => {
+    if (!selectedGroupId && groups && groups.length > 0) {
+      setSelectedGroupId(groups[0].id);
+    }
+  }, [groups, selectedGroupId]);
+
+  useEffect(() => {
     if (!modalVisible) {
       return;
     }
 
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, (event) => {
       setKeyboardHeight(event.endCoordinates.height);
     });
@@ -57,6 +76,15 @@ export default function GroupsScreen() {
       hideSub.remove();
     };
   }, [modalVisible]);
+
+  const memberEmails = useMemo(
+    () => selectedGroup?.members.map((member) => member.email.toLowerCase()) ?? [],
+    [selectedGroup]
+  );
+  const pendingEmails = useMemo(
+    () => selectedGroup?.pendingInvites?.map((invite) => invite.inviteeEmail.toLowerCase()) ?? [],
+    [selectedGroup]
+  );
 
   const closeModal = () => {
     Keyboard.dismiss();
@@ -72,13 +100,21 @@ export default function GroupsScreen() {
     formState: { errors },
   } = useForm<GroupForm>({
     resolver: zodResolver(groupSchema),
-    defaultValues: { name: "" },
+    defaultValues: { name: '' },
   });
+
+  const handleGroupUpdated = () => {
+    refetch();
+    if (selectedGroupId) {
+      refetchGroup();
+      queryClient.invalidateQueries({ queryKey: ['group', selectedGroupId] });
+    }
+  };
 
   const onCreate = async (data: GroupForm) => {
     setFormError(null);
     try {
-      await createGroupMutation.mutateAsync({
+      const group = await createGroupMutation.mutateAsync({
         name: data.name,
         isTemporary,
         expiresAt: isTemporary ? temporaryGroupExpiryIso() : undefined,
@@ -86,11 +122,13 @@ export default function GroupsScreen() {
       reset();
       setIsTemporary(false);
       setModalVisible(false);
+      setSelectedGroupId(group.id);
+      handleGroupUpdated();
     } catch (error) {
       setFormError(
         error instanceof ApiError
           ? error.message
-          : "Could not create group. Please try again."
+          : 'Could not create group. Please try again.'
       );
     }
   };
@@ -99,8 +137,7 @@ export default function GroupsScreen() {
     <View className="flex-1 bg-charcoal-950">
       <View
         className="flex-row items-center justify-between px-5"
-        style={{ paddingTop: insets.top + 16 }}
-      >
+        style={{ paddingTop: insets.top + 16 }}>
         <Text variant="title">Groups</Text>
         <Button
           title="+ New"
@@ -119,29 +156,45 @@ export default function GroupsScreen() {
             paddingBottom: insets.bottom + 100,
             paddingTop: 16,
           }}
-          showsVerticalScrollIndicator={false}
-        >
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
           <GroupInvitesSection />
+
           {groups?.length === 0 ? (
             <EmptyState
               icon="people-outline"
               title="No groups yet"
-              description="Create a trusted circle before sending SOS alerts."
+              description="Create a group before sending SOS alerts."
               action={
-                <Button
-                  title="Create group"
-                  onPress={() => setModalVisible(true)}
-                />
+                <Button title="Create group" onPress={() => setModalVisible(true)} />
               }
             />
           ) : (
-            groups?.map((group) => (
-              <GroupCard
-                key={group.id}
-                group={group}
-                onPress={() => router.push(`/group/${group.id}` as Href)}
-              />
-            ))
+            <>
+              <Text variant="label" className="mb-3">
+                Your groups
+              </Text>
+              {groups?.map((group) => (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  selected={selectedGroupId === group.id}
+                  onPress={() => setSelectedGroupId(group.id)}
+                />
+              ))}
+
+              {selectedGroupId && (
+                <View className="mt-4 border-t border-glass-border pt-6">
+                  <GroupContactList
+                    groupId={selectedGroupId}
+                    groupName={selectedGroup?.name ?? groups?.find((g) => g.id === selectedGroupId)?.name}
+                    memberEmails={memberEmails}
+                    pendingEmails={pendingEmails}
+                    onUpdated={handleGroupUpdated}
+                  />
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -149,7 +202,7 @@ export default function GroupsScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView
           className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Pressable className="flex-1 justify-end bg-black/70" onPress={closeModal}>
             <Pressable
               className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
@@ -191,10 +244,9 @@ export default function GroupsScreen() {
                 onPress={() => setIsTemporary(!isTemporary)}
                 className="mb-6 flex-row items-center gap-3 py-2"
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: isTemporary }}
-              >
+                accessibilityState={{ checked: isTemporary }}>
                 <View
-                  className={`h-6 w-6 rounded-md border ${isTemporary ? "border-responder bg-responder" : "border-charcoal-500"}`}
+                  className={`h-6 w-6 rounded-md border ${isTemporary ? 'border-responder bg-responder' : 'border-charcoal-500'}`}
                 />
                 <Text variant="body">Temporary group (expires in 1 hour)</Text>
               </Pressable>
