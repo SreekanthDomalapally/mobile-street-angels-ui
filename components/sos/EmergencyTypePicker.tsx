@@ -4,7 +4,7 @@ import { useSOSStore } from "@/stores/sosStore";
 import type { EmergencyType } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   medkit: "medkit-outline",
@@ -23,11 +23,7 @@ export function EmergencyTypePicker() {
       <Text variant="label" className="mb-3 px-1">
         Emergency type
       </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-2 px-1"
-      >
+      <View className="flex-row flex-wrap justify-between gap-y-2 px-1">
         {emergencyTypes.map((type) => {
           const selected = emergencyType === type.id;
           return (
@@ -39,7 +35,7 @@ export function EmergencyTypePicker() {
                 setEmergencyType(type.id as EmergencyType);
               }}
               disabled={disabled}
-              className={`min-h-[48px] flex-row items-center gap-2 rounded-2xl border px-4 py-3 ${
+              className={`min-h-[48px] w-[48%] flex-row items-center gap-2 rounded-2xl border px-3 py-3 ${
                 selected
                   ? "border-emergency/50 bg-emergency/15"
                   : "border-glass-border bg-charcoal-800"
@@ -54,14 +50,14 @@ export function EmergencyTypePicker() {
               />
               <Text
                 variant="body"
-                className={selected ? "text-emergency-glow" : ""}
+                className={`shrink ${selected ? "text-emergency-glow" : ""}`}
               >
                 {type.label}
               </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }
