@@ -1,5 +1,5 @@
 import type { User } from '@/types';
-import { apiRequest } from './client';
+import { apiRequest } from './http';
 
 export interface TokenPair {
   access_token: string;

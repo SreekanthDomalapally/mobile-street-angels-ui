@@ -7,13 +7,7 @@ import {
   type LoginParams,
   type RegisterParams,
 } from '@/services/api/auth';
-import {
-  configureGoogleSignIn,
-  getGoogleIdToken,
-  GoogleSignInCancelledError,
-  signOutGoogle,
-  usesDevGoogleSignIn,
-} from '@/services/googleSignIn';
+import { GoogleSignInCancelledError } from '@/services/googleSignInErrors';
 import {
   signInWithGoogle as firebaseSignInWithGoogle,
   signInWithGoogleMock,
@@ -37,9 +31,10 @@ export async function registerAndSignIn(params: RegisterParams): Promise<User> {
 }
 
 export async function signInWithGoogle(): Promise<User> {
+  const { getGoogleIdToken, usesDevGoogleSignIn } = await import('@/services/googleSignIn');
+
   if (usesDevGoogleSignIn()) {
-    const user = await signInWithGoogleMock();
-    return user;
+    return signInWithGoogleMock();
   }
 
   const idToken = await getGoogleIdToken();
@@ -56,8 +51,6 @@ export async function signInWithGoogle(): Promise<User> {
 }
 
 export async function restoreSession(): Promise<User | null> {
-  configureGoogleSignIn();
-
   const stored = await getAuthTokens();
   if (!stored) return null;
 
@@ -76,24 +69,8 @@ export async function restoreSession(): Promise<User | null> {
 }
 
 export async function signOut(): Promise<void> {
+  const { signOutGoogle } = await import('@/services/googleSignIn');
   await Promise.allSettled([signOutGoogle(), firebaseSignOut(), clearAuthTokens()]);
 }
 
-export async function getAccessToken(): Promise<string | null> {
-  const stored = await getAuthTokens();
-  return stored?.accessToken ?? null;
-}
-
-export async function refreshAccessToken(): Promise<string | null> {
-  const stored = await getAuthTokens();
-  if (!stored) return null;
-
-  try {
-    const tokens = await refreshAuthTokens(stored.refreshToken);
-    await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-    return tokens.access_token;
-  } catch {
-    await clearAuthTokens();
-    return null;
-  }
-}
+export { getAccessToken, refreshAccessToken } from '@/services/tokens';

@@ -2,7 +2,7 @@ import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { registerDeviceToken } from '@/services/api/auth';
-import { getAccessToken } from '@/services/auth';
+import { getAccessToken } from '@/services/tokens';
 import { requestLocationPermission } from '@/services/location';
 import { registerForPushNotifications } from '@/services/notifications';
 import { useAuthStore } from '@/stores/authStore';

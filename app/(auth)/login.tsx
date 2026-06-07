@@ -26,8 +26,8 @@ export default function LoginScreen() {
   const { setUser, setLoading, isLoading, isAuthenticated, hasGrantedPermissions } =
     useAuthStore();
   const [error, setError] = useState<string | null>(null);
-  const [showEmailForm, setShowEmailForm] = useState(false);
   const googleAvailable = isGoogleSignInAvailable();
+  const [showEmailForm, setShowEmailForm] = useState(!googleAvailable);
 
   const {
     control,
@@ -108,7 +108,7 @@ export default function LoginScreen() {
         />
         {!googleAvailable && (
           <Text variant="caption" muted className="text-center">
-            Google Sign-In requires an Android or iOS build.
+            Google Sign-In needs your EAS store or dev build. In Expo Go, use email sign-in below.
           </Text>
         )}
         {usesDevGoogleSignIn() && (

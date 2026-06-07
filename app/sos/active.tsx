@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Text } from '@/components/ui/Text';
 import { updateAlertLocation } from '@/services/api/alerts';
-import { getAccessToken } from '@/services/auth';
+import { getAccessToken } from '@/services/tokens';
 import { watchLocation } from '@/services/location';
 import { scheduleEmergencyNotification } from '@/services/notifications';
 import { endSOSAlert } from '@/services/sos';
