@@ -53,9 +53,21 @@ export interface Group {
   name: string;
   memberCount: number;
   members: GroupMember[];
+  myRole?: string;
   isTemporary?: boolean;
   expiresAt?: string;
   color?: string;
+}
+
+export interface CircleContact {
+  id: string;
+  userId?: string;
+  displayName: string;
+  email?: string;
+  phone?: string;
+  groupIds: string[];
+  onPlatform: boolean;
+  status: 'member' | 'invited';
 }
 
 export interface Responder {

@@ -1,23 +1,28 @@
-import { AddContactModal } from '@/components/groups/AddContactModal';
+import { ContactGroupsSheet } from '@/components/contacts/ContactGroupsSheet';
+import { ContactPickerSheet } from '@/components/contacts/ContactPickerSheet';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Text } from '@/components/ui/Text';
+import { useCircleContacts } from '@/hooks/useCircleContacts';
 import { useGroup } from '@/hooks/useGroup';
 import { useSettingsStore } from '@/stores/settingsStore';
+import type { CircleContact } from '@/types';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { data: group, isLoading, isError, refetch } = useGroup(id);
+  const { data: circleContacts } = useCircleContacts();
   const defaultGroupId = useSettingsStore((s) => s.emergency.defaultSosGroupId);
   const setDefaultGroupId = useSettingsStore((s) => s.setDefaultSosGroupId);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<CircleContact | null>(null);
 
   if (isLoading) return <LoadingState message="Loading group…" />;
   if (isError) return <ErrorState onRetry={() => refetch()} />;
@@ -70,14 +75,27 @@ export default function GroupDetailScreen() {
         ) : (
           <View className="mb-6 gap-2">
             {group.members.map((member) => (
-              <View
+              <Pressable
                 key={member.userId}
-                className="rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-3">
+                onPress={() =>
+                  setEditingContact(
+                    circleContacts?.find((contact) => contact.userId === member.userId) ?? {
+                      id: member.userId,
+                      userId: member.userId,
+                      displayName: member.displayName,
+                      email: member.email,
+                      groupIds: [group.id],
+                      onPlatform: true,
+                      status: 'member',
+                    }
+                  )
+                }
+                className="rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-3 active:opacity-90">
                 <Text variant="body">{member.displayName}</Text>
                 <Text variant="caption" muted>
                   {member.email} · {member.role}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -91,14 +109,19 @@ export default function GroupDetailScreen() {
         <Button title="Back to groups" variant="ghost" onPress={() => router.back()} className="mt-3" />
       </ScrollView>
 
-      <AddContactModal
+      <ContactPickerSheet
         visible={showAddContact}
-        groupId={group.id}
-        groupName={group.name}
-        existingMemberIds={group.members.map((m) => m.userId)}
-        existingEmails={group.members.map((m) => m.email)}
+        preselectedGroupIds={[group.id]}
         onClose={() => setShowAddContact(false)}
         onUpdated={() => refetch()}
+      />
+
+      <ContactGroupsSheet
+        visible={editingContact !== null}
+        contact={editingContact}
+        preselectedGroupIds={[group.id]}
+        onClose={() => setEditingContact(null)}
+        onSaved={() => refetch()}
       />
     </View>
   );

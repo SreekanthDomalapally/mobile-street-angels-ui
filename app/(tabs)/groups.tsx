@@ -41,7 +41,6 @@ export default function GroupsScreen() {
 
   useEffect(() => {
     if (!modalVisible) {
-      setKeyboardHeight(0);
       return;
     }
 
@@ -60,6 +59,7 @@ export default function GroupsScreen() {
 
   const closeModal = () => {
     Keyboard.dismiss();
+    setKeyboardHeight(0);
     setModalVisible(false);
     setFormError(null);
   };

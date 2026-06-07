@@ -47,6 +47,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="contacts"
+        options={{
+          title: "Contacts",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book-outline" size={size} color={color} />
+          ),
+          tabBarAccessibilityLabel: "Contacts",
+        }}
+      />
+      <Tabs.Screen
         name="activity"
         options={{
           title: "Activity",

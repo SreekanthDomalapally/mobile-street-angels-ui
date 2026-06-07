@@ -30,6 +30,12 @@ export async function addGroupMember(
   });
 }
 
+export async function removeGroupMember(groupId: string, userId: string): Promise<void> {
+  await authenticatedRequest(`/groups/${groupId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function inviteToGroup(groupId: string, inviteeEmail: string): Promise<void> {
   await authenticatedRequest(`/groups/${groupId}/invites`, {
     method: 'POST',

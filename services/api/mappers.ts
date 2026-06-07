@@ -1,6 +1,7 @@
 import type {
   ActivityItem,
   AlertStatus,
+  CircleContact,
   EmergencyType,
   Group,
   Responder,
@@ -57,7 +58,17 @@ export interface ApiGroupOut {
   created_by: string;
   created_at: string;
   member_count?: number;
+  my_role?: string | null;
   members?: ApiGroupMemberOut[];
+}
+
+export interface ApiContactDirectoryItem {
+  user_id: string | null;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  group_ids: string[];
+  status: 'member' | 'invited';
 }
 
 const EMERGENCY_TO_API: Record<EmergencyType, ApiAlertType> = {
@@ -177,8 +188,24 @@ export function mapApiGroupToGroup(group: ApiGroupOut): Group {
         email: member.email,
         role: member.role,
       })) ?? [],
+    myRole: group.my_role ?? undefined,
     isTemporary: group.is_temporary,
     expiresAt: group.expires_at ?? undefined,
+  };
+}
+
+export function mapApiContactDirectoryItem(item: ApiContactDirectoryItem): CircleContact {
+  const email = item.email ?? undefined;
+  const userId = item.user_id ?? undefined;
+  return {
+    id: userId ?? `invite:${email ?? 'unknown'}`,
+    userId,
+    displayName: item.display_name ?? email ?? 'Invited contact',
+    email,
+    phone: item.phone ?? undefined,
+    groupIds: item.group_ids,
+    onPlatform: Boolean(userId),
+    status: item.status,
   };
 }
 
