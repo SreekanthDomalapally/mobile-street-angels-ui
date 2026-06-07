@@ -1,0 +1,42 @@
+diff --git a/node_modules/react-native-css-interop/dist/metro/index.js b/node_modules/react-native-css-interop/dist/metro/index.js
+index 6ea4a69..6e7f57b 100644
+--- a/node_modules/react-native-css-interop/dist/metro/index.js
++++ b/node_modules/react-native-css-interop/dist/metro/index.js
+@@ -152,30 +152,20 @@ function emitHasteFileChange(filePath, debug) {
+     (0, assert_1.default)(haste != null);
+     try {
+         const modifiedTime = Date.now();
++        const rootDirEntry = fileSystem?.lookup("");
++        const rootDir = rootDirEntry?.exists && typeof rootDirEntry.realPath === "string"
++            ? rootDirEntry.realPath
++            : process.cwd();
++        const modifiedFiles = new Map([[filePath, { isSymlink: false, modifiedTime }]]);
+         haste.emit("change", {
+-            eventsQueue: [
+-                {
+-                    filePath,
+-                    metadata: {
+-                        modifiedTime: Date.now(),
+-                        size: 1,
+-                        type: "virtual",
+-                    },
+-                    type: "change",
+-                },
+-            ],
+-            get rootDir() {
+-                const rootDir = fileSystem?.lookup("");
+-                (0, assert_1.default)(rootDir?.exists && typeof rootDir.realPath === "string");
+-                return rootDir.realPath;
+-            },
+             changes: {
+                 addedDirectories: EMPTY_SET,
+                 removedDirectories: EMPTY_SET,
+                 addedFiles: EMPTY_SET,
++                modifiedFiles,
+                 removedFiles: EMPTY_SET,
+-                changedFiles: new Set([[filePath, { isSymlink: false, modifiedTime }]]),
+             },
++            rootDir,
+         });
+     }
+     catch (error) {

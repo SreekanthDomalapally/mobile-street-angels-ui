@@ -39,26 +39,33 @@ export const mockTrustedContacts: TrustedContact[] = [
   },
 ];
 
+const mockGroupMembers = mockTrustedContacts.map((contact, index) => ({
+  userId: contact.id,
+  displayName: contact.name,
+  email: `${contact.name.split(' ')[0].toLowerCase()}@example.com`,
+  role: index === 0 ? 'owner' : 'member',
+}));
+
 export const mockGroups: Group[] = [
   {
     id: 'g1',
     name: 'Family Circle',
     memberCount: 4,
-    members: mockTrustedContacts.slice(0, 2),
+    members: mockGroupMembers.slice(0, 2),
     color: '#4a8f6a',
   },
   {
     id: 'g2',
     name: 'Neighborhood Watch',
     memberCount: 8,
-    members: mockTrustedContacts,
+    members: mockGroupMembers,
     color: '#5d7a9a',
   },
   {
     id: 'g3',
     name: 'Late Night Walk',
     memberCount: 3,
-    members: mockTrustedContacts.slice(1, 3),
+    members: mockGroupMembers.slice(1, 3),
     isTemporary: true,
     expiresAt: new Date(Date.now() + 3600000).toISOString(),
     color: '#c9a04a',

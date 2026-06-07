@@ -14,6 +14,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "YouHoo Alert uses your location only during active SOS alerts to share with trusted responders.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Location is used during emergencies to help trusted contacts find you.",
+        "NSContactsUsageDescription": "YouHoo Alert uses your contacts to add trusted people to your emergency circle and send invites.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "location",
@@ -34,6 +35,7 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "READ_CONTACTS",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED"
       ],
@@ -71,6 +73,12 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow YouHoo Alert to access contacts so you can add trusted people to your circle."
+        }
+      ],
       "@react-native-google-signin/google-signin"
     ],
     "experiments": {

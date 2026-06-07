@@ -14,6 +14,11 @@ export async function fetchGroups(): Promise<Group[]> {
   return groups.map(mapApiGroupToGroup);
 }
 
+export async function fetchGroup(groupId: string): Promise<Group> {
+  const group = await authenticatedRequest<ApiGroupOut>(`/groups/${groupId}`);
+  return mapApiGroupToGroup(group);
+}
+
 export async function addGroupMember(
   groupId: string,
   userId: string,

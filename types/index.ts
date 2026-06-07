@@ -34,11 +34,25 @@ export interface TrustedContact {
   distanceKm?: number;
 }
 
+export interface GroupMember {
+  userId: string;
+  displayName: string;
+  email: string;
+  role: string;
+}
+
+export interface DeviceContact {
+  id: string;
+  name: string;
+  emails: string[];
+  phoneNumbers: string[];
+}
+
 export interface Group {
   id: string;
   name: string;
   memberCount: number;
-  members: TrustedContact[];
+  members: GroupMember[];
   isTemporary?: boolean;
   expiresAt?: string;
   color?: string;

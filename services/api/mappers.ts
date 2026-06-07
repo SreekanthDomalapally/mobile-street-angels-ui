@@ -41,6 +41,13 @@ export interface ApiAlertOut {
   responses: ApiAlertResponseItem[];
 }
 
+export interface ApiGroupMemberOut {
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 export interface ApiGroupOut {
   id: string;
   name: string;
@@ -49,6 +56,8 @@ export interface ApiGroupOut {
   expires_at: string | null;
   created_by: string;
   created_at: string;
+  member_count?: number;
+  members?: ApiGroupMemberOut[];
 }
 
 const EMERGENCY_TO_API: Record<EmergencyType, ApiAlertType> = {
@@ -160,8 +169,14 @@ export function mapApiGroupToGroup(group: ApiGroupOut): Group {
   return {
     id: group.id,
     name: group.name,
-    memberCount: 0,
-    members: [],
+    memberCount: group.member_count ?? group.members?.length ?? 0,
+    members:
+      group.members?.map((member) => ({
+        userId: member.user_id,
+        displayName: member.full_name,
+        email: member.email,
+        role: member.role,
+      })) ?? [],
     isTemporary: group.is_temporary,
     expiresAt: group.expires_at ?? undefined,
   };

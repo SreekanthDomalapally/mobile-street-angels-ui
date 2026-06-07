@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { registerDeviceToken } from '@/services/api/auth';
 import { getAccessToken } from '@/services/tokens';
+import { requestContactsPermission } from '@/services/contacts';
 import { requestLocationPermission } from '@/services/location';
 import { registerForPushNotifications } from '@/services/notifications';
 import { useAuthStore } from '@/stores/authStore';
@@ -19,6 +20,13 @@ const steps = [
     title: 'Location',
     description:
       'Share your live position only during an active alert — never in the background without cause.',
+  },
+  {
+    id: 'contacts',
+    icon: 'people-outline' as const,
+    title: 'Contacts',
+    description:
+      'Pick trusted people from your phone to add to your circle, or send them an invite to join YouHoo Alert.',
   },
   {
     id: 'notifications',
@@ -51,6 +59,8 @@ export default function PermissionsScreen() {
     try {
       if (current.id === 'location') {
         await requestLocationPermission();
+      } else if (current.id === 'contacts') {
+        await requestContactsPermission();
       } else {
         const pushToken = await registerForPushNotifications();
         if (pushToken) {
