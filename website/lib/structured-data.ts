@@ -6,7 +6,7 @@ export function organizationJsonLd() {
     "@type": "Organization",
     name: "YouHooAlert",
     url: SITE_URL,
-    logo: `${SITE_URL}/logo.png`,
+    logo: `${SITE_URL}/logo.jpeg`,
     slogan: "Helping People Help People.",
     description:
       "Community-driven emergency assistance app that helps people alert trusted contacts and share live location during emergencies.",

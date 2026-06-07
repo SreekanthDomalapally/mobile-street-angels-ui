@@ -31,14 +31,14 @@ export const siteMetadata: Metadata = {
     title: "YouHooAlert — You Are Never Alone",
     description:
       "Community-driven emergency assistance. One tap SOS, live location, trusted contacts.",
-    images: [{ url: "/logo.png", width: 512, height: 512, alt: "YouHooAlert" }],
+    images: [{ url: "/logo.jpeg", width: 1024, height: 280, alt: "YouHooAlert" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "YouHooAlert — Emergency Help One Tap Away",
     description:
       "Notify trusted contacts and share live location during emergencies. Free for everyone.",
-    images: ["/logo.png"],
+    images: ["/logo.jpeg"],
   },
   robots: { index: true, follow: true },
   alternates: { canonical: SITE_URL },

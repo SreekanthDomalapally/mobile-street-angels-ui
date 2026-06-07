@@ -1,6 +1,6 @@
-import type { Group } from '@/types';
+import type { Group, GroupInvite } from '@/types';
 import { authenticatedRequest } from './client';
-import { mapApiGroupToGroup, type ApiGroupOut } from './mappers';
+import { mapApiGroupInvite, mapApiGroupToGroup, type ApiGroupInviteOut, type ApiGroupOut } from './mappers';
 
 export interface CreateGroupParams {
   name: string;
@@ -41,6 +41,19 @@ export async function inviteToGroup(groupId: string, inviteeEmail: string): Prom
     method: 'POST',
     body: JSON.stringify({ invitee_email: inviteeEmail }),
   });
+}
+
+export async function fetchMyGroupInvites(): Promise<GroupInvite[]> {
+  const invites = await authenticatedRequest<ApiGroupInviteOut[]>('/groups/invites/mine');
+  return invites.map(mapApiGroupInvite);
+}
+
+export async function acceptGroupInvite(inviteId: string): Promise<void> {
+  await authenticatedRequest(`/groups/invites/${inviteId}/accept`, { method: 'POST' });
+}
+
+export async function declineGroupInvite(inviteId: string): Promise<void> {
+  await authenticatedRequest(`/groups/invites/${inviteId}/decline`, { method: 'POST' });
 }
 
 export async function createGroup(params: CreateGroupParams): Promise<Group> {

@@ -48,15 +48,34 @@ export interface DeviceContact {
   phoneNumbers: string[];
 }
 
+export interface GroupPendingInvite {
+  id: string;
+  inviteeEmail: string;
+  inviterName: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface Group {
   id: string;
   name: string;
   memberCount: number;
   members: GroupMember[];
+  pendingInvites?: GroupPendingInvite[];
   myRole?: string;
   isTemporary?: boolean;
   expiresAt?: string;
   color?: string;
+}
+
+export interface GroupInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  inviterName: string;
+  inviteeEmail: string;
+  status: string;
+  createdAt: string;
 }
 
 export interface CircleContact {

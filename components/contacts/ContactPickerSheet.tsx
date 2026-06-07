@@ -1,17 +1,28 @@
-import { ContactGroupsSheet } from '@/components/contacts/ContactGroupsSheet';
+import {
+  ContactGroupsSheet,
+  type ContactGroupAction,
+} from '@/components/contacts/ContactGroupsSheet';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
+import { APP_INVITE_MESSAGE } from '@/constants/invites';
 import { lookupUsersByEmail } from '@/services/api/users';
-import { loadDeviceContacts, requestContactsPermission } from '@/services/contacts';
+import {
+  deviceHasContacts,
+  loadDeviceContacts,
+  pickDeviceContact,
+  requestContactsPermission,
+} from '@/services/contacts';
 import { ApiError } from '@/services/api/client';
 import type { CircleContact, DeviceContact } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
+  Share,
   TextInput,
   View,
 } from 'react-native';
@@ -28,6 +39,7 @@ type ContactRow = DeviceContact & {
   primaryEmail?: string;
   onPlatform: boolean;
   userId?: string;
+  canReach: boolean;
 };
 
 function toCircleContact(row: ContactRow, groupIds: string[] = []): CircleContact {
@@ -43,6 +55,13 @@ function toCircleContact(row: ContactRow, groupIds: string[] = []): CircleContac
   };
 }
 
+function contactSubtitle(row: ContactRow): string {
+  if (row.primaryEmail && row.phoneNumbers[0]) {
+    return `${row.primaryEmail} · ${row.phoneNumbers[0]}`;
+  }
+  return row.primaryEmail ?? row.phoneNumbers[0] ?? 'No email or phone on this contact';
+}
+
 export function ContactPickerSheet({
   visible,
   preselectedGroupIds = [],
@@ -56,8 +75,31 @@ export function ContactPickerSheet({
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<ContactRow[]>([]);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [addressBookEmpty, setAddressBookEmpty] = useState(false);
+  const [manualEmail, setManualEmail] = useState('');
+  const [pickingContact, setPickingContact] = useState(false);
   const [selectedContact, setSelectedContact] = useState<CircleContact | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ContactGroupAction>('add-to-circle');
   const [showGroupsSheet, setShowGroupsSheet] = useState(false);
+
+  const enrichContacts = async (contacts: DeviceContact[]): Promise<ContactRow[]> => {
+    const emails = contacts.flatMap((contact) => contact.emails);
+    const matches = emails.length > 0 ? await lookupUsersByEmail(emails) : [];
+    const matchByEmail = new Map(matches.map((match) => [match.email.toLowerCase(), match]));
+
+    return contacts.map((contact) => {
+      const matchedEmail = contact.emails.find((email) => matchByEmail.has(email));
+      const match = matchedEmail ? matchByEmail.get(matchedEmail) : undefined;
+      const primaryEmail = matchedEmail ?? contact.emails[0];
+      return {
+        ...contact,
+        primaryEmail,
+        onPlatform: Boolean(match),
+        userId: match?.user_id,
+        canReach: Boolean(primaryEmail || contact.phoneNumbers[0]),
+      };
+    });
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -67,6 +109,8 @@ export function ContactPickerSheet({
       setLoading(true);
       setError(null);
       setPermissionDenied(false);
+      setAddressBookEmpty(false);
+      setManualEmail('');
       setSearch('');
       try {
         const granted = await requestContactsPermission();
@@ -75,23 +119,13 @@ export function ContactPickerSheet({
           return;
         }
 
-        const contacts = await loadDeviceContacts();
-        const emails = contacts.flatMap((contact) => contact.emails);
-        const matches = emails.length > 0 ? await lookupUsersByEmail(emails) : [];
-        const matchByEmail = new Map(matches.map((match) => [match.email.toLowerCase(), match]));
+        const [contacts, hasAny] = await Promise.all([loadDeviceContacts(), deviceHasContacts()]);
+        const enriched = await enrichContacts(contacts);
 
-        const enriched: ContactRow[] = contacts.map((contact) => {
-          const matchedEmail = contact.emails.find((email) => matchByEmail.has(email));
-          const match = matchedEmail ? matchByEmail.get(matchedEmail) : undefined;
-          return {
-            ...contact,
-            primaryEmail: matchedEmail ?? contact.emails[0],
-            onPlatform: Boolean(match),
-            userId: match?.user_id,
-          };
-        });
-
-        if (!cancelled) setRows(enriched);
+        if (!cancelled) {
+          setAddressBookEmpty(!hasAny);
+          setRows(enriched);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : 'Could not load contacts.');
@@ -117,14 +151,80 @@ export function ContactPickerSheet({
     );
   }, [rows, search]);
 
-  const openGroupPicker = (row: ContactRow) => {
+  const openGroupPicker = (row: ContactRow, action: ContactGroupAction) => {
     setSelectedContact(toCircleContact(row));
+    setSelectedAction(action);
     setShowGroupsSheet(true);
+  };
+
+  const shareInstallLink = async (row: ContactRow) => {
+    const message = row.onPlatform
+      ? `${row.name}, open YouHoo Alert to accept my trusted circle invitation.`
+      : `${APP_INVITE_MESSAGE}\n\n${row.name}, join my trusted circles on YouHoo Alert.`;
+    if (row.phoneNumbers[0]) {
+      const body = encodeURIComponent(message);
+      const phone = row.phoneNumbers[0].replace(/[^\d+]/g, '');
+      await Linking.openURL(`sms:${phone}?body=${body}`);
+      return;
+    }
+    await Share.share({ message });
+  };
+
+  const handleNativePick = async () => {
+    setPickingContact(true);
+    setError(null);
+    try {
+      const contact = await pickDeviceContact();
+      if (!contact) return;
+
+      const [enriched] = await enrichContacts([contact]);
+      if (!enriched) return;
+
+      if (enriched.onPlatform) {
+        openGroupPicker(enriched, 'add-to-circle');
+      } else if (enriched.canReach) {
+        openGroupPicker(enriched, 'invite-to-app');
+      } else {
+        setError('That contact has no email or phone number to invite.');
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not open the contact picker.');
+    } finally {
+      setPickingContact(false);
+    }
+  };
+
+  const handleManualInvite = async () => {
+    const email = manualEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      setError('Enter a valid email address.');
+      return;
+    }
+
+    setError(null);
+    try {
+      const matches = await lookupUsersByEmail([email]);
+      const match = matches[0];
+      const row: ContactRow = {
+        id: `manual:${email}`,
+        name: email,
+        emails: [email],
+        phoneNumbers: [],
+        primaryEmail: email,
+        onPlatform: Boolean(match),
+        userId: match?.user_id,
+        canReach: true,
+      };
+      openGroupPicker(row, match ? 'add-to-circle' : 'invite-to-app');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not look up that email.');
+    }
   };
 
   const handleGroupsSaved = async () => {
     await queryClient.invalidateQueries({ queryKey: ['contacts'] });
     await queryClient.invalidateQueries({ queryKey: ['groups'] });
+    await queryClient.invalidateQueries({ queryKey: ['group-invites'] });
     onUpdated();
     setShowGroupsSheet(false);
     setSelectedContact(null);
@@ -146,7 +246,8 @@ export function ContactPickerSheet({
           </View>
 
           <Text variant="caption" muted className="mb-4 px-5">
-            Pick someone from your phone, then choose which trusted circles they belong to.
+            Pick someone from your phone. On YouHoo Alert users can be added to circles after they
+            accept. Everyone else gets an install invite.
           </Text>
 
           <TextInput
@@ -181,7 +282,11 @@ export function ContactPickerSheet({
             <ScrollView className="flex-1 px-5" keyboardShouldPersistTaps="handled">
               {filtered.length === 0 ? (
                 <Text variant="body" muted className="py-8 text-center">
-                  No contacts with email or phone found.
+                  {rows.length > 0
+                    ? 'No contacts match your search.'
+                    : addressBookEmpty
+                      ? 'No contacts on this device yet. Add people in your phone’s Contacts app or invite by email below.'
+                      : 'No contacts found. Try inviting by email below.'}
                 </Text>
               ) : (
                 filtered.map((row) => (
@@ -190,20 +295,82 @@ export function ContactPickerSheet({
                     className="mb-3 rounded-2xl border border-glass-border bg-charcoal-900 p-4">
                     <Text variant="body">{row.name}</Text>
                     <Text variant="caption" muted className="mt-1">
-                      {row.primaryEmail ?? row.phoneNumbers[0] ?? 'No contact info'}
+                      {contactSubtitle(row)}
                     </Text>
                     <Text variant="label" muted className="mt-2 normal-case">
                       {row.onPlatform ? 'On YouHoo Alert' : 'Not on YouHoo Alert yet'}
                     </Text>
-                    <Button
-                      title={row.onPlatform ? 'Choose circles' : 'Invite to circles'}
-                      size="sm"
-                      className="mt-3"
-                      variant={row.onPlatform ? 'primary' : 'secondary'}
-                      onPress={() => openGroupPicker(row)}
-                    />
+
+                    {row.onPlatform ? (
+                      <View className="mt-3 flex-row gap-2">
+                        <Button
+                          title="Add"
+                          size="sm"
+                          className="flex-1"
+                          disabled={!row.primaryEmail}
+                          onPress={() => openGroupPicker(row, 'add-to-circle')}
+                        />
+                        <Button
+                          title="Invite"
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1"
+                          disabled={!row.canReach}
+                          onPress={() => shareInstallLink(row)}
+                        />
+                      </View>
+                    ) : (
+                      <Button
+                        title="Invite to YouHoo Alert"
+                        size="sm"
+                        className="mt-3"
+                        variant="secondary"
+                        disabled={!row.canReach}
+                        onPress={() => openGroupPicker(row, 'invite-to-app')}
+                      />
+                    )}
+
+                    {!row.primaryEmail && row.onPlatform && (
+                      <Text variant="caption" muted className="mt-2">
+                        Add an email to this contact to send a circle invitation.
+                      </Text>
+                    )}
+                    {!row.canReach && !row.onPlatform && (
+                      <Text variant="caption" muted className="mt-2">
+                        Add an email or phone number to this contact before inviting.
+                      </Text>
+                    )}
                   </View>
                 ))
+              )}
+
+              {!permissionDenied && (
+                <View className="mt-2 rounded-2xl border border-glass-border bg-charcoal-900 p-4">
+                  <Text variant="body" className="mb-2">
+                    Other ways to add someone
+                  </Text>
+                  <Button
+                    title="Pick from phone contacts"
+                    size="sm"
+                    variant="secondary"
+                    loading={pickingContact}
+                    onPress={handleNativePick}
+                  />
+                  <Text variant="caption" muted className="mb-2 mt-4">
+                    Or invite by email
+                  </Text>
+                  <TextInput
+                    className="mb-3 min-h-[48px] rounded-2xl border border-glass-border bg-charcoal-950 px-4 text-base text-white"
+                    placeholder="name@example.com"
+                    placeholderTextColor="#6d6d75"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    value={manualEmail}
+                    onChangeText={setManualEmail}
+                  />
+                  <Button title="Continue with email" size="sm" onPress={handleManualInvite} />
+                </View>
               )}
             </ScrollView>
           )}
@@ -214,6 +381,7 @@ export function ContactPickerSheet({
         visible={showGroupsSheet}
         contact={selectedContact}
         preselectedGroupIds={preselectedGroupIds}
+        action={selectedAction}
         onClose={() => {
           setShowGroupsSheet(false);
           setSelectedContact(null);

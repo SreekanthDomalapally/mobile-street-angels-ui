@@ -4,6 +4,7 @@ import type {
   CircleContact,
   EmergencyType,
   Group,
+  GroupInvite,
   Responder,
   ResponderStatus,
   SOSAlert,
@@ -49,6 +50,14 @@ export interface ApiGroupMemberOut {
   role: string;
 }
 
+export interface ApiGroupPendingInviteOut {
+  id: string;
+  invitee_email: string;
+  inviter_name: string;
+  status: string;
+  created_at: string;
+}
+
 export interface ApiGroupOut {
   id: string;
   name: string;
@@ -60,6 +69,17 @@ export interface ApiGroupOut {
   member_count?: number;
   my_role?: string | null;
   members?: ApiGroupMemberOut[];
+  pending_invites?: ApiGroupPendingInviteOut[];
+}
+
+export interface ApiGroupInviteOut {
+  id: string;
+  group_id: string;
+  group_name: string;
+  inviter_name: string;
+  invitee_email: string;
+  status: string;
+  created_at: string;
 }
 
 export interface ApiContactDirectoryItem {
@@ -188,9 +208,29 @@ export function mapApiGroupToGroup(group: ApiGroupOut): Group {
         email: member.email,
         role: member.role,
       })) ?? [],
+    pendingInvites:
+      group.pending_invites?.map((invite) => ({
+        id: invite.id,
+        inviteeEmail: invite.invitee_email,
+        inviterName: invite.inviter_name,
+        status: invite.status,
+        createdAt: invite.created_at,
+      })) ?? [],
     myRole: group.my_role ?? undefined,
     isTemporary: group.is_temporary,
     expiresAt: group.expires_at ?? undefined,
+  };
+}
+
+export function mapApiGroupInvite(invite: ApiGroupInviteOut): GroupInvite {
+  return {
+    id: invite.id,
+    groupId: invite.group_id,
+    groupName: invite.group_name,
+    inviterName: invite.inviter_name,
+    inviteeEmail: invite.invitee_email,
+    status: invite.status,
+    createdAt: invite.created_at,
   };
 }
 

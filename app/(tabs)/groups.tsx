@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { GroupCard } from "@/components/groups/GroupCard";
+import { GroupInvitesSection } from "@/components/groups/GroupInvitesSection";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { useCreateGroup, useGroups } from "@/hooks/useGroups";
@@ -120,6 +121,7 @@ export default function GroupsScreen() {
           }}
           showsVerticalScrollIndicator={false}
         >
+          <GroupInvitesSection />
           {groups?.length === 0 ? (
             <EmptyState
               icon="people-outline"

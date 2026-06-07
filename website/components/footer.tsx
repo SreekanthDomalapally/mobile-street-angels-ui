@@ -14,7 +14,7 @@ export function Footer() {
         <div className="flex flex-col gap-10 md:flex-row md:justify-between">
           <div className="max-w-sm">
             <div className="flex items-center gap-3 mb-4">
-              <Image src="/logo.png" alt="" width={48} height={48} className="rounded-xl" />
+              <Image src="/logo.jpeg" alt="" width={148} height={40} className="rounded-lg" />
               <span className="text-xl font-bold">YouHooAlert</span>
             </div>
             <p className="text-white/70 text-sm leading-relaxed">

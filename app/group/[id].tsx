@@ -68,6 +68,24 @@ export default function GroupDetailScreen() {
           <Button title="+ Add" size="sm" variant="secondary" onPress={() => setShowAddContact(true)} />
         </View>
 
+        {(group.pendingInvites?.length ?? 0) > 0 && (
+          <View className="mb-6 gap-2">
+            <Text variant="label" className="mb-1">
+              Pending invites
+            </Text>
+            {group.pendingInvites?.map((invite) => (
+              <View
+                key={invite.id}
+                className="rounded-2xl border border-responder/20 bg-charcoal-900 px-4 py-3">
+                <Text variant="body">{invite.inviteeEmail}</Text>
+                <Text variant="caption" muted>
+                  Invited by {invite.inviterName} · waiting for acceptance
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {group.members.length === 0 ? (
           <Text variant="body" muted className="mb-6">
             No members yet. Add contacts from your phone to build your trusted circle.

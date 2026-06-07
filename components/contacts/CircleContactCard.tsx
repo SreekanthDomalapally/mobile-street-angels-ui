@@ -49,9 +49,9 @@ export function CircleContactCard({ contact, groups, onPress }: CircleContactCar
       <Text variant="label" muted className="mt-3 normal-case">
         {contact.onPlatform
           ? contact.status === 'invited'
-            ? 'Invited'
+            ? 'Invite sent — waiting for acceptance'
             : 'On YouHoo Alert'
-          : 'Invite pending'}
+          : 'Invite to install sent'}
       </Text>
     </Pressable>
   );

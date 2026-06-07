@@ -67,7 +67,7 @@ export function DownloadSection() {
             <div className="relative w-56 sm:w-64">
               <div className="rounded-[2.5rem] border-4 border-white/20 bg-navy-light p-3 shadow-2xl">
                 <div className="rounded-[2rem] bg-gradient-to-b from-gray-100 to-white dark:from-navy dark:to-navy-light aspect-[9/19] flex flex-col items-center justify-center p-6">
-                  <Image src="/logo.png" alt="" width={64} height={64} className="rounded-2xl mb-4" />
+                  <Image src="/logo.jpeg" alt="" width={200} height={54} className="rounded-lg mb-4" />
                   <p className="font-bold text-navy dark:text-white text-center">YouHooAlert</p>
                   <div className="mt-6 w-full h-12 rounded-full bg-coral/90 flex items-center justify-center">
                     <span className="text-white font-bold">SOS</span>

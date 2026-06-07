@@ -3,16 +3,18 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { APP_INVITE_MESSAGE } from '@/constants/invites';
 import { useManagedGroups } from '@/hooks/useManagedGroups';
-import { assignInviteToGroups, setContactGroups } from '@/services/api/contacts';
+import { assignInviteToGroups } from '@/services/api/contacts';
 import { ApiError } from '@/services/api/client';
-import { addGroupMember, inviteToGroup, removeGroupMember } from '@/services/api/groups';
+import { inviteToGroup, removeGroupMember } from '@/services/api/groups';
 import type { CircleContact, Group } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, Share, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-async function applyMembershipFallback(
+export type ContactGroupAction = 'add-to-circle' | 'invite-to-app';
+
+async function removeFromGroups(
   userId: string,
   currentGroupIds: string[],
   selectedIds: string[],
@@ -21,12 +23,36 @@ async function applyMembershipFallback(
   for (const group of managedGroups) {
     const shouldMember = selectedIds.includes(group.id);
     const isMember = currentGroupIds.includes(group.id);
-    if (shouldMember && !isMember) {
-      await addGroupMember(group.id, userId);
-    } else if (!shouldMember && isMember) {
+    if (!shouldMember && isMember) {
       await removeGroupMember(group.id, userId);
     }
   }
+}
+
+async function sendGroupInvites(email: string, groupIds: string[], existingGroupIds: string[]) {
+  const toInvite = groupIds.filter((groupId) => !existingGroupIds.includes(groupId));
+  if (toInvite.length === 0) return;
+
+  try {
+    await assignInviteToGroups(email, toInvite);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      await Promise.all(toInvite.map((groupId) => inviteToGroup(groupId, email)));
+      return;
+    }
+    throw err;
+  }
+}
+
+async function shareInstallInvite(contact: CircleContact) {
+  const message = `${APP_INVITE_MESSAGE}\n\n${contact.displayName}, join my trusted circles on YouHoo Alert.`;
+  if (contact.phone) {
+    const body = encodeURIComponent(message);
+    const phone = contact.phone.replace(/[^\d+]/g, '');
+    await Linking.openURL(`sms:${phone}?body=${body}`);
+    return;
+  }
+  await Share.share({ message });
 }
 
 function buildInitialSelection(
@@ -41,6 +67,7 @@ function buildInitialSelection(
 interface ContactGroupsSheetContentProps {
   contact: CircleContact;
   preselectedGroupIds: string[];
+  action: ContactGroupAction;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -48,6 +75,7 @@ interface ContactGroupsSheetContentProps {
 function ContactGroupsSheetContent({
   contact,
   preselectedGroupIds,
+  action,
   onClose,
   onSaved,
 }: ContactGroupsSheetContentProps) {
@@ -59,6 +87,11 @@ function ContactGroupsSheetContent({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const inviteEmail = contact.email?.trim().toLowerCase();
+  const canInviteByEmail = Boolean(inviteEmail);
+  const canShareInstall = Boolean(inviteEmail || contact.phone);
 
   const handleSave = async () => {
     if (selectedIds.length === 0) {
@@ -68,47 +101,40 @@ function ContactGroupsSheetContent({
 
     setSaving(true);
     setError(null);
+    setSuccess(null);
+
     try {
+      const toInvite = selectedIds.filter((groupId) => !contact.groupIds.includes(groupId));
+
       if (contact.onPlatform && contact.userId) {
-        try {
-          await setContactGroups(contact.userId, selectedIds);
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 404) {
-            await applyMembershipFallback(contact.userId, contact.groupIds, selectedIds, managedGroups);
-          } else {
-            throw err;
-          }
+        await removeFromGroups(contact.userId, contact.groupIds, selectedIds, managedGroups);
+      }
+
+      if (toInvite.length > 0) {
+        if (!canInviteByEmail) {
+          throw new Error('Add an email to this contact before inviting them to a circle.');
         }
-      } else if (contact.email) {
-        try {
-          await assignInviteToGroups(contact.email, selectedIds);
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 404) {
-            await Promise.all(
-              selectedIds
-                .filter((groupId) => !contact.groupIds.includes(groupId))
-                .map((groupId) => inviteToGroup(groupId, contact.email!))
-            );
-          } else {
-            throw err;
-          }
+        await sendGroupInvites(inviteEmail!, toInvite, contact.groupIds);
+      }
+
+      if (action === 'invite-to-app') {
+        if (!canShareInstall) {
+          throw new Error('Add an email or phone number to send an install invite.');
         }
-        const message = `${APP_INVITE_MESSAGE}\n\nJoin my trusted circles on YouHoo Alert.`;
-        if (contact.phone) {
-          const body = encodeURIComponent(message);
-          const phone = contact.phone.replace(/[^\d+]/g, '');
-          await Linking.openURL(`sms:${phone}?body=${body}`);
-        } else {
-          await Share.share({ message });
-        }
-      } else {
-        throw new Error('Contact has no email to invite.');
+        await shareInstallInvite(contact);
+        setSuccess('Install invite sent. They can join your circles after signing up.');
+      } else if (toInvite.length > 0) {
+        setSuccess('Invitation sent. They will appear after accepting.');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['contacts'] });
       await queryClient.invalidateQueries({ queryKey: ['groups'] });
+      await queryClient.invalidateQueries({ queryKey: ['group-invites'] });
       onSaved();
-      onClose();
+
+      if (action === 'add-to-circle' && toInvite.length > 0) {
+        onClose();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not update circles.');
     } finally {
@@ -116,12 +142,19 @@ function ContactGroupsSheetContent({
     }
   };
 
+  const saveLabel =
+    action === 'invite-to-app'
+      ? 'Invite to YouHoo Alert'
+      : contact.onPlatform
+        ? 'Send circle invite'
+        : 'Send invite';
+
   return (
     <View
       className="flex-1 bg-charcoal-950"
       style={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }}>
       <View className="mb-4 flex-row items-center justify-between px-5">
-        <Text variant="title">Assign circles</Text>
+        <Text variant="title">{action === 'invite-to-app' ? 'Invite to install' : 'Add to circle'}</Text>
         <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
           <Text variant="body" className="text-responder-light">
             Close
@@ -132,21 +165,30 @@ function ContactGroupsSheetContent({
       <View className="mb-4 px-5">
         <Text variant="body">{contact.displayName}</Text>
         <Text variant="caption" muted className="mt-1">
-          {contact.email ?? contact.phone ?? 'No contact info'}
+          {contact.email ?? contact.phone ?? 'No email or phone on this contact'}
         </Text>
         <Text variant="label" muted className="mt-2 normal-case">
-          {contact.onPlatform ? 'On YouHoo Alert' : 'Invite pending'}
+          {contact.onPlatform
+            ? 'On YouHoo Alert — they must accept before joining'
+            : 'Not on YouHoo Alert yet — invite them to install the app'}
         </Text>
       </View>
 
       <Text variant="caption" muted className="mb-3 px-5">
-        Choose every circle this person should belong to. You can only manage circles where you are
-        an owner or admin.
+        {action === 'invite-to-app'
+          ? 'Choose circles to invite them to. We will send an install link and hold the invite until they sign up.'
+          : 'Choose circles to invite them to. They must accept before becoming a member.'}
       </Text>
 
       {error && (
         <Text variant="caption" className="mb-3 px-5 text-emergency">
           {error}
+        </Text>
+      )}
+
+      {success && (
+        <Text variant="caption" className="mb-3 px-5 text-responder-light">
+          {success}
         </Text>
       )}
 
@@ -160,7 +202,7 @@ function ContactGroupsSheetContent({
       </ScrollView>
 
       <View className="px-5 pt-4">
-        <Button title="Save circles" loading={saving} onPress={handleSave} />
+        <Button title={saveLabel} loading={saving} onPress={handleSave} />
       </View>
     </View>
   );
@@ -170,6 +212,7 @@ interface ContactGroupsSheetProps {
   visible: boolean;
   contact: CircleContact | null;
   preselectedGroupIds?: string[];
+  action?: ContactGroupAction;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -178,13 +221,14 @@ export function ContactGroupsSheet({
   visible,
   contact,
   preselectedGroupIds = [],
+  action = 'add-to-circle',
   onClose,
   onSaved,
 }: ContactGroupsSheetProps) {
   const sheetKey = useMemo(() => {
     if (!contact) return 'closed';
-    return `${contact.id}:${preselectedGroupIds.join(',')}`;
-  }, [contact, preselectedGroupIds]);
+    return `${contact.id}:${action}:${preselectedGroupIds.join(',')}`;
+  }, [contact, action, preselectedGroupIds]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -193,6 +237,7 @@ export function ContactGroupsSheet({
           key={sheetKey}
           contact={contact}
           preselectedGroupIds={preselectedGroupIds}
+          action={action}
           onClose={onClose}
           onSaved={onSaved}
         />

@@ -31,7 +31,7 @@ export function Header() {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="#home" className="flex items-center gap-2.5 shrink-0">
-          <Image src="/logo.png" alt="" width={40} height={40} className="rounded-xl" priority />
+          <Image src="/logo.jpeg" alt="" width={132} height={36} className="rounded-lg" priority />
           <span className="font-bold text-lg text-navy dark:text-white">YouHooAlert</span>
         </Link>
 

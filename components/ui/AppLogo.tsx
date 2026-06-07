@@ -2,9 +2,9 @@ import { Image, type ImageProps } from 'react-native';
 import { APP_LOGO, APP_NAME } from '@/constants/branding';
 
 const SIZES = {
-  sm: 44,
-  md: 120,
-  lg: 200,
+  sm: { width: 148, height: 40 },
+  md: { width: 220, height: 60 },
+  lg: { width: 280, height: 76 },
 } as const;
 
 type LogoSize = keyof typeof SIZES;
@@ -20,7 +20,10 @@ export function AppLogo({
   style,
   ...props
 }: AppLogoProps) {
-  const dimension = typeof size === 'number' ? size : SIZES[size];
+  const dimensions =
+    typeof size === 'number'
+      ? { width: size * 3.7, height: size }
+      : SIZES[size];
 
   return (
     <Image
@@ -28,7 +31,7 @@ export function AppLogo({
       accessibilityLabel={accessibilityLabel}
       accessible
       resizeMode={resizeMode}
-      style={[{ width: dimension, height: dimension }, style]}
+      style={[dimensions, style]}
       {...props}
     />
   );

@@ -54,9 +54,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/YouHooAlert.png",
+          "image": "./assets/images/YouHooLogo.jpeg",
           "resizeMode": "contain",
-          "backgroundColor": "#0f0f12"
+          "backgroundColor": "#0f0f12",
+          "imageWidth": 280
         }
       ],
       [
