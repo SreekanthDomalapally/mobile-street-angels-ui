@@ -9,9 +9,18 @@ import { temporaryGroupExpiryIso } from "@/lib/utils";
 import { ApiError } from "@/services/api/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type Href, router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
 
@@ -28,6 +37,32 @@ export default function GroupsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [isTemporary, setIsTemporary] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!modalVisible) {
+      setKeyboardHeight(0);
+      return;
+    }
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [modalVisible]);
+
+  const closeModal = () => {
+    Keyboard.dismiss();
+    setModalVisible(false);
+    setFormError(null);
+  };
 
   const {
     control,
@@ -109,61 +144,66 @@ export default function GroupsScreen() {
         </ScrollView>
       )}
 
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <Pressable
-          className="flex-1 justify-end bg-black/70"
-          onPress={() => setModalVisible(false)}
-        >
-          <Pressable
-            className="rounded-t-3xl bg-charcoal-900 px-6 pb-10 pt-6"
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text variant="title" className="mb-6">
-              New group
-            </Text>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  className="mb-2 min-h-[52px] rounded-2xl border border-glass-border bg-charcoal-800 px-4 text-base text-white"
-                  placeholder="Group name"
-                  placeholderTextColor="#6d6d75"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  accessibilityLabel="Group name"
-                />
-              )}
-            />
-            {errors.name && (
-              <Text variant="caption" className="mb-4 text-emergency">
-                {errors.name.message}
-              </Text>
-            )}
-            {formError && (
-              <Text variant="caption" className="mb-4 text-emergency">
-                {formError}
-              </Text>
-            )}
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <Pressable className="flex-1 justify-end bg-black/70" onPress={closeModal}>
             <Pressable
-              onPress={() => setIsTemporary(!isTemporary)}
-              className="mb-6 flex-row items-center gap-3 py-2"
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isTemporary }}
-            >
-              <View
-                className={`h-6 w-6 rounded-md border ${isTemporary ? "border-responder bg-responder" : "border-charcoal-500"}`}
+              className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
+              style={{
+                paddingBottom:
+                  keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
+              }}
+              onPress={(e) => e.stopPropagation()}>
+              <Text variant="title" className="mb-6">
+                New group
+              </Text>
+              <Controller
+                control={control}
+                name="name"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    className="mb-2 min-h-[52px] rounded-2xl border border-glass-border bg-charcoal-800 px-4 text-base text-white"
+                    placeholder="Group name"
+                    placeholderTextColor="#6d6d75"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    autoFocus
+                    accessibilityLabel="Group name"
+                  />
+                )}
               />
-              <Text variant="body">Temporary group (expires in 1 hour)</Text>
+              {errors.name && (
+                <Text variant="caption" className="mb-4 text-emergency">
+                  {errors.name.message}
+                </Text>
+              )}
+              {formError && (
+                <Text variant="caption" className="mb-4 text-emergency">
+                  {formError}
+                </Text>
+              )}
+              <Pressable
+                onPress={() => setIsTemporary(!isTemporary)}
+                className="mb-6 flex-row items-center gap-3 py-2"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isTemporary }}
+              >
+                <View
+                  className={`h-6 w-6 rounded-md border ${isTemporary ? "border-responder bg-responder" : "border-charcoal-500"}`}
+                />
+                <Text variant="body">Temporary group (expires in 1 hour)</Text>
+              </Pressable>
+              <Button
+                title="Create"
+                loading={createGroupMutation.isPending}
+                onPress={handleSubmit(onCreate)}
+              />
             </Pressable>
-            <Button
-              title="Create"
-              loading={createGroupMutation.isPending}
-              onPress={handleSubmit(onCreate)}
-            />
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

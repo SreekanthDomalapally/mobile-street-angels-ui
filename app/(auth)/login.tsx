@@ -83,7 +83,9 @@ export default function LoginScreen() {
         paddingHorizontal: 32,
         flexGrow: 1,
       }}
-      keyboardShouldPersistTaps="handled">
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      showsVerticalScrollIndicator={false}>
       <View className="mb-8 items-center">
         <AppLogo size="md" />
       </View>

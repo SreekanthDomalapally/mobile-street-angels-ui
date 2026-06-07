@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
@@ -66,113 +66,126 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View
-      className="flex-1 bg-charcoal-950 px-8"
-      style={{ paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 }}>
-      <View className="mb-6 items-center">
-        <AppLogo size="sm" />
-      </View>
-      <Text variant="hero" className="mb-2">
-        Create account
-      </Text>
-      <Text variant="body" muted className="mb-8">
-        Join your trusted circle with email or Google on the next screen.
-      </Text>
+    <KeyboardAvoidingView
+      className="flex-1 bg-charcoal-950"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={insets.top}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingTop: insets.top + 32,
+          paddingBottom: insets.bottom + 40,
+          paddingHorizontal: 32,
+          flexGrow: 1,
+        }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}>
+        <View className="mb-6 items-center">
+          <AppLogo size="sm" />
+        </View>
+        <Text variant="hero" className="mb-2">
+          Create account
+        </Text>
+        <Text variant="body" muted className="mb-8">
+          Join your trusted circle with email or Google on the next screen.
+        </Text>
 
-      <Controller
-        control={control}
-        name="fullName"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            label="Full name"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            autoCapitalize="words"
-            accessibilityLabel="Full name"
-          />
+        <Controller
+          control={control}
+          name="fullName"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Full name"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="words"
+              accessibilityLabel="Full name"
+            />
+          )}
+        />
+        {errors.fullName?.message && (
+          <Text variant="caption" className="-mt-2 mb-2 text-emergency">
+            {errors.fullName.message}
+          </Text>
         )}
-      />
-      {errors.fullName?.message && (
-        <Text variant="caption" className="-mt-2 mb-2 text-emergency">
-          {errors.fullName.message}
-        </Text>
-      )}
 
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            label="Email"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            accessibilityLabel="Email"
-          />
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Email"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              accessibilityLabel="Email"
+            />
+          )}
+        />
+        {errors.email?.message && (
+          <Text variant="caption" className="-mt-2 mb-2 text-emergency">
+            {errors.email.message}
+          </Text>
         )}
-      />
-      {errors.email?.message && (
-        <Text variant="caption" className="-mt-2 mb-2 text-emergency">
-          {errors.email.message}
-        </Text>
-      )}
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            label="Password"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            secureTextEntry
-            accessibilityLabel="Password"
-          />
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Password"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              secureTextEntry
+              accessibilityLabel="Password"
+            />
+          )}
+        />
+        {errors.password?.message && (
+          <Text variant="caption" className="-mt-2 mb-2 text-emergency">
+            {errors.password.message}
+          </Text>
         )}
-      />
-      {errors.password?.message && (
-        <Text variant="caption" className="-mt-2 mb-2 text-emergency">
-          {errors.password.message}
-        </Text>
-      )}
 
-      <Controller
-        control={control}
-        name="confirmPassword"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            label="Confirm password"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            secureTextEntry
-            accessibilityLabel="Confirm password"
-          />
+        <Controller
+          control={control}
+          name="confirmPassword"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Confirm password"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              secureTextEntry
+              accessibilityLabel="Confirm password"
+            />
+          )}
+        />
+        {errors.confirmPassword?.message && (
+          <Text variant="caption" className="-mt-2 mb-4 text-emergency">
+            {errors.confirmPassword.message}
+          </Text>
         )}
-      />
-      {errors.confirmPassword?.message && (
-        <Text variant="caption" className="-mt-2 mb-4 text-emergency">
-          {errors.confirmPassword.message}
-        </Text>
-      )}
 
-      <Button title="Create account" size="lg" loading={isLoading} onPress={handleSubmit(onSubmit)} />
+        <Button title="Create account" size="lg" loading={isLoading} onPress={handleSubmit(onSubmit)} />
 
-      {error && (
-        <Text variant="caption" className="mt-4 text-center text-emergency">
-          {error}
-        </Text>
-      )}
+        {error && (
+          <Text variant="caption" className="mt-4 text-center text-emergency">
+            {error}
+          </Text>
+        )}
 
-      <Pressable className="mt-6 py-2" onPress={() => router.back()}>
-        <Text variant="body" className="text-center text-responder-light">
-          Already have an account? Sign in
-        </Text>
-      </Pressable>
-    </View>
+        <Pressable className="mt-6 py-2" onPress={() => router.back()}>
+          <Text variant="body" className="text-center text-responder-light">
+            Already have an account? Sign in
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

@@ -8,7 +8,7 @@ import { signOut as authSignOut } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { router } from "expo-router";
-import { Linking, ScrollView, View } from "react-native";
+import { Linking, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
@@ -98,14 +98,38 @@ export default function ProfileScreen() {
           showChevron
           onPress={() => Linking.openURL("mailto:support@youhooalert.com")}
         />
+        <SettingsRow
+          label="Donate"
+          description="Support the mission"
+          icon="heart-outline"
+          showChevron
+          onPress={() => Linking.openURL("https://youhooalert.com/#donate")}
+        />
       </View>
 
       <Button
         title="Sign out"
         variant="ghost"
         onPress={handleSignOut}
-        className="mb-4"
+        className="mb-6"
       />
+
+      <View className="mb-6 items-center px-2">
+        <Text variant="caption" muted className="text-center leading-relaxed">
+          {APP_NAME} is free for everyone. Optional donations help keep alerts, live location,
+          and the platform available for people in need.
+        </Text>
+        <Pressable
+          className="mt-3 py-2"
+          accessibilityRole="link"
+          accessibilityLabel="Donate to support the mission"
+          onPress={() => Linking.openURL("https://youhooalert.com/#donate")}>
+          <Text variant="body" className="text-center text-responder-light">
+            Support the mission · Donate
+          </Text>
+        </Pressable>
+      </View>
+
       <Text variant="caption" muted className="text-center">
         {APP_NAME} v{getAppVersionLabel()} · Free to use
       </Text>
