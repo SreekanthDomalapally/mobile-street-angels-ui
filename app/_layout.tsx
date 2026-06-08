@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { colors } from '@/constants/theme';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuthBootstrap } from '@/hooks/useAuth';
 import { useNotificationRouting } from '@/hooks/useNotificationRouting';
@@ -37,7 +38,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0f0f12' },
+          contentStyle: { backgroundColor: colors.background },
           animation: 'fade',
         }}>
         <Stack.Screen name="index" />

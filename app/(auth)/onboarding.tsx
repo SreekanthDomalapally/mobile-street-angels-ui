@@ -2,6 +2,7 @@ import { AppLogo } from "@/components/ui/AppLogo";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { APP_CAPTION } from "@/constants/branding";
+import { colors } from "@/constants/theme";
 import { useAuthStore } from "@/stores/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -20,7 +21,7 @@ export default function OnboardingScreen() {
   return (
     <View className="flex-1 bg-charcoal-950">
       <LinearGradient
-        colors={["#1a1a1e", "#0f0f12", "#0f0f12"]}
+        colors={[colors.surface, colors.background, colors.background]}
         className="flex-1"
         style={{
           paddingTop: insets.top + 24,

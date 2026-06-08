@@ -57,9 +57,9 @@ export function LiveMap({
 }
 
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#1a1a1e' }] },
+  { elementType: 'geometry', stylers: [{ color: '#0F2442' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#6d6d75' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0f0f12' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a2e' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f0f12' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0B1B32' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#152E52' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0B1B32' }] },
 ];
