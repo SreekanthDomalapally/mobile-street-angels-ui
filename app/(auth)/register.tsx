@@ -82,7 +82,7 @@ export default function RegisterScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}>
         <View className="mb-6 items-center">
-          <AppLogo size="sm" />
+          <AppLogo size="md" />
         </View>
         <Text variant="hero" className="mb-2">
           Create account

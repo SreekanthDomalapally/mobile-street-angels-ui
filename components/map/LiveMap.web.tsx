@@ -27,7 +27,7 @@ export function LiveMap({
         an active SOS.
       </Text>
       <Text variant="caption" muted className="mt-4 text-center">
-        {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+        {userLocation?.latitude.toFixed(4)}, {userLocation?.longitude.toFixed(4)}
         {responders.length > 0 ? ` · ${responders.length} responder(s)` : ''}
       </Text>
     </View>

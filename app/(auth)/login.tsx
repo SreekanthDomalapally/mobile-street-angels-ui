@@ -86,8 +86,8 @@ export default function LoginScreen() {
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
       showsVerticalScrollIndicator={false}>
-      <View className="mb-8 items-center">
-        <AppLogo size="md" />
+      <View className="mb-6 items-center">
+        <AppLogo size="lg" />
       </View>
       <Text variant="hero" className="mb-2">
         Welcome
