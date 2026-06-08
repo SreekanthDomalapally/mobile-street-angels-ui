@@ -3,7 +3,7 @@ import { assignInviteToGroups } from '@/services/api/contacts';
 import { ApiError } from '@/services/api/client';
 import { inviteToGroup } from '@/services/api/groups';
 import type { CircleContact } from '@/types';
-import { Linking, Share } from 'react-native';
+import { Share } from 'react-native';
 
 export async function sendGroupInvites(
   email: string,
@@ -26,13 +26,10 @@ export async function sendGroupInvites(
 
 export async function shareInstallInvite(contact: Pick<CircleContact, 'displayName' | 'phone'>) {
   const message = `${APP_INVITE_MESSAGE}\n\n${contact.displayName}, join my group on YouHoo Alert.`;
-  if (contact.phone) {
-    const body = encodeURIComponent(message);
-    const phone = contact.phone.replace(/[^\d+]/g, '');
-    await Linking.openURL(`sms:${phone}?body=${body}`);
-    return;
-  }
-  await Share.share({ message });
+  await Share.share({
+    message,
+    title: 'Invite to YouHoo Alert',
+  });
 }
 
 export async function addContactToGroup(email: string, groupId: string) {
