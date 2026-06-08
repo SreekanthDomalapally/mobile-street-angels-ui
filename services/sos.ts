@@ -18,7 +18,7 @@ export async function triggerSOS(emergencyType: EmergencyType): Promise<SOSAlert
     );
   }
 
-  const location = await getCurrentLocation();
+  const location = await getCurrentLocation({ highAccuracy: true });
   if (!location) {
     throw new ApiError(
       'Location access is required to send an SOS alert.',

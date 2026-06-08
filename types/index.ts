@@ -13,6 +13,7 @@ export type ResponderStatus = 'notified' | 'viewing' | 'en_route' | 'arrived' | 
 export interface Coordinates {
   latitude: number;
   longitude: number;
+  accuracyMeters?: number;
 }
 
 export interface User {

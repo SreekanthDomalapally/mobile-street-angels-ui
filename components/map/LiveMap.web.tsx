@@ -4,8 +4,10 @@ import type { Coordinates, Responder } from '@/types';
 import { MOCK_USER_LOCATION } from '@/data/mock';
 
 interface LiveMapProps {
-  userLocation?: Coordinates;
+  userLocation?: Coordinates | null;
   responders?: Responder[];
+  followUser?: boolean;
+  onLiveLocationChange?: (coords: Coordinates) => void;
   className?: string;
 }
 

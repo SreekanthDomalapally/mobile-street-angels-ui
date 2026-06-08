@@ -1,53 +1,112 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, {
+  Circle,
+  Marker,
+  PROVIDER_DEFAULT,
+  type Region,
+  type UserLocationChangeEvent,
+} from 'react-native-maps';
 import type { Coordinates, Responder } from '@/types';
-import { MOCK_USER_LOCATION } from '@/data/mock';
+
+const STREET_LEVEL_DELTA = 0.006;
 
 interface LiveMapProps {
-  userLocation?: Coordinates;
+  userLocation?: Coordinates | null;
   responders?: Responder[];
+  followUser?: boolean;
+  onLiveLocationChange?: (coords: Coordinates) => void;
   className?: string;
 }
 
+function toRegion(coords: Coordinates, delta = STREET_LEVEL_DELTA): Region {
+  return {
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+    latitudeDelta: delta,
+    longitudeDelta: delta,
+  };
+}
+
 export function LiveMap({
-  userLocation = MOCK_USER_LOCATION,
+  userLocation,
   responders = [],
+  followUser = false,
+  onLiveLocationChange,
 }: LiveMapProps) {
-  const region = useMemo(
-    () => ({
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      latitudeDelta: 0.02,
-      longitudeDelta: 0.02,
-    }),
-    [userLocation.latitude, userLocation.longitude]
+  const mapRef = useRef<MapView>(null);
+  const [liveCoords, setLiveCoords] = useState<Coordinates | null>(userLocation ?? null);
+  const [accuracyMeters, setAccuracyMeters] = useState<number | undefined>(
+    userLocation?.accuracyMeters
   );
+
+  useEffect(() => {
+    if (!userLocation) return;
+    setLiveCoords(userLocation);
+    setAccuracyMeters(userLocation.accuracyMeters);
+  }, [userLocation?.latitude, userLocation?.longitude, userLocation?.accuracyMeters]);
+
+  const initialRegion = useMemo(() => {
+    if (!userLocation) return undefined;
+    return toRegion(userLocation);
+  }, [userLocation?.latitude, userLocation?.longitude]);
+
+  const handleUserLocationChange = useCallback(
+    (event: UserLocationChangeEvent) => {
+      const coordinate = event.nativeEvent.coordinate;
+      if (!coordinate) return;
+
+      const coords: Coordinates = {
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+        accuracyMeters: coordinate.accuracy,
+      };
+
+      setLiveCoords(coords);
+      setAccuracyMeters(coordinate.accuracy);
+      onLiveLocationChange?.(coords);
+
+      if (followUser) {
+        mapRef.current?.animateToRegion(toRegion(coords), 400);
+      }
+    },
+    [followUser, onLiveLocationChange]
+  );
+
+  if (!initialRegion) {
+    return <View className="flex-1 bg-charcoal-950" />;
+  }
 
   return (
     <View className="flex-1 overflow-hidden rounded-none">
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_DEFAULT : undefined}
-        region={region}
+        initialRegion={initialRegion}
         showsUserLocation
-        showsMyLocationButton={false}
+        showsMyLocationButton={followUser}
+        followsUserLocation={followUser && Platform.OS === 'ios'}
+        onUserLocationChange={handleUserLocationChange}
         customMapStyle={darkMapStyle}
         accessibilityLabel="Live map showing your location and responders">
-        <Marker
-          coordinate={userLocation}
-          title="You"
-          pinColor="#c94a4a"
-          accessibilityLabel="Your location"
-        />
+        {liveCoords && accuracyMeters && accuracyMeters > 0 && (
+          <Circle
+            center={liveCoords}
+            radius={accuracyMeters}
+            fillColor="rgba(74, 143, 255, 0.12)"
+            strokeColor="rgba(74, 143, 255, 0.35)"
+            strokeWidth={1}
+          />
+        )}
         {responders
-          .filter((r) => r.coordinates)
-          .map((r) => (
+          .filter((responder) => responder.coordinates)
+          .map((responder) => (
             <Marker
-              key={r.id}
-              coordinate={r.coordinates!}
-              title={r.name}
-              description={r.status}
+              key={responder.id}
+              coordinate={responder.coordinates!}
+              title={responder.name}
+              description={responder.status}
               pinColor="#4a8f6a"
             />
           ))}

@@ -10,11 +10,12 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { Text } from '@/components/ui/Text';
 import { updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
-import { watchLocation } from '@/services/location';
+import { getCurrentLocation, watchLocation } from '@/services/location';
 import { scheduleEmergencyNotification } from '@/services/notifications';
 import { endSOSAlert } from '@/services/sos';
 import { alertSocket } from '@/services/websocket';
 import { useSOSStore } from '@/stores/sosStore';
+import type { Coordinates } from '@/types';
 
 export default function SOSActiveScreen() {
   const insets = useSafeAreaInsets();
@@ -51,16 +52,23 @@ export default function SOSActiveScreen() {
         }
       });
 
-      stopWatching = await watchLocation(async (coords) => {
+      const pushLocation = async (coords: Coordinates) => {
         const current = useSOSStore.getState().activeAlert;
         if (!current) return;
         try {
-          await updateAlertLocation(current.id, coords);
+          await updateAlertLocation(current.id, coords, coords.accuracyMeters);
           setActiveAlert({ ...current, location: coords });
         } catch {
           // Location updates are best-effort during an active alert.
         }
-      });
+      };
+
+      const freshLocation = await getCurrentLocation({ highAccuracy: true });
+      if (freshLocation) {
+        await pushLocation(freshLocation);
+      }
+
+      stopWatching = await watchLocation(pushLocation, { highAccuracy: true });
     })();
 
     return () => {
@@ -106,6 +114,12 @@ export default function SOSActiveScreen() {
         <LiveMap
           userLocation={activeAlert.location}
           responders={activeAlert.responders}
+          followUser
+          onLiveLocationChange={(coords) => {
+            const current = useSOSStore.getState().activeAlert;
+            if (!current) return;
+            setActiveAlert({ ...current, location: coords });
+          }}
         />
         <View
           className="absolute left-0 right-0 flex-row items-center justify-between px-4"
