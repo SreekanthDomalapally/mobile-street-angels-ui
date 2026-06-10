@@ -4,7 +4,7 @@
     "slug": "mobile-youhoo-alert",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/YouHooLogo.png",
     "scheme": "youhooalert",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -16,10 +16,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Location is used during emergencies to help trusted contacts find you.",
         "NSContactsUsageDescription": "YouHoo Alert uses your contacts to add trusted people to your emergency groups and send invites.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "location",
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["location", "remote-notification"]
       },
       "config": {}
     },
@@ -54,7 +51,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/YouHooLogo.jpeg",
+          "image": "./assets/images/YouHooLogo.png",
           "resizeMode": "contain",
           "backgroundColor": "#0B1B32",
           "imageWidth": 280
