@@ -17,9 +17,10 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 
 interface SOSButtonProps {
   onActivate: () => void;
+  disabled?: boolean;
 }
 
-export function SOSButton({ onActivate }: SOSButtonProps) {
+export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   const holdDuration = useSettingsStore((s) => s.emergency.holdDurationMs);
   const { status, holdProgress, startArming, cancelArming, setHoldProgress } =
     useSOSStore();
@@ -61,7 +62,7 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
   }, [cancelArming]);
 
   const startHold = useCallback(() => {
-    if (status !== "idle") return;
+    if (disabled || status !== "idle") return;
     holdCompleted.current = false;
     setHoldHint(null);
     setIsPressed(true);
@@ -80,6 +81,7 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
       }
     }, 50);
   }, [
+    disabled,
     status,
     holdDuration,
     startArming,
@@ -118,8 +120,10 @@ export function SOSButton({ onActivate }: SOSButtonProps) {
       <Pressable
         onPressIn={startHold}
         onPressOut={endHold}
-        disabled={status !== "idle" && status !== "arming"}
-        className="h-48 w-48 items-center justify-center rounded-full bg-emergency shadow-lg"
+        disabled={disabled || (status !== "idle" && status !== "arming")}
+        className={`h-48 w-48 items-center justify-center rounded-full shadow-lg ${
+          disabled ? "bg-emergency/40" : "bg-emergency"
+        }`}
         accessibilityRole="button"
         accessibilityHint={`Hold for ${holdDuration / 1000} seconds to send SOS`}
         accessibilityState={{ busy: isArming }}

@@ -76,10 +76,9 @@ export function CountdownOverlay({
           {loading ? "Please wait" : "Tap Cancel alert below to stop"}
         </Text>
         <Button
-          title="Cancel alert"
+          title={loading ? "Stop sending" : "Cancel alert"}
           variant="secondary"
           onPress={onCancel}
-          disabled={loading}
         />
       </View>
     </Modal>

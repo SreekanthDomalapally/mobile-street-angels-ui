@@ -9,8 +9,9 @@ import { Text } from "@/components/ui/Text";
 import { ApiError } from "@/services/api/client";
 import { triggerSOS } from "@/services/sos";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useSOSStore } from "@/stores/sosStore";
-import { router } from "expo-router";
+import { isSOSLive, useSOSStore } from "@/stores/sosStore";
+import { useFocusEffect, router } from "expo-router";
+import { useCallback } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,25 +26,59 @@ export default function HomeScreen() {
     emergencyType,
     activationError,
     isActivating,
+    activeAlert,
     setCountdown,
     setActiveAlert,
     setActivating,
     setActivationError,
     cancelArming,
+    resetSOS,
   } = useSOSStore();
 
+  const sosInProgress =
+    Boolean(activeAlert) && (status === "active" || status === "responding");
+
+  useFocusEffect(
+    useCallback(() => {
+      const state = useSOSStore.getState();
+
+      if (
+        state.activeAlert &&
+        (state.status === "active" || state.status === "responding")
+      ) {
+        router.replace("/sos/active");
+        return;
+      }
+
+      if (
+        !state.activeAlert &&
+        (state.countdown !== null ||
+          state.status === "arming" ||
+          state.isActivating)
+      ) {
+        resetSOS();
+      }
+    }, [resetSOS]),
+  );
+
   const handleSOSComplete = () => {
+    if (isSOSLive()) return;
     setActivationError(null);
     setCountdown(countdownSeconds);
   };
 
   const handleCountdownComplete = async () => {
+    if (isSOSLive()) {
+      router.replace("/sos/active");
+      return;
+    }
+
     setActivating(true);
     setActivationError(null);
     try {
       const alert = await triggerSOS(emergencyType);
       setActiveAlert(alert);
-      router.push('/sos/active');
+      router.replace("/sos/active");
     } catch (error) {
       setActivating(false);
       setCountdown(null);
@@ -53,7 +88,7 @@ export default function HomeScreen() {
           ? error.message
           : error instanceof Error
             ? error.message
-            : "SOS failed. Please try again."
+            : "SOS failed. Please try again.",
       );
     }
   };
@@ -61,6 +96,7 @@ export default function HomeScreen() {
   const handleCountdownCancel = () => {
     setCountdown(null);
     cancelArming();
+    setActivating(false);
   };
 
   return (
@@ -82,14 +118,19 @@ export default function HomeScreen() {
             </View>
           </View>
           <Text variant="title" className="leading-tight">
-            You are protected
+            {sosInProgress ? "SOS alert in progress" : "You are protected"}
           </Text>
+          {sosInProgress && (
+            <Text variant="body" muted>
+              Return to your active alert to see responders and end the alert.
+            </Text>
+          )}
         </View>
 
         <SosGroupPicker />
 
         <View className="my-6 items-center">
-          <SOSButton onActivate={handleSOSComplete} />
+          <SOSButton onActivate={handleSOSComplete} disabled={sosInProgress} />
         </View>
 
         {activationError && (
@@ -105,7 +146,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {countdown !== null && status !== "active" && (
+      {countdown !== null && !sosInProgress && (
         <CountdownOverlay
           seconds={countdown}
           loading={isActivating}

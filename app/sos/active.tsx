@@ -1,17 +1,19 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveMap } from '@/components/map/LiveMap';
 import { EventTimeline } from '@/components/sos/EventTimeline';
 import { ResponderCard } from '@/components/sos/ResponderCard';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
 import { updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import { getCurrentLocation, watchLocation } from '@/services/location';
 import { scheduleEmergencyNotification } from '@/services/notifications';
+import { findActiveAlert } from '@/services/sosRecovery';
 import { endSOSAlert } from '@/services/sos';
 import { alertSocket } from '@/services/websocket';
 import { useSOSStore } from '@/stores/sosStore';
@@ -21,16 +23,58 @@ export default function SOSActiveScreen() {
   const insets = useSafeAreaInsets();
   const {
     activeAlert,
-    cancelSOS,
-    resolveAlert,
+    resetSOS,
     updateResponders,
     addTimelineEvent,
     setActiveAlert,
   } = useSOSStore();
+  const [recovering, setRecovering] = useState(!activeAlert);
+
+  const exitToHome = useCallback(() => {
+    resetSOS();
+    router.replace('/(tabs)');
+  }, [resetSOS]);
+
+  // Recover alert if store was cleared (e.g. app was killed) before redirecting home.
+  useEffect(() => {
+    if (activeAlert) {
+      setRecovering(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const recovered = await findActiveAlert();
+        if (cancelled) return;
+        if (recovered) {
+          setActiveAlert(recovered);
+          return;
+        }
+        router.replace('/(tabs)');
+      } catch (error) {
+        console.warn('[sos] Active screen recovery failed:', error);
+        if (!cancelled) {
+          router.replace('/(tabs)');
+        }
+      } finally {
+        if (!cancelled) {
+          setRecovering(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAlert, setActiveAlert]);
 
   useEffect(() => {
-    if (activeAlert) return;
-    router.replace('/(tabs)');
+    if (!activeAlert) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => subscription.remove();
   }, [activeAlert]);
 
   useEffect(() => {
@@ -56,8 +100,7 @@ export default function SOSActiveScreen() {
         alertSocket.onTimelineEvent(addTimelineEvent);
         alertSocket.onStatusChange((status) => {
           if (status === 'resolved') {
-            resolveAlert();
-            router.replace('/(tabs)');
+            exitToHome();
           }
         });
 
@@ -90,9 +133,8 @@ export default function SOSActiveScreen() {
       alertSocket.disconnect();
       stopWatching?.();
     };
-    // Reconnect when alert id changes; location updates read fresh state via getState().
     // eslint-disable-next-line react-hooks/exhaustive-deps -- activeAlert object identity changes on each location tick
-  }, [activeAlert?.id, addTimelineEvent, resolveAlert, setActiveAlert, updateResponders]);
+  }, [activeAlert?.id, addTimelineEvent, exitToHome, setActiveAlert, updateResponders]);
 
   const handleEndAlert = async () => {
     if (!activeAlert) return;
@@ -101,8 +143,7 @@ export default function SOSActiveScreen() {
     } catch (error) {
       console.warn('[sos] Failed to resolve alert on server:', error);
     } finally {
-      resolveAlert();
-      router.replace('/(tabs)');
+      exitToHome();
     }
   };
 
@@ -114,12 +155,11 @@ export default function SOSActiveScreen() {
         // Still clear local state if network fails.
       }
     }
-    cancelSOS();
-    router.back();
+    exitToHome();
   };
 
-  if (!activeAlert) {
-    return null;
+  if (recovering || !activeAlert) {
+    return <LoadingState message="Restoring your active alert…" />;
   }
 
   const enRouteCount = activeAlert.responders.filter((r) => r.status === 'en_route').length;

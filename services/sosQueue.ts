@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createSOSAlert } from '@/services/api/alerts';
 import { isRetryableError } from '@/lib/retryableError';
-import type { Coordinates, EmergencyType } from '@/types';
+import type { Coordinates, EmergencyType, SOSAlert } from '@/types';
 
 const QUEUE_KEY = 'street-angels-pending-sos';
 
@@ -33,22 +33,21 @@ export async function clearPendingSOSQueue(): Promise<void> {
   await AsyncStorage.removeItem(QUEUE_KEY);
 }
 
-export async function flushPendingSOSQueue(): Promise<number> {
+export async function flushPendingSOSQueue(): Promise<SOSAlert | null> {
   const queue = await getPendingSOSQueue();
-  if (!queue.length) return 0;
+  if (!queue.length) return null;
 
   const remaining: PendingSOSPayload[] = [];
-  let sent = 0;
+  let lastSent: SOSAlert | null = null;
 
   for (const item of queue) {
     try {
-      await createSOSAlert({
+      lastSent = await createSOSAlert({
         groupId: item.groupId,
         emergencyType: item.emergencyType,
         location: item.location,
         message: item.message,
       });
-      sent += 1;
     } catch (error) {
       if (isRetryableError(error)) {
         remaining.push(item);
@@ -64,5 +63,5 @@ export async function flushPendingSOSQueue(): Promise<number> {
     await clearPendingSOSQueue();
   }
 
-  return sent;
+  return lastSent;
 }

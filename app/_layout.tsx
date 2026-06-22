@@ -46,7 +46,11 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="sos/active"
-          options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'fade',
+            gestureEnabled: false,
+          }}
         />
         <Stack.Screen
           name="alert/[id]"

@@ -17,6 +17,7 @@ export function useAcceptGroupInvite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group-invites'] });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['group'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
   });

@@ -166,10 +166,10 @@ export function GroupContactList({
   return (
     <View>
       <Text variant="label" className="mb-2">
-        {groupName ? `Add people to ${groupName}` : 'Contacts'}
+        {groupName ? `Invite people to ${groupName}` : 'Invite people'}
       </Text>
       <Text variant="caption" muted className="mb-3">
-        Add sends a group invite to YouHoo Alert users. Invite sends a message to join the app.
+        Send a request to YouHoo Alert users. They must accept before joining the group.
       </Text>
 
       <TextInput
@@ -245,19 +245,19 @@ export function GroupContactList({
 
                 {status === 'member' && (
                   <Text variant="caption" className="mt-3 text-responder-light">
-                    Member
+                    In this group
                   </Text>
                 )}
 
                 {status === 'pending' && (
                   <Text variant="caption" className="mt-3 text-warning">
-                    Pending
+                    Request pending
                   </Text>
                 )}
 
                 {status === 'add' && (
                   <Button
-                    title="Add"
+                    title="Send request"
                     size="sm"
                     className="mt-3"
                     loading={busyId === row.id}
@@ -268,7 +268,7 @@ export function GroupContactList({
 
                 {status === 'invite' && (
                   <Button
-                    title="Invite"
+                    title="Invite to app"
                     size="sm"
                     variant="secondary"
                     className="mt-3"

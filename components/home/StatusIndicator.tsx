@@ -4,9 +4,12 @@ import { Text } from '@/components/ui/Text';
 import { useSOSStore } from '@/stores/sosStore';
 
 export function StatusIndicator() {
-  const { status, isOffline } = useSOSStore();
+  const { status, isOffline, activeAlert } = useSOSStore();
 
-  if (status === 'idle') {
+  const isLive =
+    Boolean(activeAlert) && (status === 'active' || status === 'responding');
+
+  if (!isLive) {
     return (
       <View
         className="flex-row items-center gap-2 rounded-2xl border border-glass-border bg-charcoal-900/90 px-3 py-2"

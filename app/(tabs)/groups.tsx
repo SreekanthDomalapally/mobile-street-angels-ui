@@ -4,6 +4,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
 import { GroupCard } from '@/components/groups/GroupCard';
 import { GroupInvitesSection } from '@/components/groups/GroupInvitesSection';
+import { GroupMembersSection } from '@/components/groups/GroupMembersSection';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useGroup } from '@/hooks/useGroup';
@@ -11,8 +12,8 @@ import { useCreateGroup, useGroups } from '@/hooks/useGroups';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   Keyboard,
@@ -41,7 +42,9 @@ export default function GroupsScreen() {
   const { data: groups, isLoading, isError, refetch } = useGroups();
   const createGroupMutation = useCreateGroup();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const { data: selectedGroup, refetch: refetchGroup } = useGroup(selectedGroupId ?? undefined);
+  const { data: selectedGroup, isLoading: isGroupLoading, refetch: refetchGroup } = useGroup(
+    selectedGroupId ?? undefined
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [isTemporary, setIsTemporary] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -77,14 +80,30 @@ export default function GroupsScreen() {
     };
   }, [modalVisible]);
 
-  const memberEmails = useMemo(
-    () => selectedGroup?.members.map((member) => member.email.toLowerCase()) ?? [],
-    [selectedGroup]
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+      if (selectedGroupId) {
+        void refetchGroup();
+      }
+    }, [refetch, refetchGroup, selectedGroupId])
   );
-  const pendingEmails = useMemo(
-    () => selectedGroup?.pendingInvites?.map((invite) => invite.inviteeEmail.toLowerCase()) ?? [],
-    [selectedGroup]
-  );
+
+  const memberEmails = useMemo(() => {
+    const listGroup = groups?.find((group) => group.id === selectedGroupId);
+    const members =
+      selectedGroup?.members?.length ? selectedGroup.members : (listGroup?.members ?? []);
+    return members.map((member) => member.email.toLowerCase());
+  }, [selectedGroup, groups, selectedGroupId]);
+
+  const pendingEmails = useMemo(() => {
+    const listGroup = groups?.find((group) => group.id === selectedGroupId);
+    const pending =
+      selectedGroup?.pendingInvites?.length
+        ? selectedGroup.pendingInvites
+        : (listGroup?.pendingInvites ?? []);
+    return pending.map((invite) => invite.inviteeEmail.toLowerCase());
+  }, [selectedGroup, groups, selectedGroupId]);
 
   const closeModal = () => {
     Keyboard.dismiss();
@@ -104,9 +123,12 @@ export default function GroupsScreen() {
   });
 
   const handleGroupUpdated = () => {
-    refetch();
+    void refetch();
+    queryClient.invalidateQueries({ queryKey: ['groups'] });
+    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    queryClient.invalidateQueries({ queryKey: ['group-invites'] });
     if (selectedGroupId) {
-      refetchGroup();
+      void refetchGroup();
       queryClient.invalidateQueries({ queryKey: ['group', selectedGroupId] });
     }
   };
@@ -174,17 +196,38 @@ export default function GroupsScreen() {
               <Text variant="label" className="mb-3">
                 Your groups
               </Text>
-              {groups?.map((group) => (
-                <GroupCard
-                  key={group.id}
-                  group={group}
-                  selected={selectedGroupId === group.id}
-                  onPress={() => setSelectedGroupId(group.id)}
-                />
-              ))}
+              {groups?.map((group) => {
+                const enriched =
+                  selectedGroupId === group.id && selectedGroup
+                    ? {
+                        ...group,
+                        memberCount: Math.max(
+                          group.memberCount,
+                          selectedGroup.memberCount,
+                          selectedGroup.members.length
+                        ),
+                        members: selectedGroup.members,
+                        pendingInvites: selectedGroup.pendingInvites,
+                      }
+                    : group;
+
+                return (
+                  <GroupCard
+                    key={group.id}
+                    group={enriched}
+                    selected={selectedGroupId === group.id}
+                    onPress={() => setSelectedGroupId(group.id)}
+                  />
+                );
+              })}
 
               {selectedGroupId && (
                 <View className="mt-4 border-t border-glass-border pt-6">
+                  <GroupMembersSection
+                    group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}
+                    loading={isGroupLoading}
+                  />
+
                   <GroupContactList
                     groupId={selectedGroupId}
                     groupName={selectedGroup?.name ?? groups?.find((g) => g.id === selectedGroupId)?.name}

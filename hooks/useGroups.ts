@@ -7,6 +7,7 @@ export function useGroups() {
     queryKey: ['groups'],
     queryFn: () => fetchGroups(),
     retry: 1,
+    staleTime: 0,
   });
 }
 

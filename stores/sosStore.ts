@@ -1,3 +1,4 @@
+import { clearPersistedActiveAlert, persistActiveAlertId } from '@/services/sosSession';
 import { create } from 'zustand';
 import type { EmergencyType, Responder, SOSAlert, TimelineEvent } from '@/types';
 
@@ -26,15 +27,23 @@ interface SOSState {
   resetSOS: () => void;
 }
 
-export const useSOSStore = create<SOSState>((set, get) => ({
-  status: 'idle',
-  emergencyType: 'safety',
+const idleState = {
+  status: 'idle' as const,
   holdProgress: 0,
   countdown: null,
   activeAlert: null,
-  isOffline: false,
   isActivating: false,
   activationError: null,
+};
+
+function clearSession() {
+  void clearPersistedActiveAlert();
+}
+
+export const useSOSStore = create<SOSState>((set, get) => ({
+  ...idleState,
+  emergencyType: 'safety',
+  isOffline: false,
   setEmergencyType: (emergencyType) => set({ emergencyType }),
   setHoldProgress: (holdProgress) => set({ holdProgress }),
   setCountdown: (countdown) => set({ countdown }),
@@ -42,7 +51,8 @@ export const useSOSStore = create<SOSState>((set, get) => ({
   cancelArming: () => set({ status: 'idle', holdProgress: 0, countdown: null }),
   setActivating: (isActivating) => set({ isActivating }),
   setActivationError: (activationError) => set({ activationError }),
-  setActiveAlert: (alert) =>
+  setActiveAlert: (alert) => {
+    void persistActiveAlertId(alert.id);
     set({
       status: alert.status === 'responding' ? 'responding' : 'active',
       holdProgress: 1,
@@ -50,15 +60,12 @@ export const useSOSStore = create<SOSState>((set, get) => ({
       activeAlert: alert,
       isActivating: false,
       activationError: null,
-    }),
-  cancelSOS: () =>
-    set({
-      status: 'cancelled',
-      activeAlert: null,
-      holdProgress: 0,
-      countdown: null,
-      isActivating: false,
-    }),
+    });
+  },
+  cancelSOS: () => {
+    clearSession();
+    set(idleState);
+  },
   updateResponders: (responders) => {
     const alert = get().activeAlert;
     if (!alert) return;
@@ -73,21 +80,20 @@ export const useSOSStore = create<SOSState>((set, get) => ({
     set({ activeAlert: { ...alert, timeline: [event, ...alert.timeline] } });
   },
   setOffline: (isOffline) => set({ isOffline }),
-  resolveAlert: () =>
-    set({
-      status: 'resolved',
-      activeAlert: null,
-      holdProgress: 0,
-      countdown: null,
-      isActivating: false,
-    }),
-  resetSOS: () =>
-    set({
-      status: 'idle',
-      holdProgress: 0,
-      countdown: null,
-      activeAlert: null,
-      isActivating: false,
-      activationError: null,
-    }),
+  resolveAlert: () => {
+    clearSession();
+    set(idleState);
+  },
+  resetSOS: () => {
+    clearSession();
+    set(idleState);
+  },
 }));
+
+/** True when an SOS is in progress and the home screen should not arm a new alert. */
+export function isSOSLive(): boolean {
+  const { activeAlert, status } = useSOSStore.getState();
+  return Boolean(
+    activeAlert && (status === 'active' || status === 'responding' || status === 'arming')
+  );
+}

@@ -42,6 +42,7 @@ export async function inviteContactToGroup(
 ) {
   if (contact.email) {
     await sendGroupInvites(contact.email.toLowerCase(), [groupId]);
+    return;
   }
   await shareInstallInvite(contact);
 }
