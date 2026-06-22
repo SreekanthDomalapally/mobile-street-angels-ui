@@ -1,0 +1,71 @@
+import type { OnboardingFlags } from '@/types';
+import type { Group } from '@/types';
+
+export interface SOSReadiness {
+  ready: boolean;
+  reason: string | null;
+  ctaHref: string | null;
+  ctaLabel: string | null;
+}
+
+export function evaluateSOSReadiness(
+  flags: OnboardingFlags,
+  groups: Group[] | undefined,
+  locationGranted: boolean
+): SOSReadiness {
+  if (!flags.is_phone_verified) {
+    return {
+      ready: false,
+      reason: 'Verify your mobile number before sending an SOS.',
+      ctaHref: '/(auth)/verify-phone',
+      ctaLabel: 'Verify phone',
+    };
+  }
+
+  if (!flags.contacts_synced) {
+    return {
+      ready: false,
+      reason: 'Sync contacts to connect with people you trust.',
+      ctaHref: '/(auth)/contact-sync',
+      ctaLabel: 'Sync contacts',
+    };
+  }
+
+  if (flags.trusted_contacts_count < 1) {
+    return {
+      ready: false,
+      reason: 'Add at least one trusted contact who can respond.',
+      ctaHref: '/(auth)/trusted-contacts',
+      ctaLabel: 'Add trusted contact',
+    };
+  }
+
+  if (!groups?.length) {
+    return {
+      ready: false,
+      reason: 'Create a safety group before sending an SOS.',
+      ctaHref: '/(auth)/create-first-group',
+      ctaLabel: 'Create group',
+    };
+  }
+
+  if (!locationGranted) {
+    return {
+      ready: false,
+      reason: 'Location access is required during an emergency alert.',
+      ctaHref: '/(auth)/permissions',
+      ctaLabel: 'Enable location',
+    };
+  }
+
+  if (!flags.onboarding_complete) {
+    return {
+      ready: false,
+      reason: 'Finish setup to activate emergency alerts.',
+      ctaHref: '/',
+      ctaLabel: 'Continue setup',
+    };
+  }
+
+  return { ready: true, reason: null, ctaHref: null, ctaLabel: null };
+}

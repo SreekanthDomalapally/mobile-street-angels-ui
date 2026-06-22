@@ -7,7 +7,7 @@ import { isGoogleSignInAvailable, usesDevGoogleSignIn } from "@/services/googleS
 import { useAuthStore } from "@/stores/authStore";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type Href, router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,8 +23,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { setUser, setLoading, isLoading, isAuthenticated, hasGrantedPermissions } =
-    useAuthStore();
+  const { setLoading, isLoading } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const googleAvailable = isGoogleSignInAvailable();
   const [showEmailForm, setShowEmailForm] = useState(!googleAvailable);
@@ -38,41 +37,14 @@ export default function LoginScreen() {
     defaultValues: { email: "", password: "" },
   });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const phoneVerified = useAuthStore.getState().hasVerifiedPhone || useAuthStore.getState().user?.phoneVerified;
-      if (!phoneVerified) {
-        router.replace('/(auth)/verify-phone');
-        return;
-      }
-      router.replace(hasGrantedPermissions ? '/(tabs)' : '/(auth)/permissions');
-    }
-  }, [isAuthenticated, hasGrantedPermissions]);
-
-  const finishSignIn = (user: Awaited<ReturnType<typeof signInWithGoogle>>) => {
-    setUser(user);
-    router.replace("/(auth)/permissions");
-  };
-
-  const handleGoogleSignIn = async () => {
+  const finishSignIn = async (signIn: () => Promise<unknown>) => {
     setError(null);
     setLoading(true);
     try {
-      finishSignIn(await signInWithGoogle());
+      await signIn();
+      router.replace("/");
     } catch (err) {
       if (err instanceof GoogleSignInCancelledError) return;
-      setError(err instanceof Error ? err.message : "Sign in failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailSignIn = async (data: LoginForm) => {
-    setError(null);
-    setLoading(true);
-    try {
-      finishSignIn(await signInWithEmail(data));
-    } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed. Please try again.");
     } finally {
       setLoading(false);
@@ -108,7 +80,7 @@ export default function LoginScreen() {
           size="lg"
           loading={isLoading}
           disabled={!googleAvailable}
-          onPress={handleGoogleSignIn}
+          onPress={() => finishSignIn(signInWithGoogle)}
           icon={
             <Ionicons name="logo-google" size={22} color="#fff" style={{ marginRight: 8 }} />
           }
@@ -178,7 +150,7 @@ export default function LoginScreen() {
               title="Sign in"
               size="lg"
               loading={isLoading}
-              onPress={handleSubmit(handleEmailSignIn)}
+              onPress={handleSubmit((data) => finishSignIn(() => signInWithEmail(data)))}
             />
           </View>
         )}

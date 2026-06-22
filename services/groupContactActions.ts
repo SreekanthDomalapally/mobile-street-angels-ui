@@ -1,4 +1,4 @@
-import { APP_INVITE_MESSAGE } from '@/constants/invites';
+import { buildInviteShareMessage } from '@/constants/invites';
 import { assignInviteToGroups } from '@/services/api/contacts';
 import { ApiError } from '@/services/api/client';
 import { inviteToGroup } from '@/services/api/groups';
@@ -24,10 +24,13 @@ export async function sendGroupInvites(
   }
 }
 
-export async function shareInstallInvite(contact: Pick<CircleContact, 'displayName' | 'phone'>) {
-  const message = `${APP_INVITE_MESSAGE}\n\n${contact.displayName}, join my group on YouHoo Alert.`;
+export async function shareInstallInvite(
+  contact: Pick<CircleContact, 'displayName' | 'phone'>,
+  inviterName = 'A friend'
+) {
+  const message = buildInviteShareMessage(inviterName);
   await Share.share({
-    message,
+    message: `${message}\n\n${contact.displayName}, join my trusted circle on YouHoo Alert.`,
     title: 'Invite to YouHoo Alert',
   });
 }

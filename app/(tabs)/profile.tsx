@@ -14,14 +14,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
-  const signOut = useAuthStore((s) => s.signOut);
   const { notifications, emergency, updateNotifications, updateEmergency } =
     useSettingsStore();
 
   const handleSignOut = async () => {
     await authSignOut();
-    signOut();
-    router.replace("/(auth)/login");
+    router.replace("/");
   };
 
   return (

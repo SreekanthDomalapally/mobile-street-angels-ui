@@ -1,4 +1,5 @@
 import { NearbyResponders } from "@/components/home/NearbyResponders";
+import { ReadinessBanner } from "@/components/home/ReadinessBanner";
 import { SosGroupPicker } from "@/components/home/SosGroupPicker";
 import { StatusIndicator } from "@/components/home/StatusIndicator";
 import { CountdownOverlay } from "@/components/sos/CountdownOverlay";
@@ -6,6 +7,7 @@ import { EmergencyTypePicker } from "@/components/sos/EmergencyTypePicker";
 import { SOSButton } from "@/components/sos/SOSButton";
 import { AppLogo } from "@/components/ui/AppLogo";
 import { Text } from "@/components/ui/Text";
+import { useSOSReadiness } from "@/hooks/useSOSReadiness";
 import { ApiError } from "@/services/api/client";
 import { triggerSOS } from "@/services/sos";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -17,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { readiness } = useSOSReadiness();
   const countdownSeconds = useSettingsStore(
     (s) => s.emergency.countdownSeconds,
   );
@@ -37,6 +40,8 @@ export default function HomeScreen() {
 
   const sosInProgress =
     Boolean(activeAlert) && (status === "active" || status === "responding");
+
+  const sosEnabled = readiness.ready && !sosInProgress;
 
   useFocusEffect(
     useCallback(() => {
@@ -62,12 +67,19 @@ export default function HomeScreen() {
   );
 
   const handleSOSComplete = () => {
-    if (isSOSLive()) return;
+    if (!sosEnabled || isSOSLive()) return;
     setActivationError(null);
     setCountdown(countdownSeconds);
   };
 
   const handleCountdownComplete = async () => {
+    if (!readiness.ready) {
+      setActivationError(readiness.reason ?? "Complete setup before sending SOS.");
+      setCountdown(null);
+      cancelArming();
+      return;
+    }
+
     if (isSOSLive()) {
       router.replace("/sos/active");
       return;
@@ -118,19 +130,26 @@ export default function HomeScreen() {
             </View>
           </View>
           <Text variant="title" className="leading-tight">
-            {sosInProgress ? "SOS alert in progress" : "You are protected"}
+            {sosInProgress
+              ? "SOS alert in progress"
+              : readiness.ready
+                ? "You are protected"
+                : "Finish your safety setup"}
           </Text>
-          {sosInProgress && (
-            <Text variant="body" muted>
-              Return to your active alert to see responders and end the alert.
-            </Text>
-          )}
         </View>
+
+        <ReadinessBanner readiness={readiness} />
+
+        {sosInProgress && (
+          <Text variant="body" muted className="mb-4">
+            Return to your active alert to see responders and end the alert.
+          </Text>
+        )}
 
         <SosGroupPicker />
 
         <View className="my-6 items-center">
-          <SOSButton onActivate={handleSOSComplete} disabled={sosInProgress} />
+          <SOSButton onActivate={handleSOSComplete} disabled={!sosEnabled} />
         </View>
 
         {activationError && (
@@ -146,7 +165,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {countdown !== null && !sosInProgress && (
+      {countdown !== null && sosEnabled && (
         <CountdownOverlay
           seconds={countdown}
           loading={isActivating}

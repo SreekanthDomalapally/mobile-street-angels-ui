@@ -1,37 +1,13 @@
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 import { LoadingState } from '@/components/common/LoadingState';
-import { useAuthStore } from '@/stores/authStore';
+import { useOnboardingRoute } from '@/hooks/useOnboardingRoute';
 
 export default function Index() {
-  const {
-    isAuthenticated,
-    hasCompletedOnboarding,
-    hasVerifiedPhone,
-    hasGrantedPermissions,
-    user,
-    isLoading,
-  } = useAuthStore();
+  const { href, isLoading } = useOnboardingRoute();
 
-  if (isLoading) {
-    return <LoadingState message="Restoring your session…" />;
+  if (isLoading || !href) {
+    return <LoadingState message="Preparing your safety setup…" />;
   }
 
-  if (!hasCompletedOnboarding) {
-    return <Redirect href="/(auth)/onboarding" />;
-  }
-
-  if (!isAuthenticated) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  const phoneVerified = hasVerifiedPhone || user?.phoneVerified;
-  if (!phoneVerified) {
-    return <Redirect href="/(auth)/verify-phone" />;
-  }
-
-  if (!hasGrantedPermissions) {
-    return <Redirect href="/(auth)/permissions" />;
-  }
-
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href={href as Href} />;
 }

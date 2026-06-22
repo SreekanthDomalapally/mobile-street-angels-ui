@@ -1,4 +1,5 @@
 import { colors } from "@/constants/theme";
+import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,7 +11,8 @@ export default function TabLayout() {
   const bottomPadding = Math.max(insets.bottom, 8);
 
   return (
-    <Tabs
+    <OnboardingGate>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -77,5 +79,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </OnboardingGate>
   );
 }

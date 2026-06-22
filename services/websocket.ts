@@ -3,11 +3,12 @@ import {
   buildTimelineFromWsEvent,
   mapWsResponseToResponder,
 } from '@/services/api/mappers';
-import type { Responder, TimelineEvent } from '@/types';
+import type { Coordinates, Responder, TimelineEvent } from '@/types';
 
 type RespondersHandler = (responders: Responder[]) => void;
 type TimelineHandler = (event: TimelineEvent) => void;
 type StatusHandler = (status: string) => void;
+type LocationHandler = (coords: Coordinates) => void;
 
 const MAX_RECONNECT_ATTEMPTS = 8;
 
@@ -22,6 +23,7 @@ export class AlertWebSocket {
   private onResponders?: RespondersHandler;
   private onTimeline?: TimelineHandler;
   private onStatus?: StatusHandler;
+  private onLocation?: LocationHandler;
 
   connect(alertId: string, token: string) {
     this.disconnect(false);
@@ -66,8 +68,28 @@ export class AlertWebSocket {
     if (type === 'alert_response') {
       const responder = mapWsResponseToResponder(payload);
       if (responder) {
-        this.responders = [...this.responders, responder];
-        this.onResponders?.(this.responders);
+        const existing = this.responders.findIndex(
+          (item) => item.id === responder.id || item.name === responder.name
+        );
+        if (existing >= 0) {
+          this.responders[existing] = responder;
+        } else {
+          this.responders = [...this.responders, responder];
+        }
+        this.onResponders?.([...this.responders]);
+      }
+    }
+
+    if (type === 'location_update') {
+      const latitude = Number(payload.latitude);
+      const longitude = Number(payload.longitude);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        this.onLocation?.({
+          latitude,
+          longitude,
+          accuracyMeters:
+            typeof payload.accuracy_meters === 'number' ? payload.accuracy_meters : undefined,
+        });
       }
     }
 
@@ -106,6 +128,10 @@ export class AlertWebSocket {
     this.onStatus = handler;
   }
 
+  onLocationUpdate(handler: LocationHandler) {
+    this.onLocation = handler;
+  }
+
   disconnect(clearHandlers = true) {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
@@ -119,6 +145,7 @@ export class AlertWebSocket {
       this.onResponders = undefined;
       this.onTimeline = undefined;
       this.onStatus = undefined;
+      this.onLocation = undefined;
     }
   }
 }

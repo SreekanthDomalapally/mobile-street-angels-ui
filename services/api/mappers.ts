@@ -136,7 +136,7 @@ export function mapApiStatusToAlertStatus(
 function mapResponseToResponder(item: ApiAlertResponseItem): Responder {
   const status = RESPONSE_TO_STATUS[item.response_type] ?? 'notified';
   return {
-    id: item.id,
+    id: item.user_id,
     name: `Responder ${item.user_id.slice(0, 8)}`,
     status,
     etaMinutes: item.eta_minutes ?? undefined,
@@ -312,9 +312,13 @@ export function mapWsResponseToResponder(payload: Record<string, unknown>): Resp
   if (payload.type !== 'alert_response') return null;
   const userId = String(payload.user_id ?? 'unknown');
   const responseType = String(payload.response_type ?? '');
+  const displayName =
+    typeof payload.full_name === 'string' && payload.full_name.trim()
+      ? payload.full_name
+      : `Responder ${userId.slice(0, 8)}`;
   return {
-    id: `ws-${userId}-${Date.now()}`,
-    name: `Responder ${userId.slice(0, 8)}`,
+    id: userId,
+    name: displayName,
     status: RESPONSE_TO_STATUS[responseType] ?? 'notified',
     etaMinutes:
       typeof payload.eta_minutes === 'number' ? payload.eta_minutes : undefined,

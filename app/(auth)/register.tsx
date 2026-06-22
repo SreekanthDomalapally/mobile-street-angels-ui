@@ -28,7 +28,6 @@ type RegisterForm = z.infer<typeof schema>;
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const setUser = useAuthStore((s) => s.setUser);
   const setLoading = useAuthStore((s) => s.setLoading);
   const isLoading = useAuthStore((s) => s.isLoading);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +50,12 @@ export default function RegisterScreen() {
     setError(null);
     setLoading(true);
     try {
-      const user = await registerAndSignIn({
+      await registerAndSignIn({
         fullName: data.fullName,
         email: data.email,
         password: data.password,
       });
-      setUser(user);
-      router.replace('/(auth)/permissions');
+      router.replace('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.');
     } finally {

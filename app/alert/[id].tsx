@@ -2,14 +2,20 @@ import { Button } from '@/components/ui/Button';
 import { ErrorState } from '@/components/common/ErrorState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { LoadingState } from '@/components/common/LoadingState';
+import { LiveMap } from '@/components/map/LiveMap';
 import { Text } from '@/components/ui/Text';
+import { distanceKm, estimateEtaMinutes, formatDistance } from '@/lib/geo';
 import { fetchAlert, respondToAlert } from '@/services/api/alerts';
+import { getAccessToken } from '@/services/tokens';
+import { getCurrentLocation } from '@/services/location';
+import { alertSocket } from '@/services/websocket';
 import { ApiError } from '@/services/api/client';
+import type { Coordinates, SOSAlert } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AlertResponseScreen() {
@@ -17,6 +23,8 @@ export default function AlertResponseScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [liveAlert, setLiveAlert] = useState<SOSAlert | null>(null);
+  const [responderLocation, setResponderLocation] = useState<Coordinates | null>(null);
 
   const {
     data: alert,
@@ -28,7 +36,50 @@ export default function AlertResponseScreen() {
     queryFn: () => fetchAlert(id!),
     enabled: Boolean(id),
     retry: 1,
+    refetchInterval: 15000,
   });
+
+  useEffect(() => {
+    if (alert) {
+      setLiveAlert(alert);
+    }
+  }, [alert]);
+
+  useEffect(() => {
+    if (!id || !liveAlert) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const token = await getAccessToken();
+      if (!token || cancelled) return;
+
+      alertSocket.connect(id, token);
+      alertSocket.onRespondersUpdate((responders) => {
+        setLiveAlert((current) => (current ? { ...current, responders } : current));
+      });
+      alertSocket.onTimelineEvent(() => undefined);
+      alertSocket.onStatusChange((status) => {
+        if (status === 'resolved') {
+          router.replace('/(tabs)');
+        }
+      });
+      alertSocket.onLocationUpdate((coords) => {
+        setLiveAlert((current) => (current ? { ...current, location: coords } : current));
+      });
+    })();
+
+    getCurrentLocation({ highAccuracy: true })
+      .then((coords) => {
+        if (!cancelled) setResponderLocation(coords);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      alertSocket.disconnect();
+    };
+  }, [id, liveAlert?.id]);
 
   const respondMutation = useMutation({
     mutationFn: ({
@@ -57,18 +108,25 @@ export default function AlertResponseScreen() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || !liveAlert) {
     return <LoadingState message="Loading alert…" />;
   }
 
-  if (isError || !alert) {
+  if (isError) {
     return <ErrorState onRetry={() => refetch()} />;
   }
 
+  const distance =
+    responderLocation && liveAlert.location
+      ? distanceKm(responderLocation, liveAlert.location)
+      : null;
+
   const navigate = () =>
     Linking.openURL(
-      `https://maps.google.com/?q=${alert.location.latitude},${alert.location.longitude}`
+      `https://maps.google.com/?q=${liveAlert.location.latitude},${liveAlert.location.longitude}`
     );
+
+  const callEmergency = () => Linking.openURL('tel:999');
 
   const respond = (
     responseType: 'i_can_help' | 'on_my_way' | 'calling_now' | 'unable_to_help',
@@ -78,72 +136,89 @@ export default function AlertResponseScreen() {
   };
 
   return (
-    <View
-      className="flex-1 bg-charcoal-950 px-5"
-      style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
-      <View className="mb-6 flex-row items-center gap-3">
-        <View className="h-12 w-12 items-center justify-center rounded-full bg-emergency/20">
-          <Ionicons name="alert-circle" size={28} color="#e85d5d" />
+    <View className="flex-1 bg-charcoal-950">
+      <View className="h-[42%]">
+        <LiveMap userLocation={liveAlert.location} followUser={false} />
+        <Pressable
+          onPress={() => router.back()}
+          className="absolute left-4 rounded-full bg-charcoal-900/90 px-4 py-2"
+          style={{ top: insets.top + 8 }}>
+          <Text variant="caption">Close</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        className="flex-1 px-5"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: 20 }}>
+        <View className="mb-4 flex-row items-center gap-3">
+          <View className="h-12 w-12 items-center justify-center rounded-full bg-emergency/20">
+            <Ionicons name="alert-circle" size={28} color="#e85d5d" />
+          </View>
+          <View className="flex-1">
+            <Text variant="title">Someone needs help</Text>
+            <Text variant="caption" muted>
+              {liveAlert.type} · {new Date(liveAlert.createdAt).toLocaleTimeString()}
+            </Text>
+          </View>
         </View>
-        <View>
-          <Text variant="title">Respond to alert</Text>
-          <Text variant="caption" muted>
-            Someone in your trusted group needs help
+
+        {distance != null && (
+          <GlassCard className="mb-4">
+            <Text variant="label" className="mb-1">
+              Distance to alert
+            </Text>
+            <Text variant="body">
+              {formatDistance(distance)} · about {estimateEtaMinutes(distance)} min away
+            </Text>
+          </GlassCard>
+        )}
+
+        <GlassCard className="mb-6">
+          <Text variant="label" className="mb-2">
+            Alert details
           </Text>
+          <Text variant="body">{liveAlert.message ?? 'Emergency assistance requested'}</Text>
+        </GlassCard>
+
+        {actionError && (
+          <Text variant="caption" className="mb-4 text-emergency">
+            {actionError}
+          </Text>
+        )}
+
+        <View className="gap-3">
+          <Button
+            title="I can help"
+            variant="emergency"
+            size="lg"
+            loading={respondMutation.isPending}
+            onPress={() => respond('i_can_help')}
+          />
+          <Button
+            title={
+              distance != null
+                ? `On my way (~${estimateEtaMinutes(distance)} min)`
+                : 'On my way'
+            }
+            variant="primary"
+            loading={respondMutation.isPending}
+            onPress={() => respond('on_my_way', distance ? estimateEtaMinutes(distance) : 5)}
+          />
+          <Button
+            title="Open navigation"
+            variant="secondary"
+            icon={<Ionicons name="navigate" size={20} color="#fff" style={{ marginRight: 8 }} />}
+            onPress={navigate}
+          />
+          <Button title="Call emergency services" variant="secondary" onPress={callEmergency} />
+          <Button
+            title="Unable to help"
+            variant="ghost"
+            loading={respondMutation.isPending}
+            onPress={() => respond('unable_to_help')}
+          />
         </View>
-      </View>
-
-      <GlassCard className="mb-6">
-        <Text variant="label" className="mb-2">
-          Alert details
-        </Text>
-        <Text variant="body">{alert.message ?? 'Emergency assistance requested'}</Text>
-        <Text variant="caption" muted className="mt-2">
-          Type: {alert.type} · Status: {alert.status}
-        </Text>
-      </GlassCard>
-
-      {actionError && (
-        <Text variant="caption" className="mb-4 text-emergency">
-          {actionError}
-        </Text>
-      )}
-
-      <View className="gap-3">
-        <Button
-          title="I can help"
-          variant="emergency"
-          size="lg"
-          loading={respondMutation.isPending}
-          onPress={() => respond('i_can_help')}
-        />
-        <Button
-          title="On my way (ETA 4 min)"
-          variant="primary"
-          loading={respondMutation.isPending}
-          onPress={() => respond('on_my_way', 4)}
-        />
-        <Button
-          title="Calling now"
-          variant="secondary"
-          loading={respondMutation.isPending}
-          onPress={() => respond('calling_now')}
-        />
-        <Button
-          title="Open navigation"
-          variant="secondary"
-          icon={
-            <Ionicons name="navigate" size={20} color="#fff" style={{ marginRight: 8 }} />
-          }
-          onPress={navigate}
-        />
-        <Button
-          title="Unable to help"
-          variant="ghost"
-          loading={respondMutation.isPending}
-          onPress={() => respond('unable_to_help')}
-        />
-      </View>
+      </ScrollView>
     </View>
   );
 }

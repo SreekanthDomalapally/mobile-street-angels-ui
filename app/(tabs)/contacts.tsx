@@ -2,6 +2,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
 import { CircleContactCard } from '@/components/contacts/CircleContactCard';
+import { TrustedContactsPanel } from '@/components/trusted/TrustedContactsPanel';
 import { ContactGroupsSheet } from '@/components/contacts/ContactGroupsSheet';
 import { ContactPickerSheet } from '@/components/contacts/ContactPickerSheet';
 import { Button } from '@/components/ui/Button';
@@ -51,8 +52,10 @@ export default function ContactsScreen() {
         </View>
 
         <Text variant="body" muted className="mb-4">
-          People in your groups. Tap a contact to add or remove groups.
+          Trusted contacts and people in your safety groups.
         </Text>
+
+        <TrustedContactsPanel />
 
         <TextInput
           className="mb-4 min-h-[48px] rounded-2xl border border-glass-border bg-charcoal-900 px-4 text-base text-white"

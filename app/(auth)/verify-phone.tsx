@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { startPhoneVerification, verifyPhoneOtp } from '@/services/api/auth';
+import { refreshOnboardingFlags } from '@/services/onboardingState';
 import { ApiError } from '@/services/api/client';
 import { normalizePhoneE164 } from '@/services/phone';
 import { getAccessToken } from '@/services/tokens';
@@ -36,7 +37,7 @@ export default function VerifyPhoneScreen() {
       const token = await getAccessToken();
       if (!token) throw new Error('Please sign in again.');
       const response = await startPhoneVerification(token, normalized);
-      if (response.dev_otp) {
+      if (__DEV__ && response.dev_otp) {
         setDevHint(`Dev code: ${response.dev_otp}`);
       }
       setStep('otp');
@@ -62,7 +63,8 @@ export default function VerifyPhoneScreen() {
       const user = await verifyPhoneOtp(token, normalized, otp.trim());
       setUser(user);
       setPhoneVerified(true);
-      router.replace('/(auth)/permissions');
+      await refreshOnboardingFlags();
+      router.replace('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Invalid verification code.');
     } finally {

@@ -30,6 +30,41 @@ export interface OnboardingStatus {
   needs_phone_verification: boolean;
   needs_contacts_permission: boolean;
   onboarding_complete: boolean;
+  contacts_synced?: boolean;
+  trusted_contacts_count?: number;
+  groups_created_count?: number;
+}
+
+export type OnboardingStep =
+  | 'intro'
+  | 'login'
+  | 'phone_verify'
+  | 'contact_sync'
+  | 'trusted_contacts'
+  | 'create_group'
+  | 'device_permissions'
+  | 'home';
+
+export interface OnboardingFlags {
+  is_registered: boolean;
+  is_phone_verified: boolean;
+  contacts_synced: boolean;
+  trusted_contacts_count: number;
+  groups_created_count: number;
+  onboarding_complete: boolean;
+  next_step: OnboardingStep;
+}
+
+export type TrustedContactStatus = 'invited' | 'pending' | 'accepted' | 'blocked' | 'removed';
+
+export interface TrustedContactRelationship {
+  id: string;
+  userId?: string;
+  displayName: string;
+  email?: string;
+  phone?: string;
+  status: TrustedContactStatus;
+  isIncoming?: boolean;
 }
 
 export interface TrustedContact {

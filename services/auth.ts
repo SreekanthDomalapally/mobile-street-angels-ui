@@ -13,6 +13,9 @@ import {
 import { GoogleSignInCancelledError } from '@/services/googleSignInErrors';
 import { signInWithGoogleMock, signOut as firebaseSignOut } from '@/services/firebase';
 import { clearAuthTokens, getAuthTokens, saveAuthTokens } from '@/services/tokenStorage';
+import { clearOnboardingProgress } from '@/services/onboardingProgress';
+import { useSOSStore } from '@/stores/sosStore';
+import { refreshOnboardingFlags } from '@/services/onboardingState';
 import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types';
 
@@ -26,6 +29,7 @@ async function applyOnboardingFromUser(user: User, accessToken: string) {
   } catch {
     useAuthStore.getState().setPhoneVerified(Boolean(user.phoneVerified));
   }
+  await refreshOnboardingFlags().catch(() => undefined);
 }
 
 export async function signInWithEmail(params: LoginParams): Promise<User> {
@@ -110,7 +114,9 @@ export async function restoreSession(): Promise<User | null> {
 
 export async function signOut(): Promise<void> {
   const { signOutGoogle } = await import('@/services/googleSignIn');
-  await Promise.allSettled([signOutGoogle(), firebaseSignOut(), clearAuthTokens()]);
+  await Promise.allSettled([signOutGoogle(), firebaseSignOut(), clearAuthTokens(), clearOnboardingProgress()]);
+  useSOSStore.getState().resetSOS();
+  useAuthStore.getState().signOut();
 }
 
 export { getAccessToken, refreshAccessToken } from '@/services/tokens';

@@ -11,7 +11,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
 import { updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
-import { getCurrentLocation, watchLocation } from '@/services/location';
+import { getCurrentLocation, requestBackgroundLocationPermission, watchLocation } from '@/services/location';
 import { scheduleEmergencyNotification } from '@/services/notifications';
 import { findActiveAlert } from '@/services/sosRecovery';
 import { endSOSAlert } from '@/services/sos';
@@ -103,6 +103,11 @@ export default function SOSActiveScreen() {
             exitToHome();
           }
         });
+        alertSocket.onLocationUpdate((coords) => {
+          const current = useSOSStore.getState().activeAlert;
+          if (!current) return;
+          setActiveAlert({ ...current, location: coords });
+        });
 
         const pushLocation = async (coords: Coordinates) => {
           const current = useSOSStore.getState().activeAlert;
@@ -119,6 +124,8 @@ export default function SOSActiveScreen() {
         if (freshLocation && !cancelled) {
           await pushLocation(freshLocation);
         }
+
+        await requestBackgroundLocationPermission();
 
         if (!cancelled) {
           stopWatching = await watchLocation(pushLocation, { highAccuracy: true });

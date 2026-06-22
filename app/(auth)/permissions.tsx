@@ -2,10 +2,10 @@ import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { registerDeviceToken } from '@/services/api/auth';
-import { getAccessToken } from '@/services/tokens';
-import { requestContactsPermission } from '@/services/contacts';
-import { requestLocationPermission } from '@/services/location';
+import { markOnboardingComplete } from '@/services/onboardingState';
+import { requestLocationPermission, requestBackgroundLocationPermission } from '@/services/location';
 import { registerForPushNotifications } from '@/services/notifications';
+import { getAccessToken } from '@/services/tokens';
 import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -17,23 +17,18 @@ const steps = [
   {
     id: 'location',
     icon: 'location-outline' as const,
-    title: 'Location',
+    title: 'Location for emergencies',
     description:
-      'Share your live position only during an active alert — never in the background without cause.',
-  },
-  {
-    id: 'contacts',
-    icon: 'people-outline' as const,
-    title: 'Contacts',
-    description:
-        'Pick trusted people from your phone to add to your groups, or send them an invite to join YouHoo Alert.',
+      'Location is shared only during an active SOS alert so trusted contacts can find you.',
+    required: true,
   },
   {
     id: 'notifications',
     icon: 'notifications-outline' as const,
-    title: 'Notifications',
+    title: 'Critical notifications',
     description:
-      'Critical alerts from trusted responders, even on your lock screen.',
+      'Allow lock-screen alerts when someone in your trusted circle needs help.',
+    required: true,
   },
 ] as const;
 
@@ -41,45 +36,50 @@ export default function PermissionsScreen() {
   const insets = useSafeAreaInsets();
   const [stepIndex, setStepIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const setPermissionsGranted = useAuthStore((s) => s.setPermissionsGranted);
 
   const current = steps[stepIndex];
 
-  const finishOrAdvance = () => {
+  const finishOrAdvance = async () => {
     if (stepIndex < steps.length - 1) {
       setStepIndex(stepIndex + 1);
-    } else {
-      setPermissionsGranted(true);
-      router.replace('/(tabs)');
+      return;
     }
+
+    setPermissionsGranted(true);
+    await markOnboardingComplete();
+    router.replace('/');
   };
 
   const requestCurrent = async () => {
     setLoading(true);
+    setError(null);
     try {
       if (current.id === 'location') {
-        await requestLocationPermission();
-      } else if (current.id === 'contacts') {
-        await requestContactsPermission();
+        const granted = await requestLocationPermission();
+        if (!granted) {
+          setError('Location is required for emergency alerts.');
+          return;
+        }
+        await requestBackgroundLocationPermission();
       } else {
         const pushToken = await registerForPushNotifications();
-        if (pushToken) {
-          const accessToken = await getAccessToken();
-          if (accessToken) {
-            await registerDeviceToken(accessToken, pushToken, Platform.OS);
-          }
+        if (!pushToken) {
+          setError('Notifications are required so you can receive SOS alerts.');
+          return;
+        }
+        const accessToken = await getAccessToken();
+        if (accessToken) {
+          await registerDeviceToken(accessToken, pushToken, Platform.OS);
         }
       }
-    } catch (error) {
-      console.warn('[permissions] Request failed:', error);
+      await finishOrAdvance();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Permission setup failed.');
     } finally {
       setLoading(false);
-      finishOrAdvance();
     }
-  };
-
-  const skip = () => {
-    finishOrAdvance();
   };
 
   return (
@@ -98,18 +98,18 @@ export default function PermissionsScreen() {
       <Text variant="title" className="mb-4">
         {current.title}
       </Text>
-      <Text variant="body" muted className="mb-12 leading-relaxed">
+      <Text variant="body" muted className="mb-8 leading-relaxed">
         {current.description}
       </Text>
 
+      {error && (
+        <Text variant="caption" className="mb-4 text-emergency">
+          {error}
+        </Text>
+      )}
+
       <View className="mt-auto gap-3">
-        <Button
-          title="Allow access"
-          size="lg"
-          loading={loading}
-          onPress={requestCurrent}
-        />
-        <Button title="Not now" variant="ghost" onPress={skip} disabled={loading} />
+        <Button title="Allow access" size="lg" loading={loading} onPress={requestCurrent} />
       </View>
     </View>
   );
