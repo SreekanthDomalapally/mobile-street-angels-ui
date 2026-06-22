@@ -26,7 +26,7 @@ const steps = [
     icon: 'people-outline' as const,
     title: 'Contacts',
     description:
-      'Pick trusted people from your phone to add to your circle, or send them an invite to join YouHoo Alert.',
+        'Pick trusted people from your phone to add to your groups, or send them an invite to join YouHoo Alert.',
   },
   {
     id: 'notifications',

@@ -1,10 +1,16 @@
-import { LoadingState } from '@/components/common/LoadingState';
 import { Redirect } from 'expo-router';
+import { LoadingState } from '@/components/common/LoadingState';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function Index() {
-  const { isAuthenticated, hasCompletedOnboarding, hasGrantedPermissions, isLoading } =
-    useAuthStore();
+  const {
+    isAuthenticated,
+    hasCompletedOnboarding,
+    hasVerifiedPhone,
+    hasGrantedPermissions,
+    user,
+    isLoading,
+  } = useAuthStore();
 
   if (isLoading) {
     return <LoadingState message="Restoring your session…" />;
@@ -16,6 +22,11 @@ export default function Index() {
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
+  }
+
+  const phoneVerified = hasVerifiedPhone || user?.phoneVerified;
+  if (!phoneVerified) {
+    return <Redirect href="/(auth)/verify-phone" />;
   }
 
   if (!hasGrantedPermissions) {

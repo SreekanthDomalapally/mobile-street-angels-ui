@@ -1,3 +1,4 @@
+import { matchContactsByPhone } from '@/services/api/contacts';
 import { lookupUsersByEmail } from '@/services/api/users';
 import {
   deviceContactCount,
@@ -5,6 +6,8 @@ import {
   requestContactsPermission,
 } from '@/services/contacts';
 import { ApiError } from '@/services/api/client';
+import { normalizePhoneE164 } from '@/services/phone';
+import { useAuthStore } from '@/stores/authStore';
 import type { DeviceContact } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 
@@ -36,18 +39,56 @@ async function lookupUsersInBatches(emails: string[]) {
 
 async function enrichContacts(contacts: DeviceContact[]): Promise<DeviceContactRow[]> {
   const emails = contacts.flatMap((contact) => contact.emails);
-  const matches = emails.length > 0 ? await lookupUsersInBatches(emails) : [];
-  const matchByEmail = new Map(matches.map((match) => [match.email.toLowerCase(), match]));
+  const emailMatches = emails.length > 0 ? await lookupUsersInBatches(emails) : [];
+  const matchByEmail = new Map(emailMatches.map((match) => [match.email.toLowerCase(), match]));
+
+  const phoneVerified = useAuthStore.getState().user?.phoneVerified;
+  const phoneMatchByLast4 = new Map<string, { user_id: string; display_name: string }>();
+
+  if (phoneVerified) {
+    const phoneEntries = contacts.flatMap((contact) =>
+      contact.phoneNumbers
+        .map((phone) => normalizePhoneE164(phone))
+        .filter((phone): phone is string => Boolean(phone))
+        .map((phone) => ({ phone, displayName: contact.name }))
+    );
+
+    if (phoneEntries.length > 0) {
+      try {
+        const uniqueByPhone = new Map(phoneEntries.map((entry) => [entry.phone, entry]));
+        const response = await matchContactsByPhone([...uniqueByPhone.values()]);
+        for (const match of response.matched_users) {
+          phoneMatchByLast4.set(match.phone_last4, {
+            user_id: match.user_id,
+            display_name: match.display_name,
+          });
+        }
+      } catch {
+        // Fall back to email-only matching if phone match is unavailable.
+      }
+    }
+  }
 
   return contacts.map((contact) => {
     const matchedEmail = contact.emails.find((email) => matchByEmail.has(email));
-    const match = matchedEmail ? matchByEmail.get(matchedEmail) : undefined;
+    const emailMatch = matchedEmail ? matchByEmail.get(matchedEmail) : undefined;
+
+    const normalizedPhones = contact.phoneNumbers
+      .map((phone) => normalizePhoneE164(phone))
+      .filter((phone): phone is string => Boolean(phone));
+
+    const phoneUser = normalizedPhones
+      .map((phone) => phoneMatchByLast4.get(phone.slice(-4)))
+      .find((match): match is { user_id: string; display_name: string } => Boolean(match));
+
     const primaryEmail = matchedEmail ?? contact.emails[0];
+    const onPlatform = Boolean(emailMatch || phoneUser);
+
     return {
       ...contact,
       primaryEmail,
-      onPlatform: Boolean(match),
-      userId: match?.user_id,
+      onPlatform,
+      userId: emailMatch?.user_id ?? phoneUser?.user_id,
       canReach: Boolean(primaryEmail || contact.phoneNumbers[0]),
     };
   });

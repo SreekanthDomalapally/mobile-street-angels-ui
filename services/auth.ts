@@ -1,53 +1,89 @@
 import {
+  authenticateWithFirebase,
   authenticateWithGoogle,
   fetchCurrentUser,
+  fetchOnboardingStatus,
   loginWithEmail,
+  mapApiUser,
   refreshAuthTokens,
   registerWithEmail,
   type LoginParams,
   type RegisterParams,
 } from '@/services/api/auth';
 import { GoogleSignInCancelledError } from '@/services/googleSignInErrors';
-import {
-  signInWithGoogle as firebaseSignInWithGoogle,
-  signInWithGoogleMock,
-  signOut as firebaseSignOut,
-} from '@/services/firebase';
+import { signInWithGoogleMock, signOut as firebaseSignOut } from '@/services/firebase';
 import { clearAuthTokens, getAuthTokens, saveAuthTokens } from '@/services/tokenStorage';
+import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types';
 
 export { GoogleSignInCancelledError };
 
+async function applyOnboardingFromUser(user: User, accessToken: string) {
+  useAuthStore.getState().setUser(user);
+  try {
+    const onboarding = await fetchOnboardingStatus(accessToken);
+    useAuthStore.getState().setOnboarding(onboarding);
+  } catch {
+    useAuthStore.getState().setPhoneVerified(Boolean(user.phoneVerified));
+  }
+}
+
 export async function signInWithEmail(params: LoginParams): Promise<User> {
   const tokens = await loginWithEmail(params);
   await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-  return fetchCurrentUser(tokens.access_token);
+  const user = await fetchCurrentUser(tokens.access_token);
+  await applyOnboardingFromUser(user, tokens.access_token);
+  return user;
 }
 
 export async function registerAndSignIn(params: RegisterParams): Promise<User> {
   const tokens = await registerWithEmail(params);
   await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-  return fetchCurrentUser(tokens.access_token);
+  const user = await fetchCurrentUser(tokens.access_token);
+  await applyOnboardingFromUser(user, tokens.access_token);
+  return user;
 }
 
 export async function signInWithGoogle(): Promise<User> {
   const { getGoogleIdToken, usesDevGoogleSignIn } = await import('@/services/googleSignIn');
 
   if (usesDevGoogleSignIn()) {
-    return signInWithGoogleMock();
+    const user = await signInWithGoogleMock();
+    useAuthStore.getState().setUser(user);
+    return user;
   }
 
-  const idToken = await getGoogleIdToken();
+  const googleIdToken = await getGoogleIdToken();
 
+  let firebaseIdToken: string | null = null;
   try {
-    await firebaseSignInWithGoogle(idToken);
+    const { signInWithGoogle: firebaseSignInWithGoogle, getFirebaseIdToken } = await import(
+      '@/services/firebase'
+    );
+    await firebaseSignInWithGoogle(googleIdToken);
+    firebaseIdToken = await getFirebaseIdToken();
   } catch (error) {
     console.warn('[auth] Firebase sign-in skipped:', error);
   }
 
-  const tokens = await authenticateWithGoogle(idToken);
+  if (firebaseIdToken) {
+    try {
+      const response = await authenticateWithFirebase(firebaseIdToken);
+      await saveAuthTokens(response.access_token, response.refresh_token);
+      const user = mapApiUser(response.user);
+      useAuthStore.getState().setOnboarding(response.onboarding);
+      useAuthStore.getState().setUser(user);
+      return user;
+    } catch (error) {
+      console.warn('[auth] Firebase backend login failed, falling back to Google:', error);
+    }
+  }
+
+  const tokens = await authenticateWithGoogle(googleIdToken);
   await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-  return fetchCurrentUser(tokens.access_token);
+  const user = await fetchCurrentUser(tokens.access_token);
+  await applyOnboardingFromUser(user, tokens.access_token);
+  return user;
 }
 
 export async function restoreSession(): Promise<User | null> {
@@ -55,12 +91,16 @@ export async function restoreSession(): Promise<User | null> {
   if (!stored) return null;
 
   try {
-    return await fetchCurrentUser(stored.accessToken);
+    const user = await fetchCurrentUser(stored.accessToken);
+    await applyOnboardingFromUser(user, stored.accessToken);
+    return user;
   } catch {
     try {
       const tokens = await refreshAuthTokens(stored.refreshToken);
       await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-      return fetchCurrentUser(tokens.access_token);
+      const user = await fetchCurrentUser(tokens.access_token);
+      await applyOnboardingFromUser(user, tokens.access_token);
+      return user;
     } catch {
       await clearAuthTokens();
       return null;

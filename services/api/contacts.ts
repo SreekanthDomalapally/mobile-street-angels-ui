@@ -39,6 +39,42 @@ function buildDirectoryFromGroups(groups: Group[]): CircleContact[] {
   );
 }
 
+export async function matchContactsByPhone(
+  contacts: { phone: string; displayName?: string }[],
+  countryCode = 'IE'
+) {
+  return authenticatedRequest<{
+    matched_users: {
+      user_id: string;
+      display_name: string;
+      phone_last4: string;
+      is_trusted: boolean;
+      contact_label?: string | null;
+    }[];
+    unmatched_contacts: { phone_last4: string; display_name?: string | null }[];
+    existing_trusted_contact_ids: string[];
+  }>('/contacts/match', {
+    method: 'POST',
+    body: JSON.stringify({
+      contacts: contacts.map((c) => ({
+        phone: c.phone,
+        display_name: c.displayName,
+      })),
+      country_code: countryCode,
+    }),
+  });
+}
+
+export async function addTrustedContact(contactUserId: string, displayName?: string) {
+  await authenticatedRequest('/contacts/add', {
+    method: 'POST',
+    body: JSON.stringify({
+      contact_user_id: contactUserId,
+      display_name: displayName,
+    }),
+  });
+}
+
 export async function fetchContactDirectory(groups?: Group[]): Promise<CircleContact[]> {
   try {
     const response = await authenticatedRequest<ContactDirectoryResponse>('/contacts/directory');

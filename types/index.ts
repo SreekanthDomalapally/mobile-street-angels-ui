@@ -21,8 +21,15 @@ export interface User {
   displayName: string;
   email: string;
   phone?: string;
+  phoneVerified?: boolean;
   avatarUrl?: string;
   photoURL?: string;
+}
+
+export interface OnboardingStatus {
+  needs_phone_verification: boolean;
+  needs_contacts_permission: boolean;
+  onboarding_complete: boolean;
 }
 
 export interface TrustedContact {

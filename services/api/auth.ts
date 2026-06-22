@@ -1,4 +1,4 @@
-import type { User } from '@/types';
+import type { OnboardingStatus, User } from '@/types';
 import { apiRequest } from './http';
 
 export interface TokenPair {
@@ -12,7 +12,13 @@ export interface ApiUserResponse {
   full_name: string;
   email: string;
   phone_number?: string | null;
+  phone_verified?: boolean;
   profile_photo?: string | null;
+}
+
+export interface FirebaseLoginResponse extends TokenPair {
+  user: ApiUserResponse;
+  onboarding: OnboardingStatus;
 }
 
 export interface RegisterParams {
@@ -33,6 +39,7 @@ export function mapApiUser(apiUser: ApiUserResponse): User {
     displayName: apiUser.full_name,
     email: apiUser.email,
     phone: apiUser.phone_number ?? undefined,
+    phoneVerified: Boolean(apiUser.phone_verified),
     avatarUrl: apiUser.profile_photo ?? undefined,
     photoURL: apiUser.profile_photo ?? undefined,
   };
@@ -67,8 +74,45 @@ export async function authenticateWithGoogle(idToken: string): Promise<TokenPair
   });
 }
 
+export async function authenticateWithFirebase(firebaseIdToken: string): Promise<FirebaseLoginResponse> {
+  return apiRequest<FirebaseLoginResponse>('/auth/firebase-login', {
+    method: 'POST',
+    body: JSON.stringify({ firebase_id_token: firebaseIdToken }),
+  });
+}
+
 export async function fetchCurrentUser(accessToken: string): Promise<User> {
   const apiUser = await apiRequest<ApiUserResponse>('/auth/me', { token: accessToken });
+  return mapApiUser(apiUser);
+}
+
+export async function fetchOnboardingStatus(accessToken: string): Promise<OnboardingStatus> {
+  return apiRequest<OnboardingStatus>('/auth/onboarding', { token: accessToken });
+}
+
+export async function startPhoneVerification(
+  accessToken: string,
+  phoneNumber: string,
+  countryCode = 'IE'
+): Promise<{ session_id: string; dev_otp?: string | null }> {
+  return apiRequest('/auth/phone/start', {
+    method: 'POST',
+    token: accessToken,
+    body: JSON.stringify({ phone_number: phoneNumber, country_code: countryCode }),
+  });
+}
+
+export async function verifyPhoneOtp(
+  accessToken: string,
+  phoneNumber: string,
+  otp: string,
+  countryCode = 'IE'
+): Promise<User> {
+  const apiUser = await apiRequest<ApiUserResponse>('/auth/phone/verify', {
+    method: 'POST',
+    token: accessToken,
+    body: JSON.stringify({ phone_number: phoneNumber, otp, country_code: countryCode }),
+  });
   return mapApiUser(apiUser);
 }
 

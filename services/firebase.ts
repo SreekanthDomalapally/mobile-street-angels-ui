@@ -101,6 +101,13 @@ export async function signInWithAppleMock(): Promise<User> {
   };
 }
 
+export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {
+  const auth = getFirebaseAuth();
+  const user = auth.currentUser;
+  if (!user) return null;
+  return user.getIdToken(forceRefresh);
+}
+
 export async function signInWithGoogle(idToken: string): Promise<User> {
   const auth = getFirebaseAuth();
   const credential = GoogleAuthProvider.credential(idToken);

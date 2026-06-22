@@ -40,7 +40,12 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace(hasGrantedPermissions ? "/(tabs)" : "/(auth)/permissions");
+      const phoneVerified = useAuthStore.getState().hasVerifiedPhone || useAuthStore.getState().user?.phoneVerified;
+      if (!phoneVerified) {
+        router.replace('/(auth)/verify-phone');
+        return;
+      }
+      router.replace(hasGrantedPermissions ? '/(tabs)' : '/(auth)/permissions');
     }
   }, [isAuthenticated, hasGrantedPermissions]);
 
