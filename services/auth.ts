@@ -59,36 +59,39 @@ export async function signInWithGoogle(): Promise<User> {
   }
 
   const googleIdToken = await getGoogleIdToken();
+  let googleApiError: unknown;
 
-  let firebaseIdToken: string | null = null;
+  try {
+    const tokens = await authenticateWithGoogle(googleIdToken);
+    await saveAuthTokens(tokens.access_token, tokens.refresh_token);
+    const user = await fetchCurrentUser(tokens.access_token);
+    await applyOnboardingFromUser(user, tokens.access_token);
+    return user;
+  } catch (error) {
+    googleApiError = error;
+    console.warn('[auth] Direct Google API login failed, trying Firebase:', error);
+  }
+
   try {
     const { signInWithGoogle: firebaseSignInWithGoogle, getFirebaseIdToken } = await import(
       '@/services/firebase'
     );
     await firebaseSignInWithGoogle(googleIdToken);
-    firebaseIdToken = await getFirebaseIdToken();
-  } catch (error) {
-    console.warn('[auth] Firebase sign-in skipped:', error);
-  }
-
-  if (firebaseIdToken) {
-    try {
-      const response = await authenticateWithFirebase(firebaseIdToken);
-      await saveAuthTokens(response.access_token, response.refresh_token);
-      const user = mapApiUser(response.user);
-      useAuthStore.getState().setOnboarding(response.onboarding);
-      useAuthStore.getState().setUser(user);
-      return user;
-    } catch (error) {
-      console.warn('[auth] Firebase backend login failed, falling back to Google:', error);
+    const firebaseIdToken = await getFirebaseIdToken();
+    if (!firebaseIdToken) {
+      throw new Error('Firebase did not return a session token.');
     }
-  }
 
-  const tokens = await authenticateWithGoogle(googleIdToken);
-  await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-  const user = await fetchCurrentUser(tokens.access_token);
-  await applyOnboardingFromUser(user, tokens.access_token);
-  return user;
+    const response = await authenticateWithFirebase(firebaseIdToken);
+    await saveAuthTokens(response.access_token, response.refresh_token);
+    const user = mapApiUser(response.user);
+    useAuthStore.getState().setOnboarding(response.onboarding);
+    useAuthStore.getState().setUser(user);
+    return user;
+  } catch (firebaseError) {
+    console.warn('[auth] Firebase backend login failed:', firebaseError);
+    throw googleApiError ?? firebaseError;
+  }
 }
 
 export async function restoreSession(): Promise<User | null> {

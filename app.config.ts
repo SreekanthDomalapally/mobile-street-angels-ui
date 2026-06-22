@@ -14,33 +14,102 @@ const GOOGLE_SERVICE_INFO_PLIST =
   process.env.GOOGLE_SERVICE_INFO_PLIST ?? './GoogleService-Info.plist';
 
 /** Web OAuth client (client_type 3) from google-services.json — used at EAS build time. */
-function readGoogleWebClientId(servicesPath: string): string | undefined {
+function readGoogleServicesJson(servicesPath: string) {
   try {
     const absolutePath = path.resolve(servicesPath);
-    const json = JSON.parse(fs.readFileSync(absolutePath, 'utf8')) as {
+    return JSON.parse(fs.readFileSync(absolutePath, 'utf8')) as {
       client?: Array<{
         client_info?: { android_client_info?: { package_name?: string } };
-        oauth_client?: Array<{ client_id?: string; client_type?: number }>;
+        oauth_client?: Array<{
+          client_id?: string;
+          client_type?: number;
+          ios_info?: { bundle_id?: string };
+        }>;
+        services?: {
+          appinvite_service?: {
+            other_platform_oauth_client?: Array<{
+              client_id?: string;
+              client_type?: number;
+              ios_info?: { bundle_id?: string };
+            }>;
+          };
+        };
       }>;
     };
-
-    for (const client of json.client ?? []) {
-      const packageName = client.client_info?.android_client_info?.package_name;
-      if (packageName !== PLAY_STORE_PACKAGE) continue;
-
-      const webClient = client.oauth_client?.find((entry) => entry.client_type === 3);
-      if (webClient?.client_id) return webClient.client_id;
-    }
-
-    for (const client of json.client ?? []) {
-      const webClient = client.oauth_client?.find((entry) => entry.client_type === 3);
-      if (webClient?.client_id) return webClient.client_id;
-    }
   } catch {
-    // File may be absent in some environments; eas.json env is the fallback.
+    return null;
+  }
+}
+
+function readGoogleWebClientId(servicesPath: string): string | undefined {
+  const json = readGoogleServicesJson(servicesPath);
+  if (!json) return undefined;
+
+  for (const client of json.client ?? []) {
+    const packageName = client.client_info?.android_client_info?.package_name;
+    if (packageName !== PLAY_STORE_PACKAGE) continue;
+
+    const webClient = client.oauth_client?.find((entry) => entry.client_type === 3);
+    if (webClient?.client_id) return webClient.client_id;
+  }
+
+  for (const client of json.client ?? []) {
+    const webClient = client.oauth_client?.find((entry) => entry.client_type === 3);
+    if (webClient?.client_id) return webClient.client_id;
   }
 
   return undefined;
+}
+
+/** iOS reversed client ID for @react-native-google-signin URL scheme. */
+function readGoogleIosUrlScheme(servicesPath: string): string | undefined {
+  const json = readGoogleServicesJson(servicesPath);
+  if (!json) return undefined;
+
+  const toScheme = (clientId: string) => {
+    const id = clientId.replace('.apps.googleusercontent.com', '');
+    return `com.googleusercontent.apps.${id}`;
+  };
+
+  for (const client of json.client ?? []) {
+    const packageName = client.client_info?.android_client_info?.package_name;
+    if (packageName !== PLAY_STORE_PACKAGE) continue;
+
+    const iosClient =
+      client.oauth_client?.find(
+        (entry) => entry.client_type === 2 && entry.ios_info?.bundle_id === PLAY_STORE_PACKAGE
+      ) ??
+      client.services?.appinvite_service?.other_platform_oauth_client?.find(
+        (entry) => entry.client_type === 2 && entry.ios_info?.bundle_id === PLAY_STORE_PACKAGE
+      );
+
+    if (iosClient?.client_id) {
+      return toScheme(iosClient.client_id);
+    }
+  }
+
+  return undefined;
+}
+
+function withGoogleSignInPlugin(
+  plugins: ExpoConfig['plugins'],
+  iosUrlScheme: string | undefined
+): ExpoConfig['plugins'] {
+  if (!iosUrlScheme) return plugins;
+
+  return (plugins ?? []).map((plugin) => {
+    if (plugin === '@react-native-google-signin/google-signin') {
+      return ['@react-native-google-signin/google-signin', { iosUrlScheme }];
+    }
+    if (Array.isArray(plugin) && plugin[0] === '@react-native-google-signin/google-signin') {
+      const existing =
+        typeof plugin[1] === 'object' && plugin[1] !== null
+          ? (plugin[1] as Record<string, unknown>)
+          : {};
+      return ['@react-native-google-signin/google-signin', { ...existing, iosUrlScheme }];
+    }
+    return plugin;
+  });
 }
 
 /**
@@ -65,9 +134,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
     readGoogleWebClientId(GOOGLE_SERVICES_FILE);
 
+  const googleIosUrlScheme = readGoogleIosUrlScheme(GOOGLE_SERVICES_FILE);
+
   const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? PRODUCTION_API_URL).replace(/\/+$/, '');
 
-  const plugins = [...(baseConfig.plugins ?? [])];
+  let plugins = withGoogleSignInPlugin([...(baseConfig.plugins ?? [])], googleIosUrlScheme) ?? [];
   if (androidMapsKey || iosMapsKey) {
     plugins.push([
       'react-native-maps',

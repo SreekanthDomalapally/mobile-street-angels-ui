@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
 import { GoogleSignInCancelledError, signInWithEmail, signInWithGoogle } from "@/services/auth";
+import { formatGoogleSignInError, isGoogleSignInCancelled } from "@/lib/googleAuthErrors";
 import { isGoogleSignInAvailable, usesDevGoogleSignIn } from "@/services/googleSignIn";
 import { useAuthStore } from "@/stores/authStore";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,8 +45,9 @@ export default function LoginScreen() {
       await signIn();
       router.replace("/");
     } catch (err) {
-      if (err instanceof GoogleSignInCancelledError) return;
-      setError(err instanceof Error ? err.message : "Sign in failed. Please try again.");
+      if (isGoogleSignInCancelled(err) || err instanceof GoogleSignInCancelledError) return;
+      const message = formatGoogleSignInError(err);
+      if (message) setError(message);
     } finally {
       setLoading(false);
     }
