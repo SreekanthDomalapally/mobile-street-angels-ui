@@ -24,16 +24,27 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     setChecking(true);
 
     (async () => {
-      const next = await refreshOnboardingFlags();
-      if (cancelled) return;
-      setAllowed(next.onboarding_complete || next.next_step === 'home');
-      setChecking(false);
+      try {
+        const next = await refreshOnboardingFlags();
+        if (cancelled) return;
+        setAllowed(next.onboarding_complete || next.next_step === 'home');
+      } catch (error) {
+        console.warn('[onboarding] Gate check failed:', error);
+        if (!cancelled) {
+          const snapshot = useAuthStore.getState().onboardingFlags;
+          setAllowed(snapshot?.onboarding_complete === true || snapshot?.next_step === 'home');
+        }
+      } finally {
+        if (!cancelled) {
+          setChecking(false);
+        }
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, pathname, flags?.onboarding_complete]);
+  }, [isAuthenticated, pathname]);
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;

@@ -15,7 +15,9 @@ import { signInWithGoogleMock, signOut as firebaseSignOut } from '@/services/fir
 import { clearAuthTokens, getAuthTokens, saveAuthTokens } from '@/services/tokenStorage';
 import { unregisterPushFromServer } from '@/services/pushRegistration';
 import { clearOnboardingProgress } from '@/services/onboardingProgress';
+import { useTripWatchStore } from '@/stores/tripWatchStore';
 import { useSOSStore } from '@/stores/sosStore';
+import { clearPersistedActiveTrip } from '@/services/tripWatchStorage';
 import { refreshOnboardingFlags } from '@/services/onboardingState';
 import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types';
@@ -126,6 +128,8 @@ export async function signOut(): Promise<void> {
     unregisterPushFromServer(),
   ]);
   useSOSStore.getState().resetSOS();
+  useTripWatchStore.getState().resetTripWatch();
+  await clearPersistedActiveTrip();
   useAuthStore.getState().signOut();
 }
 

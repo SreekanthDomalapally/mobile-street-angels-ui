@@ -1,5 +1,6 @@
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePushTokenSync } from '@/hooks/usePushTokenSync';
+import { useTripWatchRecovery } from '@/hooks/useTripWatchRecovery';
 import { useSOSRecovery } from '@/hooks/useSOSRecovery';
 import { queryClient } from '@/lib/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +17,11 @@ function PushTokenListener() {
   return null;
 }
 
+function TripWatchRecoveryListener() {
+  useTripWatchRecovery();
+  return null;
+}
+
 function SOSRecoveryListener() {
   useSOSRecovery();
   return null;
@@ -28,6 +34,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <NetworkListener />
           <PushTokenListener />
+          <TripWatchRecoveryListener />
           <SOSRecoveryListener />
           {children}
         </QueryClientProvider>

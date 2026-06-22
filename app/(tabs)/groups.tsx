@@ -5,6 +5,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { GroupCard } from '@/components/groups/GroupCard';
 import { GroupInvitesSection } from '@/components/groups/GroupInvitesSection';
 import { GroupMembersSection } from '@/components/groups/GroupMembersSection';
+import { TripWatchGroupSection } from '@/components/trip/TripWatchGroupSection';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useGroup } from '@/hooks/useGroup';
@@ -223,6 +224,8 @@ export default function GroupsScreen() {
 
               {selectedGroupId && (
                 <View className="mt-4 border-t border-glass-border pt-6">
+                  <TripWatchGroupSection groupId={selectedGroupId} />
+
                   <GroupMembersSection
                     group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}
                     loading={isGroupLoading}

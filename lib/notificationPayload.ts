@@ -1,8 +1,15 @@
-export type NotificationKind = 'sos_alert' | 'responder_update' | 'group_update' | 'unknown';
+export type NotificationKind =
+  | 'sos_alert'
+  | 'responder_update'
+  | 'group_update'
+  | 'trip_watch'
+  | 'check_in'
+  | 'unknown';
 
 export interface ParsedNotificationPayload {
   kind: NotificationKind;
   alertId?: string;
+  tripId?: string;
   senderName?: string;
   alertType?: string;
   isOwnAlert?: boolean;
@@ -17,6 +24,8 @@ export function parseNotificationData(
 
   const alertIdRaw = data.alert_id ?? data.alertId;
   const alertId = typeof alertIdRaw === 'string' && alertIdRaw.length > 0 ? alertIdRaw : undefined;
+  const tripIdRaw = data.trip_id ?? data.tripId;
+  const tripId = typeof tripIdRaw === 'string' && tripIdRaw.length > 0 ? tripIdRaw : undefined;
   const typeRaw = String(data.type ?? data.notification_type ?? '').toLowerCase();
 
   let kind: NotificationKind = 'unknown';
@@ -24,8 +33,12 @@ export function parseNotificationData(
     kind = 'sos_alert';
   } else if (typeRaw === 'responder_update' || typeRaw === 'alert_response') {
     kind = 'responder_update';
-  } else if (typeRaw === 'group_update' || typeRaw === 'group_invite') {
-    kind = 'group_update';
+  } else if (typeRaw === 'check_in' || typeRaw === 'trip_arrived') {
+    kind = 'check_in';
+  } else if (typeRaw === 'group_update' || typeRaw === 'group_invite' || typeRaw === 'trip_started') {
+    kind = tripId ? 'trip_watch' : 'group_update';
+  } else if (tripId) {
+    kind = 'trip_watch';
   } else if (alertId) {
     kind = 'sos_alert';
   }
@@ -46,5 +59,5 @@ export function parseNotificationData(
 
   const isOwnAlert = data.is_own_alert === true || data.isOwnAlert === true;
 
-  return { kind, alertId, senderName, alertType, isOwnAlert };
+  return { kind, alertId, tripId, senderName, alertType, isOwnAlert };
 }

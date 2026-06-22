@@ -188,3 +188,28 @@ export interface EmergencySettings {
   silentMode: boolean;
   defaultSosGroupId: string | null;
 }
+
+export type TripWatchStatus = 'active' | 'arrived' | 'ended' | 'expired';
+
+export interface TripDestination {
+  latitude: number;
+  longitude: number;
+  label?: string;
+}
+
+export interface TripWatch {
+  id: string;
+  groupId: string;
+  groupName?: string;
+  label?: string;
+  status: TripWatchStatus;
+  destination?: TripDestination;
+  currentLocation?: Coordinates;
+  startedAt: string;
+  expiresAt: string;
+  arrivedAt?: string;
+  endedAt?: string;
+  travelerUserId: string;
+  travelerName?: string;
+  isLocalOnly?: boolean;
+}

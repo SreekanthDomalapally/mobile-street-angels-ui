@@ -22,3 +22,18 @@ export function formatDistance(km: number): string {
 export function estimateEtaMinutes(km: number, speedKmh = 30): number {
   return Math.max(1, Math.round((km / speedKmh) * 60));
 }
+
+/** Default geofence radius for “arrived at destination”. */
+export const ARRIVAL_RADIUS_METERS = 150;
+
+export function distanceMeters(from: Coordinates, to: Coordinates): number {
+  return distanceKm(from, to) * 1000;
+}
+
+export function isWithinRadius(
+  from: Coordinates,
+  to: Coordinates,
+  radiusMeters = ARRIVAL_RADIUS_METERS
+): boolean {
+  return distanceMeters(from, to) <= radiusMeters;
+}

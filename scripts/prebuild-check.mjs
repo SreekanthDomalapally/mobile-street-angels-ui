@@ -86,6 +86,18 @@ try {
     Boolean(config.extra?.googleWebClientId),
     config.extra?.googleWebClientId ?? 'missing'
   );
+  const googlePlugin = (config.plugins ?? []).find(
+    (p) => Array.isArray(p) && p[0] === '@react-native-google-signin/google-signin'
+  );
+  const iosUrlScheme =
+    googlePlugin && typeof googlePlugin[1] === 'object' && googlePlugin[1] !== null
+      ? (googlePlugin[1] as { iosUrlScheme?: string }).iosUrlScheme
+      : undefined;
+  assert(
+    'Google Sign-In iosUrlScheme',
+    Boolean(iosUrlScheme),
+    iosUrlScheme ?? 'missing — rebuild app.config.ts / google-services.json'
+  );
   assert(
     'android.googleServicesFile',
     Boolean(config.android?.googleServicesFile),

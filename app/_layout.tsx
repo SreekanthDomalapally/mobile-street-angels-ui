@@ -60,6 +60,12 @@ export default function RootLayout() {
           name="group/[id]"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="trip/start" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="trip/active"
+          options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen name="trip/[id]" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </AppProviders>
   );

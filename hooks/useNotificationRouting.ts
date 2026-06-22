@@ -21,7 +21,9 @@ function shouldHandleNotification(parsed: ParsedNotificationPayload): boolean {
 
   const prefs = useSettingsStore.getState().notifications;
   if (parsed.kind === 'responder_update') return prefs.responderUpdates;
-  if (parsed.kind === 'group_update') return prefs.groupUpdates;
+  if (parsed.kind === 'group_update' || parsed.kind === 'trip_watch' || parsed.kind === 'check_in') {
+    return prefs.groupUpdates;
+  }
   return prefs.emergencyAlerts;
 }
 
@@ -49,6 +51,11 @@ function navigateForNotification(parsed: ParsedNotificationPayload, replace = fa
       navigate('/sos/active' as Href);
       return;
     }
+  }
+
+  if (parsed.tripId) {
+    navigate(`/trip/${parsed.tripId}` as Href);
+    return;
   }
 
   if (parsed.alertId) {

@@ -1,5 +1,6 @@
 import { parseNotificationData } from '@/lib/notificationPayload';
 import { useSettingsStore } from '@/stores/settingsStore';
+import Constants from 'expo-constants';
 import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 
@@ -105,6 +106,41 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+function resolveEasProjectId(): string | undefined {
+  const fromEnv = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+  if (fromEnv) return fromEnv;
+
+  const extra = Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
+  return extra?.eas?.projectId?.trim() || undefined;
+}
+
+/** Request notification permission. Required for onboarding — separate from FCM token. */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    // Expo Go / web: treat as granted so dev flow can continue.
+    return __DEV__;
+  }
+
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    if (existing === 'granted') return true;
+
+    const { status } = await Notifications.requestPermissionsAsync({
+      android: {},
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
+    return status === 'granted';
+  } catch (error) {
+    console.warn('[notifications] Permission request failed:', error);
+    return false;
+  }
+}
+
 export async function registerForPushNotifications(): Promise<string | null> {
   const Notifications = await loadNotifications();
   if (!Notifications) {
@@ -117,27 +153,14 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    let finalStatus = existing;
-
-    if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-        },
-      });
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
+    const granted = await ensureNotificationPermission();
+    if (!granted) {
       return null;
     }
 
-    const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+    const projectId = resolveEasProjectId();
     if (!projectId) {
-      console.warn('[notifications] EXPO_PUBLIC_EAS_PROJECT_ID missing; skipping push token.');
+      console.warn('[notifications] EAS project ID missing; skipping push token.');
       return null;
     }
 

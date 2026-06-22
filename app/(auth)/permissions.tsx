@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { markOnboardingComplete } from '@/services/onboardingState';
 import { requestLocationPermission, requestBackgroundLocationPermission } from '@/services/location';
-import { registerForPushNotifications } from '@/services/notifications';
+import { ensureNotificationPermission } from '@/services/notifications';
 import { syncPushTokenWithServer } from '@/services/pushRegistration';
 import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,12 +63,15 @@ export default function PermissionsScreen() {
         }
         await requestBackgroundLocationPermission();
       } else {
-        const pushToken = await registerForPushNotifications();
-        if (!pushToken) {
+        const granted = await ensureNotificationPermission();
+        if (!granted) {
           setError('Notifications are required so you can receive SOS alerts.');
           return;
         }
-        await syncPushTokenWithServer();
+        // Token may fail on emulators without Google Play / FCM — permission is enough to continue.
+        await syncPushTokenWithServer().catch((err) => {
+          console.warn('[permissions] Push token sync deferred:', err);
+        });
       }
       await finishOrAdvance();
     } catch (err) {

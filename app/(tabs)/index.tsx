@@ -1,3 +1,4 @@
+import { TripWatchBanner } from "@/components/home/TripWatchBanner";
 import { NearbyResponders } from "@/components/home/NearbyResponders";
 import { ReadinessBanner } from "@/components/home/ReadinessBanner";
 import { SosGroupPicker } from "@/components/home/SosGroupPicker";
@@ -159,6 +160,10 @@ export default function HomeScreen() {
         )}
 
         <EmergencyTypePicker />
+
+        <View className="mt-6">
+          <TripWatchBanner />
+        </View>
 
         <View className="mt-10">
           <NearbyResponders />
