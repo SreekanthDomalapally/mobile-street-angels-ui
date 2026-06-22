@@ -134,3 +134,14 @@ export async function registerDeviceToken(
     body: JSON.stringify({ token: pushToken, platform }),
   });
 }
+
+export async function unregisterDeviceToken(
+  accessToken: string,
+  pushToken: string
+): Promise<void> {
+  await apiRequest<void>('/auth/devices', {
+    method: 'DELETE',
+    token: accessToken,
+    body: JSON.stringify({ token: pushToken }),
+  });
+}

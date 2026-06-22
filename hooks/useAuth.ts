@@ -1,26 +1,18 @@
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
-import { registerDeviceToken } from '@/services/api/auth';
-import { registerForPushNotifications } from '@/services/notifications';
-import { getAccessToken } from '@/services/tokens';
 import { restoreSession } from '@/services/auth';
 import { refreshOnboardingFlags } from '@/services/onboardingState';
+import { syncPushTokenWithServer } from '@/services/pushRegistration';
+import { fetchNotificationPreferences } from '@/services/api/preferences';
 import { getAuthTokens } from '@/services/tokenStorage';
 import { useAuthStore } from '@/stores/authStore';
-
-async function registerPushIfPossible() {
-  const pushToken = await registerForPushNotifications();
-  if (!pushToken) return;
-  const accessToken = await getAccessToken();
-  if (!accessToken) return;
-  await registerDeviceToken(accessToken, pushToken, Platform.OS);
-}
+import { useSettingsStore } from '@/stores/settingsStore';
 
 /** Validates stored backend tokens and clears stale mock sessions on launch. */
 export function useAuthBootstrap() {
   const setUser = useAuthStore((s) => s.setUser);
   const signOut = useAuthStore((s) => s.signOut);
   const setLoading = useAuthStore((s) => s.setLoading);
+  const updateNotifications = useSettingsStore((s) => s.updateNotifications);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +29,11 @@ export function useAuthBootstrap() {
           if (user) {
             setUser(user);
             await refreshOnboardingFlags();
-            await registerPushIfPossible();
+            const serverPrefs = await fetchNotificationPreferences().catch(() => null);
+            if (serverPrefs) {
+              updateNotifications(serverPrefs);
+            }
+            await syncPushTokenWithServer();
             return;
           }
         }
@@ -58,5 +54,5 @@ export function useAuthBootstrap() {
     return () => {
       cancelled = true;
     };
-  }, [setUser, signOut, setLoading]);
+  }, [setUser, signOut, setLoading, updateNotifications]);
 }

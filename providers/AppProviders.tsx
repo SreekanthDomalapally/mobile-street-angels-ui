@@ -1,4 +1,5 @@
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePushTokenSync } from '@/hooks/usePushTokenSync';
 import { useSOSRecovery } from '@/hooks/useSOSRecovery';
 import { queryClient } from '@/lib/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +8,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 function NetworkListener() {
   useNetworkStatus();
+  return null;
+}
+
+function PushTokenListener() {
+  usePushTokenSync();
   return null;
 }
 
@@ -21,6 +27,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
           <NetworkListener />
+          <PushTokenListener />
           <SOSRecoveryListener />
           {children}
         </QueryClientProvider>

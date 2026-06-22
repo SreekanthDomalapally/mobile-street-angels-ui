@@ -1,16 +1,15 @@
 import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { registerDeviceToken } from '@/services/api/auth';
 import { markOnboardingComplete } from '@/services/onboardingState';
 import { requestLocationPermission, requestBackgroundLocationPermission } from '@/services/location';
 import { registerForPushNotifications } from '@/services/notifications';
-import { getAccessToken } from '@/services/tokens';
+import { syncPushTokenWithServer } from '@/services/pushRegistration';
 import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const steps = [
@@ -69,10 +68,7 @@ export default function PermissionsScreen() {
           setError('Notifications are required so you can receive SOS alerts.');
           return;
         }
-        const accessToken = await getAccessToken();
-        if (accessToken) {
-          await registerDeviceToken(accessToken, pushToken, Platform.OS);
-        }
+        await syncPushTokenWithServer();
       }
       await finishOrAdvance();
     } catch (err) {

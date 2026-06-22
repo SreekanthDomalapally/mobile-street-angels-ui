@@ -5,9 +5,11 @@ import { Text } from "@/components/ui/Text";
 import { APP_NAME } from "@/constants/branding";
 import { getAppVersionLabel } from "@/lib/appVersion";
 import { signOut as authSignOut } from "@/services/auth";
+import { updateNotificationPreferences } from "@/services/api/preferences";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { router } from "expo-router";
+import { useCallback } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -16,6 +18,19 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const { notifications, emergency, updateNotifications, updateEmergency } =
     useSettingsStore();
+
+  const handleNotificationToggle = useCallback(
+    async (key: "responderUpdates" | "groupUpdates", value: boolean) => {
+      const next = { ...notifications, [key]: value };
+      updateNotifications({ [key]: value });
+      try {
+        await updateNotificationPreferences(next);
+      } catch (error) {
+        console.warn("[profile] Failed to sync notification preferences:", error);
+      }
+    },
+    [notifications, updateNotifications]
+  );
 
   const handleSignOut = async () => {
     await authSignOut();
@@ -44,23 +59,27 @@ export default function ProfileScreen() {
       <Text variant="label" className="mb-2">
         Notifications
       </Text>
-      <View className="mb-6 rounded-2xl border border-glass-border bg-charcoal-900 px-4">
+      <View className="mb-2 rounded-2xl border border-glass-border bg-charcoal-900 px-4">
         <SettingsRow
-          label="Emergency alerts"
-          value={notifications.emergencyAlerts}
-          onToggle={(v) => updateNotifications({ emergencyAlerts: v })}
+          label="Emergency SOS alerts"
+          description="Always on — someone needs help"
+          value={true}
+          disabled
         />
         <SettingsRow
           label="Responder updates"
           value={notifications.responderUpdates}
-          onToggle={(v) => updateNotifications({ responderUpdates: v })}
+          onToggle={(v) => handleNotificationToggle("responderUpdates", v)}
         />
         <SettingsRow
           label="Group updates"
           value={notifications.groupUpdates}
-          onToggle={(v) => updateNotifications({ groupUpdates: v })}
+          onToggle={(v) => handleNotificationToggle("groupUpdates", v)}
         />
       </View>
+      <Text variant="caption" muted className="mb-6">
+        Incoming SOS alerts from trusted contacts cannot be turned off.
+      </Text>
 
       <Text variant="label" className="mb-2">
         Emergency settings
@@ -74,7 +93,7 @@ export default function ProfileScreen() {
         />
         <SettingsRow
           label="Silent mode"
-          description="Haptic only, no sounds"
+          description="Mute sounds; SOS alerts still show"
           value={emergency.silentMode}
           onToggle={(v) => updateEmergency({ silentMode: v })}
         />

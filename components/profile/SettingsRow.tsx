@@ -12,6 +12,7 @@ interface SettingsRowProps {
   onPress?: () => void;
   showChevron?: boolean;
   destructive?: boolean;
+  disabled?: boolean;
 }
 
 export function SettingsRow({
@@ -23,6 +24,7 @@ export function SettingsRow({
   onPress,
   showChevron,
   destructive,
+  disabled = false,
 }: SettingsRowProps) {
   const content = (
     <View className="flex-row items-center gap-4 py-4">
@@ -45,6 +47,7 @@ export function SettingsRow({
         <Switch
           value={value}
           onValueChange={onToggle}
+          disabled={disabled}
           trackColor={{ false: colors.surfaceElevated, true: colors.responder }}
           thumbColor="#fff"
           accessibilityLabel={label}

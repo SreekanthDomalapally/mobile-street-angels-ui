@@ -13,6 +13,7 @@ import {
 import { GoogleSignInCancelledError } from '@/services/googleSignInErrors';
 import { signInWithGoogleMock, signOut as firebaseSignOut } from '@/services/firebase';
 import { clearAuthTokens, getAuthTokens, saveAuthTokens } from '@/services/tokenStorage';
+import { unregisterPushFromServer } from '@/services/pushRegistration';
 import { clearOnboardingProgress } from '@/services/onboardingProgress';
 import { useSOSStore } from '@/stores/sosStore';
 import { refreshOnboardingFlags } from '@/services/onboardingState';
@@ -114,7 +115,13 @@ export async function restoreSession(): Promise<User | null> {
 
 export async function signOut(): Promise<void> {
   const { signOutGoogle } = await import('@/services/googleSignIn');
-  await Promise.allSettled([signOutGoogle(), firebaseSignOut(), clearAuthTokens(), clearOnboardingProgress()]);
+  await Promise.allSettled([
+    signOutGoogle(),
+    firebaseSignOut(),
+    clearAuthTokens(),
+    clearOnboardingProgress(),
+    unregisterPushFromServer(),
+  ]);
   useSOSStore.getState().resetSOS();
   useAuthStore.getState().signOut();
 }
