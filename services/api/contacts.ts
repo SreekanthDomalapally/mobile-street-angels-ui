@@ -47,6 +47,7 @@ export async function matchContactsByPhone(
     matched_users: {
       user_id: string;
       display_name: string;
+      email: string;
       phone_last4: string;
       is_trusted: boolean;
       contact_label?: string | null;

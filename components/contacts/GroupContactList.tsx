@@ -32,7 +32,12 @@ function resolveStatus(
   memberSet: Set<string>,
   pendingSet: Set<string>
 ): ContactStatus {
-  const emails = row.emails.length > 0 ? row.emails : row.primaryEmail ? [row.primaryEmail] : [];
+  const emails = [
+    row.inviteEmail,
+    row.accountEmail,
+    ...row.emails.map((email) => email.trim().toLowerCase()),
+  ].filter((email): email is string => Boolean(email));
+
   if (emails.some((email) => memberSet.has(email))) {
     return 'member';
   }
@@ -93,21 +98,21 @@ export function GroupContactList({
   }, [rows, search]);
 
   const markPending = (row: DeviceContactRow) => {
-    const email = row.primaryEmail?.toLowerCase();
+    const email = row.inviteEmail?.toLowerCase();
     if (!email) return;
     setLocalPending((current) => new Set([...current, email]));
   };
 
   const handleAdd = async (row: DeviceContactRow) => {
-    if (!row.primaryEmail) {
-      setActionError('This contact needs an email address.');
+    if (!row.inviteEmail) {
+      setActionError('Could not resolve this contact’s YouHoo Alert account.');
       return;
     }
 
     setBusyId(row.id);
     setActionError(null);
     try {
-      await addContactToGroup(row.primaryEmail, groupId);
+      await addContactToGroup(row.inviteEmail, groupId);
       markPending(row);
       onUpdated();
       await reload();
@@ -130,12 +135,12 @@ export function GroupContactList({
       await inviteContactToGroup(
         {
           displayName: row.name,
-          email: row.primaryEmail,
+          email: row.inviteEmail ?? row.primaryEmail,
           phone: row.phoneNumbers[0],
         },
         groupId
       );
-      if (row.primaryEmail) {
+      if (row.inviteEmail) {
         markPending(row);
       }
       onUpdated();
@@ -256,7 +261,7 @@ export function GroupContactList({
                     size="sm"
                     className="mt-3"
                     loading={busyId === row.id}
-                    disabled={!row.primaryEmail}
+                    disabled={!row.inviteEmail}
                     onPress={() => handleAdd(row)}
                   />
                 )}

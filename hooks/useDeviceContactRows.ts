@@ -13,6 +13,10 @@ import { useQuery } from '@tanstack/react-query';
 
 export type DeviceContactRow = DeviceContact & {
   primaryEmail?: string;
+  /** Registered YouHoo Alert email (from lookup), used for group invites */
+  accountEmail?: string;
+  /** Email to use when sending a group invite */
+  inviteEmail?: string;
   onPlatform: boolean;
   userId?: string;
   canReach: boolean;
@@ -43,7 +47,10 @@ async function enrichContacts(contacts: DeviceContact[]): Promise<DeviceContactR
   const matchByEmail = new Map(emailMatches.map((match) => [match.email.toLowerCase(), match]));
 
   const phoneVerified = useAuthStore.getState().user?.phoneVerified;
-  const phoneMatchByLast4 = new Map<string, { user_id: string; display_name: string }>();
+  const phoneMatchByLast4 = new Map<
+    string,
+    { user_id: string; display_name: string; email: string }
+  >();
 
   if (phoneVerified) {
     const phoneEntries = contacts.flatMap((contact) =>
@@ -61,6 +68,7 @@ async function enrichContacts(contacts: DeviceContact[]): Promise<DeviceContactR
           phoneMatchByLast4.set(match.phone_last4, {
             user_id: match.user_id,
             display_name: match.display_name,
+            email: match.email,
           });
         }
       } catch {
@@ -70,8 +78,12 @@ async function enrichContacts(contacts: DeviceContact[]): Promise<DeviceContactR
   }
 
   return contacts.map((contact) => {
-    const matchedEmail = contact.emails.find((email) => matchByEmail.has(email));
-    const emailMatch = matchedEmail ? matchByEmail.get(matchedEmail) : undefined;
+    const matchedEmail = contact.emails.find((email) =>
+      matchByEmail.has(email.trim().toLowerCase())
+    );
+    const emailMatch = matchedEmail
+      ? matchByEmail.get(matchedEmail.trim().toLowerCase())
+      : undefined;
 
     const normalizedPhones = contact.phoneNumbers
       .map((phone) => normalizePhoneE164(phone))
@@ -79,17 +91,24 @@ async function enrichContacts(contacts: DeviceContact[]): Promise<DeviceContactR
 
     const phoneUser = normalizedPhones
       .map((phone) => phoneMatchByLast4.get(phone.slice(-4)))
-      .find((match): match is { user_id: string; display_name: string } => Boolean(match));
+      .find(
+        (match): match is { user_id: string; display_name: string; email: string } =>
+          Boolean(match)
+      );
 
-    const primaryEmail = matchedEmail ?? contact.emails[0];
+    const primaryEmail = contact.emails[0];
+    const accountEmail = emailMatch?.email ?? phoneUser?.email;
+    const inviteEmail = accountEmail ?? primaryEmail?.trim().toLowerCase();
     const onPlatform = Boolean(emailMatch || phoneUser);
 
     return {
       ...contact,
       primaryEmail,
+      accountEmail,
+      inviteEmail,
       onPlatform,
       userId: emailMatch?.user_id ?? phoneUser?.user_id,
-      canReach: Boolean(primaryEmail || contact.phoneNumbers[0]),
+      canReach: Boolean(inviteEmail || contact.phoneNumbers[0]),
     };
   });
 }
