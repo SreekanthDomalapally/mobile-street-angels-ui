@@ -50,6 +50,7 @@
     "eslint": "^9.39.4",
     "eslint-config-expo": "^56.0.4",
     "patch-package": "^8.0.1",
+    "sharp": "^0.35.2",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -62,6 +63,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "prebuild:check": "node scripts/prebuild-check.mjs",
+    "icons:generate": "node scripts/generate-app-icons.mjs",
     "eas:init": "npx eas-cli init",
     "eas:credentials:android": "npx eas-cli credentials:configure-build -p android --profile production",
     "eas:credentials:ios": "npx eas-cli credentials:configure-build -p ios --profile production",

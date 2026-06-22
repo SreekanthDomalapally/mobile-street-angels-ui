@@ -4,7 +4,7 @@
     "slug": "mobile-youhoo-alert",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/YouHooLogo.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "youhooalert",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -27,7 +27,6 @@
       "adaptiveIcon": {
         "backgroundColor": "#0B1B32",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
@@ -51,7 +50,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/YouHooLogo.png",
+          "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#0B1B32",
           "imageWidth": 280
@@ -66,7 +65,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#c94a4a",
           "sounds": []
         }
