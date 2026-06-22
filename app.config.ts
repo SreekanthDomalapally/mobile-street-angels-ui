@@ -67,6 +67,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? PRODUCTION_API_URL).replace(/\/+$/, '');
 
+  const plugins = [...(baseConfig.plugins ?? [])];
+  if (androidMapsKey || iosMapsKey) {
+    plugins.push([
+      'react-native-maps',
+      {
+        ...(androidMapsKey ? { androidGoogleMapsApiKey: androidMapsKey } : {}),
+        ...(iosMapsKey ? { iosGoogleMapsApiKey: iosMapsKey } : {}),
+      },
+    ]);
+  }
+
   return {
     ...baseConfig,
     ios: {
@@ -97,5 +108,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         projectId: EAS_PROJECT_ID,
       },
     },
+    plugins,
   } satisfies ExpoConfig;
 };

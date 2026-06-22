@@ -29,49 +29,64 @@ export default function SOSActiveScreen() {
   } = useSOSStore();
 
   useEffect(() => {
+    if (activeAlert) return;
+    router.replace('/(tabs)');
+  }, [activeAlert]);
+
+  useEffect(() => {
     if (!activeAlert) return;
+
+    let cancelled = false;
+    let stopWatching: (() => void) | undefined;
 
     scheduleEmergencyNotification(
       'SOS Active',
       'Your trusted contacts have been notified. Help is on the way.'
-    );
-
-    let stopWatching: (() => void) | undefined;
+    ).catch((error) => {
+      console.warn('[sos] Local notification failed:', error);
+    });
 
     (async () => {
-      const token = await getAccessToken();
-      if (!token) return;
+      try {
+        const token = await getAccessToken();
+        if (!token || cancelled) return;
 
-      alertSocket.connect(activeAlert.id, token);
-      alertSocket.onRespondersUpdate(updateResponders);
-      alertSocket.onTimelineEvent(addTimelineEvent);
-      alertSocket.onStatusChange((status) => {
-        if (status === 'resolved') {
-          resolveAlert();
-          router.replace('/(tabs)');
+        alertSocket.connect(activeAlert.id, token);
+        alertSocket.onRespondersUpdate(updateResponders);
+        alertSocket.onTimelineEvent(addTimelineEvent);
+        alertSocket.onStatusChange((status) => {
+          if (status === 'resolved') {
+            resolveAlert();
+            router.replace('/(tabs)');
+          }
+        });
+
+        const pushLocation = async (coords: Coordinates) => {
+          const current = useSOSStore.getState().activeAlert;
+          if (!current || cancelled) return;
+          try {
+            await updateAlertLocation(current.id, coords, coords.accuracyMeters);
+            setActiveAlert({ ...current, location: coords });
+          } catch {
+            // Location updates are best-effort during an active alert.
+          }
+        };
+
+        const freshLocation = await getCurrentLocation({ highAccuracy: true });
+        if (freshLocation && !cancelled) {
+          await pushLocation(freshLocation);
         }
-      });
 
-      const pushLocation = async (coords: Coordinates) => {
-        const current = useSOSStore.getState().activeAlert;
-        if (!current) return;
-        try {
-          await updateAlertLocation(current.id, coords, coords.accuracyMeters);
-          setActiveAlert({ ...current, location: coords });
-        } catch {
-          // Location updates are best-effort during an active alert.
+        if (!cancelled) {
+          stopWatching = await watchLocation(pushLocation, { highAccuracy: true });
         }
-      };
-
-      const freshLocation = await getCurrentLocation({ highAccuracy: true });
-      if (freshLocation) {
-        await pushLocation(freshLocation);
+      } catch (error) {
+        console.warn('[sos] Active alert setup failed:', error);
       }
-
-      stopWatching = await watchLocation(pushLocation, { highAccuracy: true });
     })();
 
     return () => {
+      cancelled = true;
       alertSocket.disconnect();
       stopWatching?.();
     };
@@ -104,9 +119,10 @@ export default function SOSActiveScreen() {
   };
 
   if (!activeAlert) {
-    router.replace('/(tabs)');
     return null;
   }
+
+  const enRouteCount = activeAlert.responders.filter((r) => r.status === 'en_route').length;
 
   return (
     <View className="flex-1 bg-charcoal-950">
@@ -126,8 +142,8 @@ export default function SOSActiveScreen() {
           style={{ top: insets.top + 8 }}>
           <GlassCard className="px-4 py-2">
             <View className="flex-row items-center gap-2">
-              <View className="h-2 w-2 rounded-full bg-emergency animate-pulse" />
-              <Text variant="caption" className="text-emergency-glow font-semibold">
+              <View className="h-2 w-2 rounded-full bg-emergency" />
+              <Text variant="caption" className="font-semibold text-emergency-glow">
                 SOS Active
               </Text>
             </View>
@@ -150,8 +166,7 @@ export default function SOSActiveScreen() {
           Help is coming
         </Text>
         <Text variant="body" muted className="mb-6">
-          {activeAlert.responders.filter((r) => r.status === 'en_route').length} responder
-          {activeAlert.responders.length !== 1 ? 's' : ''} on the way
+          {enRouteCount} responder{enRouteCount === 1 ? '' : 's'} on the way
         </Text>
 
         <Text variant="label" className="mb-3">

@@ -43,7 +43,7 @@ export default function HomeScreen() {
     try {
       const alert = await triggerSOS(emergencyType);
       setActiveAlert(alert);
-      router.push("/sos/active");
+      router.push('/sos/active');
     } catch (error) {
       setActivating(false);
       setCountdown(null);

@@ -1,15 +1,18 @@
+import { LocationFallback } from '@/components/map/LocationFallback';
+import { isNativeMapSupported } from '@/lib/maps';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, {
   Circle,
   Marker,
-  PROVIDER_DEFAULT,
+  PROVIDER_GOOGLE,
   type Region,
   type UserLocationChangeEvent,
 } from 'react-native-maps';
 import type { Coordinates, Responder } from '@/types';
 
 const STREET_LEVEL_DELTA = 0.006;
+const MAX_ACCURACY_RADIUS_METERS = 500;
 
 interface LiveMapProps {
   userLocation?: Coordinates | null;
@@ -28,6 +31,16 @@ function toRegion(coords: Coordinates, delta = STREET_LEVEL_DELTA): Region {
   };
 }
 
+function isValidCoordinate(value: number | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isValidLocation(coords: Coordinates | null | undefined): coords is Coordinates {
+  return Boolean(
+    coords && isValidCoordinate(coords.latitude) && isValidCoordinate(coords.longitude)
+  );
+}
+
 export function LiveMap({
   userLocation,
   responders = [],
@@ -35,19 +48,24 @@ export function LiveMap({
   onLiveLocationChange,
 }: LiveMapProps) {
   const mapRef = useRef<MapView>(null);
-  const [liveCoords, setLiveCoords] = useState<Coordinates | null>(userLocation ?? null);
+  const [liveCoords, setLiveCoords] = useState<Coordinates | null>(
+    isValidLocation(userLocation) ? userLocation : null
+  );
   const [accuracyMeters, setAccuracyMeters] = useState<number | undefined>(
     userLocation?.accuracyMeters
   );
 
   useEffect(() => {
-    if (!userLocation) return;
+    if (!isValidLocation(userLocation)) return;
     setLiveCoords(userLocation);
     setAccuracyMeters(userLocation.accuracyMeters);
-  }, [userLocation?.latitude, userLocation?.longitude, userLocation?.accuracyMeters]);
+    if (followUser) {
+      mapRef.current?.animateToRegion(toRegion(userLocation), 400);
+    }
+  }, [followUser, userLocation?.latitude, userLocation?.longitude, userLocation?.accuracyMeters]);
 
   const initialRegion = useMemo(() => {
-    if (!userLocation) return undefined;
+    if (!isValidLocation(userLocation)) return undefined;
     return toRegion(userLocation);
   }, [userLocation?.latitude, userLocation?.longitude]);
 
@@ -55,6 +73,9 @@ export function LiveMap({
     (event: UserLocationChangeEvent) => {
       const coordinate = event.nativeEvent.coordinate;
       if (!coordinate) return;
+      if (!isValidCoordinate(coordinate.latitude) || !isValidCoordinate(coordinate.longitude)) {
+        return;
+      }
 
       const coords: Coordinates = {
         latitude: coordinate.latitude,
@@ -73,34 +94,48 @@ export function LiveMap({
     [followUser, onLiveLocationChange]
   );
 
-  if (!initialRegion) {
+  if (!isValidLocation(userLocation) || !initialRegion) {
     return <View className="flex-1 bg-charcoal-950" />;
   }
+
+  if (!isNativeMapSupported()) {
+    return <LocationFallback location={userLocation} />;
+  }
+
+  const accuracyRadius =
+    accuracyMeters && accuracyMeters > 0
+      ? Math.min(accuracyMeters, MAX_ACCURACY_RADIUS_METERS)
+      : undefined;
 
   return (
     <View className="flex-1 overflow-hidden rounded-none">
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
-        provider={Platform.OS === 'android' ? PROVIDER_DEFAULT : undefined}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
         showsUserLocation
         showsMyLocationButton={followUser}
         followsUserLocation={followUser && Platform.OS === 'ios'}
-        onUserLocationChange={handleUserLocationChange}
+        onUserLocationChange={Platform.OS === 'ios' ? handleUserLocationChange : undefined}
         customMapStyle={darkMapStyle}
         accessibilityLabel="Live map showing your location and responders">
-        {liveCoords && accuracyMeters && accuracyMeters > 0 && (
+        {liveCoords && accuracyRadius && (
           <Circle
             center={liveCoords}
-            radius={accuracyMeters}
+            radius={accuracyRadius}
             fillColor="rgba(74, 143, 255, 0.12)"
             strokeColor="rgba(74, 143, 255, 0.35)"
             strokeWidth={1}
           />
         )}
         {responders
-          .filter((responder) => responder.coordinates)
+          .filter(
+            (responder) =>
+              responder.coordinates &&
+              isValidCoordinate(responder.coordinates.latitude) &&
+              isValidCoordinate(responder.coordinates.longitude)
+          )
           .map((responder) => (
             <Marker
               key={responder.id}
