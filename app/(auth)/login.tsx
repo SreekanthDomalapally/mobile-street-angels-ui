@@ -9,6 +9,7 @@ import {
   type CountryOption,
 } from '@/components/auth/CountryCodePicker';
 import { normalizePhoneE164 } from '@/services/phone';
+import { usesBackendPhoneOtp } from '@/lib/devOtp';
 import { startPhoneSignIn } from '@/services/firebasePhoneAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { type Href, router } from 'expo-router';
@@ -67,7 +68,9 @@ export default function PhoneLoginScreen() {
         Your number
       </Text>
       <Text variant="body" muted className="mb-8">
-        Sign in with your mobile number. We will text you a one-time code — like WhatsApp.
+        {usesBackendPhoneOtp()
+          ? 'Sign in with your mobile number. In test mode, your code appears on the next screen (no text message yet).'
+          : 'Sign in with your mobile number. We will text you a one-time code — like WhatsApp.'}
       </Text>
 
       <View className="gap-4">

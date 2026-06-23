@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { startPhoneVerification, verifyPhoneOtp } from '@/services/api/auth';
+import { testOtpHint } from '@/lib/devOtp';
 import { refreshOnboardingFlags } from '@/services/onboardingState';
 import { ApiError } from '@/services/api/client';
 import { normalizePhoneE164 } from '@/services/phone';
@@ -37,9 +38,8 @@ export default function VerifyPhoneScreen() {
       const token = await getAccessToken();
       if (!token) throw new Error('Please sign in again.');
       const response = await startPhoneVerification(token, normalized);
-      if (__DEV__ && response.dev_otp) {
-        setDevHint(`Dev code: ${response.dev_otp}`);
-      }
+      const hint = testOtpHint(response.dev_otp);
+      if (hint) setDevHint(hint);
       setStep('otp');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not send verification code.');

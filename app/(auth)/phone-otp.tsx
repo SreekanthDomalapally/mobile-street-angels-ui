@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { confirmPhoneSignIn, resendPhoneSignIn, type PhoneSignInSession } from '@/services/firebasePhoneAuth';
 import { signInWithPhoneSession } from '@/services/auth';
 import { formatPhoneForDisplay } from '@/services/phone';
+import { testOtpHint, usesBackendPhoneOtp } from '@/lib/devOtp';
 import { useAuthStore } from '@/stores/authStore';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -25,9 +26,7 @@ export default function OtpVerificationScreen() {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
-  const [devHint, setDevHint] = useState<string | null>(
-    __DEV__ && params.devOtp ? `Dev code: ${params.devOtp}` : null
-  );
+  const [devHint, setDevHint] = useState<string | null>(() => testOtpHint(params.devOtp));
 
   const session = useMemo<PhoneSignInSession | null>(() => {
     if (!params.phone || !params.countryCode) return null;
@@ -74,9 +73,8 @@ export default function OtpVerificationScreen() {
     try {
       const next = await resendPhoneSignIn(session);
       setSecondsLeft(RESEND_SECONDS);
-      if (__DEV__ && next.devOtp) {
-        setDevHint(`Dev code: ${next.devOtp}`);
-      }
+      const hint = testOtpHint(next.devOtp);
+      if (hint) setDevHint(hint);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not resend code.');
     } finally {
@@ -114,15 +112,19 @@ export default function OtpVerificationScreen() {
         Enter code
       </Text>
       <Text variant="body" muted className="mb-8">
-        We sent a 6-digit code to {formatPhoneForDisplay(session.phoneE164, session.countryCode)}.
+        {usesBackendPhoneOtp()
+          ? `Enter the 6-digit test code for ${formatPhoneForDisplay(session.phoneE164, session.countryCode)}. SMS is not sent in test mode.`
+          : `We sent a 6-digit code to ${formatPhoneForDisplay(session.phoneE164, session.countryCode)}.`}
       </Text>
 
       <OtpInput value={otp} onChange={setOtp} disabled={isLoading} />
 
       {devHint && (
-        <Text variant="caption" muted className="mt-4 text-center">
-          {devHint}
-        </Text>
+        <View className="mt-4 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3">
+          <Text variant="body" className="text-center text-warning">
+            {devHint}
+          </Text>
+        </View>
       )}
 
       <Button
