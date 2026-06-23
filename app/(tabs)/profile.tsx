@@ -1,3 +1,4 @@
+import { GroupInvitesSection } from "@/components/groups/GroupInvitesSection";
 import { SettingsRow } from "@/components/profile/SettingsRow";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -55,6 +56,8 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </View>
+
+      <GroupInvitesSection />
 
       <Text variant="label" className="mb-2">
         Notifications

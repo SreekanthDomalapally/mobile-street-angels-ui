@@ -111,14 +111,24 @@ export async function createPhoneInvitesAndShare(params: {
   let inviteUrl: string | undefined;
 
   for (const groupId of params.groupIds) {
-    const invite = await createPhoneInvite({
-      phoneNumber: phoneE164,
-      displayName: params.contact.displayName,
-      groupId,
-      countryCode: params.countryCode ?? 'IE',
-    });
-    inviteCode = invite.invite_code;
-    inviteUrl = invite.invite_url;
+    try {
+      const invite = await createPhoneInvite({
+        phoneNumber: phoneE164,
+        displayName: params.contact.displayName,
+        groupId,
+        countryCode: params.countryCode ?? 'IE',
+      });
+      inviteCode = invite.invite_code;
+      inviteUrl = invite.invite_url;
+    } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.message.toLowerCase().includes('group invitation has been sent')
+      ) {
+        continue;
+      }
+      throw err;
+    }
   }
 
   await shareInstallInvite({

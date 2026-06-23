@@ -84,10 +84,11 @@ export default function GroupsScreen() {
   useFocusEffect(
     useCallback(() => {
       void refetch();
+      queryClient.invalidateQueries({ queryKey: ['group-invites'] });
       if (selectedGroupId) {
         void refetchGroup();
       }
-    }, [refetch, refetchGroup, selectedGroupId])
+    }, [refetch, refetchGroup, selectedGroupId, queryClient])
   );
 
   const memberEmails = useMemo(() => {

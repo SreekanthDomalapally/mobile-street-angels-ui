@@ -10,12 +10,39 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 export function GroupInvitesSection() {
-  const { data: invites, isLoading } = useGroupInvites();
+  const { data: invites, isLoading, isError, refetch } = useGroupInvites();
   const acceptInvite = useAcceptGroupInvite();
   const declineInvite = useDeclineGroupInvite();
   const [error, setError] = useState<string | null>(null);
 
-  if (isLoading || !invites || invites.length === 0) {
+  if (isLoading) {
+    return (
+      <View className="mb-6">
+        <Text variant="label" className="mb-2">
+          Circle invitations
+        </Text>
+        <Text variant="caption" muted>
+          Checking for invitations…
+        </Text>
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View className="mb-6">
+        <Text variant="label" className="mb-2">
+          Circle invitations
+        </Text>
+        <Text variant="caption" className="mb-2 text-emergency">
+          Could not load invitations.
+        </Text>
+        <Button title="Retry" size="sm" variant="secondary" onPress={() => void refetch()} />
+      </View>
+    );
+  }
+
+  if (!invites || invites.length === 0) {
     return null;
   }
 

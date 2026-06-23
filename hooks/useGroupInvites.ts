@@ -1,12 +1,23 @@
 import { acceptGroupInvite, declineGroupInvite, fetchMyGroupInvites } from '@/services/api/groups';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function useGroupInvites() {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['group-invites'],
     queryFn: () => fetchMyGroupInvites(),
     retry: 1,
+    staleTime: 0,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      void query.refetch();
+    }, [query.refetch])
+  );
+
+  return query;
 }
 
 export function useAcceptGroupInvite() {
