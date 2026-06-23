@@ -53,6 +53,7 @@ export interface ApiGroupMemberOut {
 export interface ApiGroupPendingInviteOut {
   id: string;
   invitee_email: string;
+  invitee_phone?: string | null;
   inviter_name: string;
   status: string;
   created_at: string;
@@ -212,6 +213,7 @@ export function mapApiGroupToGroup(group: ApiGroupOut): Group {
       group.pending_invites?.map((invite) => ({
         id: invite.id,
         inviteeEmail: invite.invitee_email,
+        inviteePhone: invite.invitee_phone ?? undefined,
         inviterName: invite.inviter_name,
         status: invite.status,
         createdAt: invite.created_at,

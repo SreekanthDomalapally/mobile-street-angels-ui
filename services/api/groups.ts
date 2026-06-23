@@ -36,10 +36,26 @@ export async function removeGroupMember(groupId: string, userId: string): Promis
   });
 }
 
-export async function inviteToGroup(groupId: string, inviteeEmail: string): Promise<void> {
+export async function inviteToGroup(
+  groupId: string,
+  target:
+    | { inviteeEmail: string }
+    | { inviteePhone: string; countryCode?: string }
+    | { userId: string }
+): Promise<void> {
+  const body =
+    'userId' in target
+      ? { user_id: target.userId }
+      : 'inviteePhone' in target
+        ? {
+            invitee_phone: target.inviteePhone,
+            country_code: target.countryCode ?? 'IE',
+          }
+        : { invitee_email: target.inviteeEmail };
+
   await authenticatedRequest(`/groups/${groupId}/invites`, {
     method: 'POST',
-    body: JSON.stringify({ invitee_email: inviteeEmail }),
+    body: JSON.stringify(body),
   });
 }
 

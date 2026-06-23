@@ -41,6 +41,7 @@ function deriveFlags(state: {
     hasCompletedIntro: state.hasCompletedOnboarding,
     hasDevicePermissions: state.hasGrantedPermissions,
     apiOnboardingComplete: state.onboarding?.onboarding_complete,
+    onboarding: state.onboarding,
   });
 }
 

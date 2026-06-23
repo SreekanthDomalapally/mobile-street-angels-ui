@@ -94,7 +94,7 @@ export default function GroupsScreen() {
     const listGroup = groups?.find((group) => group.id === selectedGroupId);
     const members =
       selectedGroup?.members?.length ? selectedGroup.members : (listGroup?.members ?? []);
-    return members.map((member) => member.email.toLowerCase());
+    return members.map((member) => member.email?.toLowerCase() ?? '').filter(Boolean);
   }, [selectedGroup, groups, selectedGroupId]);
 
   const pendingEmails = useMemo(() => {
@@ -103,7 +103,20 @@ export default function GroupsScreen() {
       selectedGroup?.pendingInvites?.length
         ? selectedGroup.pendingInvites
         : (listGroup?.pendingInvites ?? []);
-    return pending.map((invite) => invite.inviteeEmail.toLowerCase());
+    return pending
+      .map((invite) => invite.inviteeEmail.toLowerCase())
+      .filter((email) => !email.endsWith('@phone.pending'));
+  }, [selectedGroup, groups, selectedGroupId]);
+
+  const pendingPhones = useMemo(() => {
+    const listGroup = groups?.find((group) => group.id === selectedGroupId);
+    const pending =
+      selectedGroup?.pendingInvites?.length
+        ? selectedGroup.pendingInvites
+        : (listGroup?.pendingInvites ?? []);
+    return pending
+      .map((invite) => invite.inviteePhone)
+      .filter((phone): phone is string => Boolean(phone));
   }, [selectedGroup, groups, selectedGroupId]);
 
   const closeModal = () => {
@@ -236,6 +249,7 @@ export default function GroupsScreen() {
                     groupName={selectedGroup?.name ?? groups?.find((g) => g.id === selectedGroupId)?.name}
                     memberEmails={memberEmails}
                     pendingEmails={pendingEmails}
+                    pendingPhones={pendingPhones}
                     onUpdated={handleGroupUpdated}
                   />
                 </View>

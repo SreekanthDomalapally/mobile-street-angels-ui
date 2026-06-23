@@ -22,14 +22,17 @@ export interface User {
   email: string;
   phone?: string;
   phoneVerified?: boolean;
+  accountStatus?: string;
   avatarUrl?: string;
   photoURL?: string;
 }
 
 export interface OnboardingStatus {
   needs_phone_verification: boolean;
+  needs_profile_setup?: boolean;
   needs_contacts_permission: boolean;
   onboarding_complete: boolean;
+  account_status?: string;
   contacts_synced?: boolean;
   trusted_contacts_count?: number;
   groups_created_count?: number;
@@ -39,6 +42,7 @@ export type OnboardingStep =
   | 'intro'
   | 'login'
   | 'phone_verify'
+  | 'profile_setup'
   | 'contact_sync'
   | 'trusted_contacts'
   | 'create_group'
@@ -94,6 +98,7 @@ export interface DeviceContact {
 export interface GroupPendingInvite {
   id: string;
   inviteeEmail: string;
+  inviteePhone?: string;
   inviterName: string;
   status: string;
   createdAt: string;

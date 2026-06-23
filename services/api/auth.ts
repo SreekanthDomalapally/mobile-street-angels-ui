@@ -10,10 +10,19 @@ export interface TokenPair {
 export interface ApiUserResponse {
   id: string;
   full_name: string;
-  email: string;
+  email?: string | null;
   phone_number?: string | null;
   phone_verified?: boolean;
+  account_status?: string;
   profile_photo?: string | null;
+}
+
+export interface OnboardingStatusApi {
+  needs_phone_verification: boolean;
+  needs_profile_setup?: boolean;
+  needs_contacts_permission: boolean;
+  onboarding_complete: boolean;
+  account_status?: string;
 }
 
 export interface FirebaseLoginResponse extends TokenPair {
@@ -37,12 +46,41 @@ export function mapApiUser(apiUser: ApiUserResponse): User {
   return {
     id: apiUser.id,
     displayName: apiUser.full_name,
-    email: apiUser.email,
+    email: apiUser.email ?? '',
     phone: apiUser.phone_number ?? undefined,
     phoneVerified: Boolean(apiUser.phone_verified),
     avatarUrl: apiUser.profile_photo ?? undefined,
     photoURL: apiUser.profile_photo ?? undefined,
+    accountStatus: apiUser.account_status,
   };
+}
+
+export async function loginWithFirebaseToken(firebaseIdToken: string): Promise<FirebaseLoginResponse> {
+  return apiRequest<FirebaseLoginResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ firebase_id_token: firebaseIdToken }),
+  });
+}
+
+export async function startPhoneLogin(
+  phoneNumber: string,
+  countryCode = 'IE'
+): Promise<{ session_id: string; dev_otp?: string | null }> {
+  return apiRequest('/auth/phone/login/start', {
+    method: 'POST',
+    body: JSON.stringify({ phone_number: phoneNumber, country_code: countryCode }),
+  });
+}
+
+export async function verifyPhoneLogin(
+  phoneNumber: string,
+  otp: string,
+  countryCode = 'IE'
+): Promise<FirebaseLoginResponse> {
+  return apiRequest<FirebaseLoginResponse>('/auth/phone/login/verify', {
+    method: 'POST',
+    body: JSON.stringify({ phone_number: phoneNumber, otp, country_code: countryCode }),
+  });
 }
 
 export async function registerWithEmail(params: RegisterParams): Promise<TokenPair> {
@@ -57,8 +95,8 @@ export async function registerWithEmail(params: RegisterParams): Promise<TokenPa
   });
 }
 
-export async function loginWithEmail(params: LoginParams): Promise<TokenPair> {
-  return apiRequest<TokenPair>('/auth/login', {
+export async function loginWithEmail(params: LoginParams): Promise<FirebaseLoginResponse> {
+  return apiRequest<FirebaseLoginResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({
       email: params.email,

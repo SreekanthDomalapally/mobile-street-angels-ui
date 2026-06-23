@@ -2,10 +2,9 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useDeviceContactRows, type DeviceContactRow } from '@/hooks/useDeviceContactRows';
 import { ApiError } from '@/services/api/client';
-import {
-  addContactToGroup,
-  inviteContactToGroup,
-} from '@/services/groupContactActions';
+import { normalizePhoneE164 } from '@/services/phone';
+import { inviteContactToGroup } from '@/services/groupContactActions';
+import { useAuthStore } from '@/stores/authStore';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, TextInput, View } from 'react-native';
@@ -15,6 +14,7 @@ interface GroupContactListProps {
   groupName?: string;
   memberEmails?: string[];
   pendingEmails?: string[];
+  pendingPhones?: string[];
   onUpdated: () => void;
 }
 
@@ -30,20 +30,33 @@ type ContactStatus = 'member' | 'pending' | 'add' | 'invite';
 function resolveStatus(
   row: DeviceContactRow,
   memberSet: Set<string>,
-  pendingSet: Set<string>
+  pendingEmailSet: Set<string>,
+  pendingPhoneSet: Set<string>
 ): ContactStatus {
   const emails = [
     row.inviteEmail,
     row.accountEmail,
     ...row.emails.map((email) => email.trim().toLowerCase()),
-  ].filter((email): email is string => Boolean(email));
+  ].filter(
+    (email): email is string =>
+      Boolean(email) && typeof email === 'string' && !email.endsWith('@phone.pending')
+  );
 
   if (emails.some((email) => memberSet.has(email))) {
     return 'member';
   }
-  if (emails.some((email) => pendingSet.has(email))) {
+  if (emails.some((email) => pendingEmailSet.has(email))) {
     return 'pending';
   }
+
+  const normalizedPhones = row.phoneNumbers
+    .map((phone) => normalizePhoneE164(phone))
+    .filter((phone): phone is string => Boolean(phone));
+
+  if (normalizedPhones.some((phone) => pendingPhoneSet.has(phone))) {
+    return 'pending';
+  }
+
   return row.onPlatform ? 'add' : 'invite';
 }
 
@@ -52,6 +65,7 @@ export function GroupContactList({
   groupName,
   memberEmails = [],
   pendingEmails = [],
+  pendingPhones = [],
   onUpdated,
 }: GroupContactListProps) {
   const {
@@ -74,17 +88,27 @@ export function GroupContactList({
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [localPending, setLocalPending] = useState<Set<string>>(new Set());
+  const [localPendingEmails, setLocalPendingEmails] = useState<Set<string>>(new Set());
+  const [localPendingPhones, setLocalPendingPhones] = useState<Set<string>>(new Set());
 
   const memberSet = useMemo(
     () => new Set(memberEmails.map((email) => email.toLowerCase())),
     [memberEmails]
   );
-  const pendingSet = useMemo(() => {
-    const merged = new Set(pendingEmails.map((email) => email.toLowerCase()));
-    localPending.forEach((email) => merged.add(email));
+  const pendingEmailSet = useMemo(() => {
+    const merged = new Set(
+      pendingEmails
+        .map((email) => email.toLowerCase())
+        .filter((email) => !email.endsWith('@phone.pending'))
+    );
+    localPendingEmails.forEach((email) => merged.add(email));
     return merged;
-  }, [pendingEmails, localPending]);
+  }, [pendingEmails, localPendingEmails]);
+  const pendingPhoneSet = useMemo(() => {
+    const merged = new Set(pendingPhones.filter(Boolean));
+    localPendingPhones.forEach((phone) => merged.add(phone));
+    return merged;
+  }, [pendingPhones, localPendingPhones]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -97,14 +121,35 @@ export function GroupContactList({
     );
   }, [rows, search]);
 
+  const inviterName = useAuthStore((s) => s.user?.displayName ?? 'A friend');
+
+  const inviteToGroupWithContext = (row: DeviceContactRow) =>
+    inviteContactToGroup(
+      {
+        displayName: row.name,
+        email: row.inviteEmail ?? row.primaryEmail,
+        phone: row.phoneNumbers[0],
+        userId: row.userId,
+      },
+      groupId,
+      { inviterName, groupName: groupName ?? 'your circle' }
+    );
+
   const markPending = (row: DeviceContactRow) => {
     const email = row.inviteEmail?.toLowerCase();
-    if (!email) return;
-    setLocalPending((current) => new Set([...current, email]));
+    if (email && !email.endsWith('@phone.pending')) {
+      setLocalPendingEmails((current) => new Set([...current, email]));
+    }
+    const phone = row.phoneNumbers
+      .map((value) => normalizePhoneE164(value))
+      .find((value): value is string => Boolean(value));
+    if (phone) {
+      setLocalPendingPhones((current) => new Set([...current, phone]));
+    }
   };
 
   const handleAdd = async (row: DeviceContactRow) => {
-    if (!row.inviteEmail) {
+    if (!row.userId && !row.inviteEmail) {
       setActionError('Could not resolve this contact’s YouHoo Alert account.');
       return;
     }
@@ -112,12 +157,12 @@ export function GroupContactList({
     setBusyId(row.id);
     setActionError(null);
     try {
-      await addContactToGroup(row.inviteEmail, groupId);
+      await inviteToGroupWithContext(row);
       markPending(row);
       onUpdated();
       await reload();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Could not add to group.');
+      setActionError(err instanceof ApiError ? err.message : 'Could not send group request.');
     } finally {
       setBusyId(null);
     }
@@ -132,17 +177,8 @@ export function GroupContactList({
     setBusyId(row.id);
     setActionError(null);
     try {
-      await inviteContactToGroup(
-        {
-          displayName: row.name,
-          email: row.inviteEmail ?? row.primaryEmail,
-          phone: row.phoneNumbers[0],
-        },
-        groupId
-      );
-      if (row.inviteEmail) {
-        markPending(row);
-      }
+      await inviteToGroupWithContext(row);
+      markPending(row);
       onUpdated();
       await reload();
     } catch (err) {
@@ -229,7 +265,7 @@ export function GroupContactList({
       ) : (
         <View className="gap-3">
           {filtered.map((row) => {
-            const status = resolveStatus(row, memberSet, pendingSet);
+            const status = resolveStatus(row, memberSet, pendingEmailSet, pendingPhoneSet);
 
             return (
               <View
@@ -261,7 +297,7 @@ export function GroupContactList({
                     size="sm"
                     className="mt-3"
                     loading={busyId === row.id}
-                    disabled={!row.inviteEmail}
+                    disabled={!row.userId && !row.inviteEmail}
                     onPress={() => handleAdd(row)}
                   />
                 )}

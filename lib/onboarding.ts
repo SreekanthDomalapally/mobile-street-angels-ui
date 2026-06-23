@@ -10,6 +10,7 @@ export function computeOnboardingFlags(input: {
   hasCompletedIntro: boolean;
   hasDevicePermissions: boolean;
   apiOnboardingComplete?: boolean;
+  onboarding?: { needs_profile_setup?: boolean } | null;
 }): OnboardingFlags {
   const isRegistered = input.isAuthenticated;
   const isPhoneVerified = input.phoneVerified;
@@ -25,6 +26,8 @@ export function computeOnboardingFlags(input: {
       groupsCreatedCount >= 1 &&
       input.hasDevicePermissions);
 
+  const needsProfileSetup = Boolean(input.onboarding?.needs_profile_setup);
+
   let nextStep: OnboardingStep = 'home';
 
   if (!input.hasCompletedIntro) {
@@ -33,6 +36,8 @@ export function computeOnboardingFlags(input: {
     nextStep = 'login';
   } else if (!isPhoneVerified) {
     nextStep = 'phone_verify';
+  } else if (needsProfileSetup) {
+    nextStep = 'profile_setup';
   } else if (!input.contactsSynced) {
     nextStep = 'contact_sync';
   } else if (trustedContactsCount < 1) {
@@ -64,6 +69,8 @@ export function onboardingStepToHref(step: OnboardingStep): string {
       return '/(auth)/login';
     case 'phone_verify':
       return '/(auth)/verify-phone';
+    case 'profile_setup':
+      return '/(auth)/profile-setup';
     case 'contact_sync':
       return '/(auth)/contact-sync';
     case 'trusted_contacts':

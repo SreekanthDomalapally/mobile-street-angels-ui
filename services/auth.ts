@@ -4,9 +4,11 @@ import {
   fetchCurrentUser,
   fetchOnboardingStatus,
   loginWithEmail,
+  loginWithFirebaseToken,
   mapApiUser,
   refreshAuthTokens,
   registerWithEmail,
+  type FirebaseLoginResponse,
   type LoginParams,
   type RegisterParams,
 } from '@/services/api/auth';
@@ -24,6 +26,24 @@ import type { User } from '@/types';
 
 export { GoogleSignInCancelledError };
 
+async function applySessionResponse(response: FirebaseLoginResponse) {
+  await saveAuthTokens(response.access_token, response.refresh_token);
+  const user = mapApiUser(response.user);
+  useAuthStore.getState().setOnboarding(response.onboarding);
+  useAuthStore.getState().setUser(user);
+  await refreshOnboardingFlags().catch(() => undefined);
+  return user;
+}
+
+export async function signInWithPhoneSession(response: FirebaseLoginResponse): Promise<User> {
+  return applySessionResponse(response);
+}
+
+export async function signInWithFirebasePhone(firebaseIdToken: string): Promise<User> {
+  const response = await loginWithFirebaseToken(firebaseIdToken);
+  return applySessionResponse(response);
+}
+
 async function applyOnboardingFromUser(user: User, accessToken: string) {
   useAuthStore.getState().setUser(user);
   try {
@@ -36,11 +56,8 @@ async function applyOnboardingFromUser(user: User, accessToken: string) {
 }
 
 export async function signInWithEmail(params: LoginParams): Promise<User> {
-  const tokens = await loginWithEmail(params);
-  await saveAuthTokens(tokens.access_token, tokens.refresh_token);
-  const user = await fetchCurrentUser(tokens.access_token);
-  await applyOnboardingFromUser(user, tokens.access_token);
-  return user;
+  const response = await loginWithEmail(params);
+  return applySessionResponse(response);
 }
 
 export async function registerAndSignIn(params: RegisterParams): Promise<User> {

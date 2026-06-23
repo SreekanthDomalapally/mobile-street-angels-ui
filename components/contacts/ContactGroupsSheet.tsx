@@ -4,7 +4,15 @@ import { Text } from '@/components/ui/Text';
 import { useManagedGroups } from '@/hooks/useManagedGroups';
 import { ApiError } from '@/services/api/client';
 import { removeGroupMember } from '@/services/api/groups';
-import { sendGroupInvites, shareInstallInvite } from '@/services/groupContactActions';
+import {
+  createPhoneInvitesAndShare,
+  inviteExistingUserToGroup,
+  sendGroupInvites,
+  sendGroupInvitesByPhone,
+  shareInstallInvite,
+} from '@/services/groupContactActions';
+import { normalizePhoneE164 } from '@/services/phone';
+import { useAuthStore } from '@/stores/authStore';
 import type { CircleContact, Group } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
@@ -26,6 +34,12 @@ async function removeFromGroups(
       await removeGroupMember(group.id, userId);
     }
   }
+}
+
+function groupNamesForIds(groupIds: string[], groups: Group[]): string[] {
+  return groupIds
+    .map((groupId) => groups.find((group) => group.id === groupId)?.name)
+    .filter((name): name is string => Boolean(name));
 }
 
 function buildInitialSelection(
@@ -62,9 +76,13 @@ function ContactGroupsSheetContent({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const inviterName = useAuthStore((s) => s.user?.displayName ?? 'A friend');
   const inviteEmail = contact.email?.trim().toLowerCase();
+  const phoneE164 = contact.phone ? normalizePhoneE164(contact.phone) : null;
+  const canInviteExisting = Boolean(contact.onPlatform && contact.userId);
+  const canInviteByPhone = Boolean(phoneE164);
   const canInviteByEmail = Boolean(inviteEmail);
-  const canShareInstall = Boolean(inviteEmail || contact.phone);
+  const canShareInstall = canInviteByPhone || canInviteByEmail;
 
   const handleSave = async () => {
     if (selectedIds.length === 0) {
@@ -84,18 +102,54 @@ function ContactGroupsSheetContent({
       }
 
       if (toInvite.length > 0) {
-        if (!canInviteByEmail) {
-          throw new Error('Add an email to this contact before inviting them to a group.');
+        if (canInviteExisting) {
+          await Promise.all(
+            toInvite.map((groupId) => inviteExistingUserToGroup(contact.userId!, groupId))
+          );
+        } else if (canInviteByPhone && phoneE164) {
+          if (action === 'invite-to-app') {
+            await createPhoneInvitesAndShare({
+              contact,
+              inviterName,
+              groupIds: toInvite,
+              groupNames: groupNamesForIds(toInvite, managedGroups),
+            });
+          } else {
+            await sendGroupInvitesByPhone(phoneE164, toInvite);
+          }
+        } else if (canInviteByEmail) {
+          await sendGroupInvites(inviteEmail!, toInvite, contact.groupIds);
+          if (action === 'invite-to-app') {
+            await shareInstallInvite({
+              contact,
+              inviterName,
+              groupNames: groupNamesForIds(toInvite, managedGroups),
+            });
+          }
+        } else {
+          throw new Error('Add a phone number to invite this contact.');
         }
-        await sendGroupInvites(inviteEmail!, toInvite, contact.groupIds);
+      } else if (action === 'invite-to-app' && canInviteByPhone && phoneE164) {
+        const fallbackGroupId = preselectedGroupIds[0];
+        if (fallbackGroupId) {
+          await createPhoneInvitesAndShare({
+            contact,
+            inviterName,
+            groupIds: [fallbackGroupId],
+            groupNames: groupNamesForIds([fallbackGroupId], managedGroups),
+          });
+        }
       }
 
-      if (action === 'invite-to-app') {
-        if (!canShareInstall) {
-          throw new Error('Add an email or phone number to send an install invite.');
-        }
-        await shareInstallInvite(contact);
+      if (action === 'invite-to-app' && toInvite.length === 0 && canShareInstall && !canInviteByPhone) {
+        await shareInstallInvite({
+          contact,
+          inviterName,
+          groupNames: groupNamesForIds(selectedIds, managedGroups),
+        });
         setSuccess('Install invite sent. They can join your groups after signing up.');
+      } else if (action === 'invite-to-app' && toInvite.length > 0) {
+        setSuccess('Install invite sent with group link. They must accept after signing up.');
       } else if (toInvite.length > 0) {
         setSuccess('Invitation sent. They will appear after accepting.');
       }
