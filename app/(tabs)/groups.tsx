@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useGroup } from '@/hooks/useGroup';
 import { useCreateGroup, useGroups } from '@/hooks/useGroups';
+import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -150,6 +151,10 @@ export default function GroupsScreen() {
 
   const onCreate = async (data: GroupForm) => {
     setFormError(null);
+    if (hasOwnedGroupNamed(groups, data.name)) {
+      setFormError(`You already have a circle named "${data.name.trim()}". Open it to add people.`);
+      return;
+    }
     try {
       const group = await createGroupMutation.mutateAsync({
         name: data.name,
@@ -208,8 +213,12 @@ export default function GroupsScreen() {
             />
           ) : (
             <>
-              <Text variant="label" className="mb-3">
-                Your groups
+              <Text variant="label" className="mb-1">
+                Your circles
+              </Text>
+              <Text variant="caption" muted className="mb-3">
+                Each circle is private. People you invite only join this circle — they may have
+                their own with the same name.
               </Text>
               {groups?.map((group) => {
                 const enriched =

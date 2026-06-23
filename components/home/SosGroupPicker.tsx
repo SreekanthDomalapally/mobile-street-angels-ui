@@ -1,5 +1,6 @@
 import { Text } from '@/components/ui/Text';
 import { useGroups } from '@/hooks/useGroups';
+import { formatGroupSubtitle } from '@/lib/groupLabels';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { Group } from '@/types';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -28,14 +29,20 @@ export function SosGroupPicker() {
           SOS will notify
         </Text>
         <Text variant="body">{selected.name}</Text>
+        <Text variant="caption" muted className="mt-1">
+          {formatGroupSubtitle(selected)}
+        </Text>
       </View>
     );
   }
 
   return (
     <View className="mb-4">
-      <Text variant="label" className="mb-2">
-        Notify group
+      <Text variant="label" className="mb-1">
+        Notify circle
+      </Text>
+      <Text variant="caption" muted className="mb-2">
+        Each circle is private. Pick who receives this SOS.
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {groups.map((group) => {
@@ -44,11 +51,16 @@ export function SosGroupPicker() {
             <Pressable
               key={group.id}
               onPress={() => setDefaultGroupId(group.id)}
-              className={`mr-2 rounded-2xl border px-4 py-3 ${active ? 'border-responder bg-responder/15' : 'border-glass-border bg-charcoal-900'}`}
+              className={`mr-2 max-w-[220px] rounded-2xl border px-4 py-3 ${active ? 'border-responder bg-responder/15' : 'border-glass-border bg-charcoal-900'}`}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`Notify ${group.name}`}>
-              <Text variant="body">{group.name}</Text>
+              accessibilityLabel={`Notify ${group.name}, ${formatGroupSubtitle(group)}`}>
+              <Text variant="body" numberOfLines={1}>
+                {group.name}
+              </Text>
+              <Text variant="caption" muted className="mt-1" numberOfLines={2}>
+                {formatGroupSubtitle(group)}
+              </Text>
             </Pressable>
           );
         })}

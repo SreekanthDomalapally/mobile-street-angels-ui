@@ -1,7 +1,8 @@
 import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { useCreateGroup } from '@/hooks/useGroups';
+import { useCreateGroup, useGroups } from '@/hooks/useGroups';
+import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { markGroupCreated } from '@/services/onboardingState';
 import { ApiError } from '@/services/api/client';
 import { router } from 'expo-router';
@@ -22,6 +23,7 @@ const GROUP_TYPES = [
 export default function CreateFirstGroupScreen() {
   const insets = useSafeAreaInsets();
   const createGroup = useCreateGroup();
+  const { data: groups } = useGroups();
   const [name, setName] = useState('Family');
   const [type, setType] = useState<string>('family');
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +32,11 @@ export default function CreateFirstGroupScreen() {
     const trimmed = name.trim();
     if (trimmed.length < 2) {
       setError('Enter a group name with at least 2 characters.');
+      return;
+    }
+
+    if (hasOwnedGroupNamed(groups, trimmed)) {
+      setError(`You already have a circle named "${trimmed}". Open Groups to add people.`);
       return;
     }
 
@@ -59,8 +66,8 @@ export default function CreateFirstGroupScreen() {
         Create your first safety group
       </Text>
       <Text variant="body" muted className="mb-6">
-        SOS alerts are sent to a group. Start with the people most likely to respond in an
-        emergency.
+        Circles are private groups. Your niece can have her own Family circle too — SOS only
+        alerts the circle you choose.
       </Text>
 
       <Text variant="label" className="mb-3">

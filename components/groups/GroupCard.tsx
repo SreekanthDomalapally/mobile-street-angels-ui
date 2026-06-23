@@ -1,4 +1,5 @@
 import { Text } from "@/components/ui/Text";
+import { formatGroupSubtitle } from "@/lib/groupLabels";
 import type { Group } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, View } from "react-native";
@@ -37,7 +38,7 @@ export function GroupCard({ group, selected = false, onPress }: GroupCardProps) 
           )}
         </View>
         <Text variant="caption" muted>
-          {group.memberCount} members
+          {formatGroupSubtitle(group)}
         </Text>
       </View>
       {selected ? (
