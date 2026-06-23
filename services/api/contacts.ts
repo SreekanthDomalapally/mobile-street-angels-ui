@@ -97,7 +97,7 @@ export async function setContactGroups(userId: string, groupIds: string[]): Prom
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       throw new ApiError(
-        'Update the API on Railway to assign contacts to multiple circles.',
+        'Could not update circles. Please update the app and try again.',
         404,
         'not_found'
       );
@@ -115,7 +115,7 @@ export async function assignInviteToGroups(email: string, groupIds: string[]): P
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       throw new ApiError(
-        'Update the API on Railway to invite contacts to multiple circles.',
+        'Could not send circle invitations. Please update the app and try again.',
         404,
         'not_found'
       );

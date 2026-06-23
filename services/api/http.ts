@@ -1,5 +1,11 @@
 import Constants from 'expo-constants';
 
+import {
+  NETWORK_UNAVAILABLE_MESSAGE,
+  SERVICE_UNAVAILABLE_MESSAGE,
+  toUserFacingErrorMessage,
+} from '@/lib/userFacingErrors';
+
 const PRODUCTION_API_URL = 'https://street-angels-api-production.up.railway.app/api/v1';
 
 function resolveApiBaseUrl(): string {
@@ -31,26 +37,28 @@ function parseApiErrorMessage(body: unknown, status: number): string {
 
   const record = body as Record<string, unknown>;
   if (status === 502) {
-    return 'API server is not responding. The backend may be down or restarting — check your Railway deployment.';
+    return SERVICE_UNAVAILABLE_MESSAGE;
   }
-  if (typeof record.error === 'string') return record.error;
+  if (typeof record.error === 'string') return toUserFacingErrorMessage(record.error);
   if (typeof record.message === 'string') {
     if (record.message === 'Application failed to respond') {
-      return 'API server is not responding. The backend may be down or restarting — check your Railway deployment.';
+      return SERVICE_UNAVAILABLE_MESSAGE;
     }
-    return record.message;
+    return toUserFacingErrorMessage(record.message);
   }
-  if (typeof record.detail === 'string') return record.detail;
+  if (typeof record.detail === 'string') return toUserFacingErrorMessage(record.detail);
   if (Array.isArray(record.detail)) {
-    return record.detail
-      .map((item) => {
-        if (typeof item === 'string') return item;
-        if (item && typeof item === 'object' && 'msg' in item) {
-          return String((item as { msg: unknown }).msg);
-        }
-        return 'Validation error';
-      })
-      .join(', ');
+    return toUserFacingErrorMessage(
+      record.detail
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object' && 'msg' in item) {
+            return String((item as { msg: unknown }).msg);
+          }
+          return 'Validation error';
+        })
+        .join(', ')
+    );
   }
 
   return `Request failed (${status})`;
@@ -124,11 +132,7 @@ export async function apiRequest<T>(
       throw new ApiError('Request timed out. Check your connection.', 408, 'timeout');
     }
     if (error instanceof TypeError) {
-      throw new ApiError(
-        `Cannot reach API at ${API_BASE_URL}. Check your internet connection and try again.`,
-        0,
-        'network'
-      );
+      throw new ApiError(NETWORK_UNAVAILABLE_MESSAGE, 0, 'network');
     }
     throw error;
   } finally {

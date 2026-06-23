@@ -125,7 +125,7 @@ export default function TripActiveScreen() {
 
         {activeTrip.isLocalOnly && (
           <Text variant="caption" muted className="mb-3 leading-relaxed">
-            Server sync pending — family viewers need the API trip endpoints enabled on Railway.
+            Server sync pending — family viewers will see this trip once syncing is available.
           </Text>
         )}
 

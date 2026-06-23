@@ -1,5 +1,6 @@
 import { ApiError } from '@/services/api/http';
 import { GoogleSignInCancelledError } from '@/services/googleSignInErrors';
+import { toUserFacingErrorMessage } from '@/lib/userFacingErrors';
 
 /** Map native/API Google sign-in failures to actionable messages for real users. */
 export function formatGoogleSignInError(error: unknown): string {
@@ -10,15 +11,14 @@ export function formatGoogleSignInError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401 && /invalid google token/i.test(error.message)) {
       return (
-        'Google sign-in worked on your phone, but the server rejected the token. ' +
-        'On Railway, set GOOGLE_OAUTH_CLIENT_ID to the Firebase Web client ID ' +
-        '(1065150630879-prjdgu45hcopbcdbt6dr2c2sbt24u4kn.apps.googleusercontent.com).'
+        'Google sign-in worked on your phone, but we could not verify your account. ' +
+        'Please try again later or contact support@youhooalert.com.'
       );
     }
     if (error.status === 0) {
-      return error.message;
+      return toUserFacingErrorMessage(error.message);
     }
-    return error.message;
+    return toUserFacingErrorMessage(error.message);
   }
 
   const message = error instanceof Error ? error.message : 'Sign in failed. Please try again.';
