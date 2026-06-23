@@ -3,10 +3,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { GroupInvitesSection } from '@/components/groups/GroupInvitesSection';
-import { apiRequest } from '@/services/api/http';
-import { refreshOnboardingFlags } from '@/services/onboardingState';
+import { authenticatedRequest } from '@/services/api/client';
+import { navigateAfterOnboardingStep } from '@/services/onboardingState';
 import { useAuthStore } from '@/stores/authStore';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,15 +30,14 @@ export default function ProfileSetupScreen() {
     setLoading(true);
     setError(null);
     try {
-      const updated = await apiRequest<{ full_name: string }>('/users/me', {
+      const updated = await authenticatedRequest<{ full_name: string }>('/users/me', {
         method: 'PATCH',
         body: JSON.stringify({ full_name: trimmed }),
       });
       if (user) {
         setUser({ ...user, displayName: updated.full_name });
       }
-      await refreshOnboardingFlags();
-      router.replace('/');
+      await navigateAfterOnboardingStep();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save profile.');
     } finally {

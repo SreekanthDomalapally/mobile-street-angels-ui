@@ -1,5 +1,5 @@
-import type { OnboardingFlags } from '@/types';
-import type { Group } from '@/types';
+import { onboardingStepToHref } from '@/lib/onboarding';
+import type { Group, OnboardingFlags } from '@/types';
 
 export interface SOSReadiness {
   ready: boolean;
@@ -62,7 +62,7 @@ export function evaluateSOSReadiness(
     return {
       ready: false,
       reason: 'Finish setup to activate emergency alerts.',
-      ctaHref: '/',
+      ctaHref: onboardingStepToHref(flags.next_step),
       ctaLabel: 'Continue setup',
     };
   }

@@ -2,9 +2,8 @@ import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useDeviceContactRows } from '@/hooks/useDeviceContactRows';
-import { markContactsSynced } from '@/services/onboardingState';
+import { markContactsSynced, navigateAfterOnboardingStep } from '@/services/onboardingState';
 import { requestContactsPermission } from '@/services/contacts';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +28,7 @@ export default function ContactSyncScreen() {
       }
       await reload();
       await markContactsSynced();
-      router.replace('/');
+      await navigateAfterOnboardingStep();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not sync contacts.');
     } finally {

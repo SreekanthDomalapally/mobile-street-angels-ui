@@ -1,4 +1,4 @@
-import { computeOnboardingFlags } from '@/lib/onboarding';
+import { computeOnboardingFlags, onboardingStepToHref } from '@/lib/onboarding';
 import { countAcceptedTrustedContacts } from '@/services/api/trustedContacts';
 import { fetchGroups } from '@/services/api/groups';
 import { fetchOnboardingStatus } from '@/services/api/auth';
@@ -12,6 +12,7 @@ import {
 import { getAccessToken } from '@/services/tokens';
 import { useAuthStore } from '@/stores/authStore';
 import type { OnboardingFlags } from '@/types';
+import { type Href, router } from 'expo-router';
 
 export async function refreshOnboardingFlags(): Promise<OnboardingFlags> {
   const state = useAuthStore.getState();
@@ -22,31 +23,43 @@ export async function refreshOnboardingFlags(): Promise<OnboardingFlags> {
   if (token) {
     try {
       apiOnboarding = await fetchOnboardingStatus(token);
-      state.setOnboarding(apiOnboarding);
     } catch {
       // Keep cached onboarding flags when offline.
     }
   }
 
+  const existingFlags = state.onboardingFlags;
+
   const [contactsSyncedLocal, trustedMinMet, groups, trustedCount] = await Promise.all([
     getContactsSynced(),
     getTrustedMinimumMet(),
-    fetchGroups().catch(() => []),
-    countAcceptedTrustedContacts().catch(() => 0),
+    fetchGroups().catch(() => null),
+    countAcceptedTrustedContacts().catch(() => null),
   ]);
 
   const contactsSynced =
-    apiOnboarding?.contacts_synced ?? contactsSyncedLocal ?? !apiOnboarding?.needs_contacts_permission;
+    contactsSyncedLocal ||
+    existingFlags?.contacts_synced === true ||
+    apiOnboarding?.contacts_synced === true;
+
+  if (apiOnboarding) {
+    state.setOnboarding({
+      ...apiOnboarding,
+      contacts_synced: contactsSynced,
+    });
+  }
 
   const trustedContactsCount = Math.max(
     apiOnboarding?.trusted_contacts_count ?? 0,
-    trustedCount,
-    trustedMinMet ? 1 : 0
+    trustedCount ?? 0,
+    trustedMinMet ? 1 : 0,
+    existingFlags?.trusted_contacts_count ?? 0
   );
 
   const groupsCreatedCount = Math.max(
     apiOnboarding?.groups_created_count ?? 0,
-    groups.length
+    groups?.length ?? 0,
+    existingFlags?.groups_created_count ?? 0
   );
 
   const flags = computeOnboardingFlags({
@@ -58,15 +71,25 @@ export async function refreshOnboardingFlags(): Promise<OnboardingFlags> {
     hasCompletedIntro: state.hasCompletedOnboarding,
     hasDevicePermissions: state.hasGrantedPermissions,
     apiOnboardingComplete: apiOnboarding?.onboarding_complete,
+    onboarding: apiOnboarding,
   });
 
   state.setOnboardingFlags(flags);
   return flags;
 }
 
+export async function navigateAfterOnboardingStep(): Promise<void> {
+  const flags = await refreshOnboardingFlags();
+  router.replace(onboardingStepToHref(flags.next_step) as Href);
+}
+
 export async function markContactsSynced(): Promise<void> {
   await setContactsSynced(true);
   await patchOnboardingProgress({ contacts_synced: true });
+  const state = useAuthStore.getState();
+  if (state.onboarding) {
+    state.setOnboarding({ ...state.onboarding, contacts_synced: true });
+  }
   await refreshOnboardingFlags();
 }
 

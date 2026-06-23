@@ -31,13 +31,22 @@ function deriveFlags(state: {
   hasVerifiedPhone: boolean;
   hasGrantedPermissions: boolean;
   onboarding: OnboardingStatus | null;
+  onboardingFlags: OnboardingFlags | null;
 }): OnboardingFlags {
   return computeOnboardingFlags({
     isAuthenticated: state.isAuthenticated,
     phoneVerified: Boolean(state.user?.phoneVerified || state.hasVerifiedPhone),
-    contactsSynced: Boolean(state.onboarding?.contacts_synced),
-    trustedContactsCount: state.onboarding?.trusted_contacts_count ?? 0,
-    groupsCreatedCount: state.onboarding?.groups_created_count ?? 0,
+    contactsSynced: Boolean(
+      state.onboarding?.contacts_synced ?? state.onboardingFlags?.contacts_synced
+    ),
+    trustedContactsCount: Math.max(
+      state.onboarding?.trusted_contacts_count ?? 0,
+      state.onboardingFlags?.trusted_contacts_count ?? 0
+    ),
+    groupsCreatedCount: Math.max(
+      state.onboarding?.groups_created_count ?? 0,
+      state.onboardingFlags?.groups_created_count ?? 0
+    ),
     hasCompletedIntro: state.hasCompletedOnboarding,
     hasDevicePermissions: state.hasGrantedPermissions,
     apiOnboardingComplete: state.onboarding?.onboarding_complete,
@@ -69,10 +78,21 @@ export const useAuthStore = create<AuthState>()(
       setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setOnboarding: (onboarding) =>
         set((state) => {
+          const mergedOnboarding = onboarding
+            ? {
+                ...onboarding,
+                contacts_synced:
+                  onboarding.contacts_synced ??
+                  state.onboarding?.contacts_synced ??
+                  state.onboardingFlags?.contacts_synced,
+              }
+            : null;
           const next = {
             ...state,
-            onboarding,
-            hasVerifiedPhone: onboarding ? !onboarding.needs_phone_verification : state.hasVerifiedPhone,
+            onboarding: mergedOnboarding,
+            hasVerifiedPhone: mergedOnboarding
+              ? !mergedOnboarding.needs_phone_verification
+              : state.hasVerifiedPhone,
           };
           return { ...next, onboardingFlags: deriveFlags(next) };
         }),

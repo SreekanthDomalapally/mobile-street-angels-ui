@@ -1,39 +1,37 @@
-import { Redirect, usePathname, type Href } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter, type Href } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { LoadingState } from '@/components/common/LoadingState';
 import { onboardingStepToHref } from '@/lib/onboarding';
 import { refreshOnboardingFlags } from '@/services/onboardingState';
 import { useAuthStore } from '@/stores/authStore';
+import type { OnboardingFlags } from '@/types';
+
+function isTabsAllowed(flags: OnboardingFlags): boolean {
+  return flags.onboarding_complete || flags.next_step === 'home';
+}
 
 /** Keeps tab routes behind the onboarding state machine. */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const flags = useAuthStore((s) => s.onboardingFlags);
-  const [allowed, setAllowed] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(() => !flags);
+  const lastRedirectRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setAllowed(false);
       setChecking(false);
       return;
     }
 
     let cancelled = false;
-    setChecking(true);
+    setChecking((prev) => prev || !useAuthStore.getState().onboardingFlags);
 
     (async () => {
       try {
-        const next = await refreshOnboardingFlags();
-        if (cancelled) return;
-        setAllowed(next.onboarding_complete || next.next_step === 'home');
+        await refreshOnboardingFlags();
       } catch (error) {
         console.warn('[onboarding] Gate check failed:', error);
-        if (!cancelled) {
-          const snapshot = useAuthStore.getState().onboardingFlags;
-          setAllowed(snapshot?.onboarding_complete === true || snapshot?.next_step === 'home');
-        }
       } finally {
         if (!cancelled) {
           setChecking(false);
@@ -44,18 +42,40 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, pathname]);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      const target = '/(auth)/login';
+      if (lastRedirectRef.current === target) return;
+      lastRedirectRef.current = target;
+      router.replace(target as Href);
+      return;
+    }
+
+    if (checking && !flags) return;
+
+    if (!flags || isTabsAllowed(flags)) {
+      lastRedirectRef.current = null;
+      return;
+    }
+
+    const target = onboardingStepToHref(flags.next_step);
+    if (lastRedirectRef.current === target) return;
+    lastRedirectRef.current = target;
+    router.replace(target as Href);
+  }, [checking, flags, isAuthenticated, router]);
 
   if (!isAuthenticated) {
-    return <Redirect href="/(auth)/login" />;
+    return <LoadingState message="Signing in…" />;
   }
 
-  if (checking) {
+  if (checking && !flags) {
     return <LoadingState message="Checking your setup…" />;
   }
 
-  if (!allowed && flags) {
-    return <Redirect href={onboardingStepToHref(flags.next_step) as Href} />;
+  if (flags && !isTabsAllowed(flags)) {
+    return <LoadingState message="Checking your setup…" />;
   }
 
   return children;

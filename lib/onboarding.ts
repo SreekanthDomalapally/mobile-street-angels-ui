@@ -16,19 +16,34 @@ export function computeOnboardingFlags(input: {
   const isPhoneVerified = input.phoneVerified;
   const trustedContactsCount = input.trustedContactsCount;
   const groupsCreatedCount = input.groupsCreatedCount;
-
-  const onboardingComplete =
-    input.apiOnboardingComplete ??
-    (isRegistered &&
-      isPhoneVerified &&
-      input.contactsSynced &&
-      trustedContactsCount >= 1 &&
-      groupsCreatedCount >= 1 &&
-      input.hasDevicePermissions);
-
   const needsProfileSetup = Boolean(input.onboarding?.needs_profile_setup);
 
+  const localOnboardingComplete =
+    isRegistered &&
+    isPhoneVerified &&
+    !needsProfileSetup &&
+    input.contactsSynced &&
+    trustedContactsCount >= 1 &&
+    groupsCreatedCount >= 1 &&
+    input.hasDevicePermissions;
+
+  // API may lag behind local progress (e.g. account_status not ACTIVE yet).
+  const onboardingComplete =
+    input.apiOnboardingComplete === true || localOnboardingComplete;
+
   let nextStep: OnboardingStep = 'home';
+
+  if (onboardingComplete) {
+    return {
+      is_registered: isRegistered,
+      is_phone_verified: isPhoneVerified,
+      contacts_synced: input.contactsSynced,
+      trusted_contacts_count: trustedContactsCount,
+      groups_created_count: groupsCreatedCount,
+      onboarding_complete: true,
+      next_step: 'home',
+    };
+  }
 
   if (!input.hasCompletedIntro) {
     nextStep = 'intro';
