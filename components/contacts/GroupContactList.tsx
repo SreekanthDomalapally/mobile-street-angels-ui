@@ -5,9 +5,8 @@ import { ApiError } from '@/services/api/client';
 import { normalizePhoneE164 } from '@/services/phone';
 import { inviteContactToGroup } from '@/services/groupContactActions';
 import { useAuthStore } from '@/stores/authStore';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Linking, Platform, TextInput, View } from 'react-native';
 
 interface GroupContactListProps {
   groupId: string;
@@ -49,9 +48,11 @@ function resolveStatus(
     return 'pending';
   }
 
-  const normalizedPhones = row.phoneNumbers
-    .map((phone) => normalizePhoneE164(phone))
-    .filter((phone): phone is string => Boolean(phone));
+  const normalizedPhones =
+    row.normalizedPhones ??
+    row.phoneNumbers
+      .map((phone) => normalizePhoneE164(phone))
+      .filter((phone): phone is string => Boolean(phone));
 
   if (normalizedPhones.some((phone) => pendingPhoneSet.has(phone))) {
     return 'pending';
@@ -78,13 +79,6 @@ export function GroupContactList({
     reload,
   } = useDeviceContactRows(Boolean(groupId));
 
-  useFocusEffect(
-    useCallback(() => {
-      if (groupId) {
-        reload();
-      }
-    }, [groupId, reload])
-  );
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -263,14 +257,16 @@ export function GroupContactList({
           )}
         </View>
       ) : (
-        <View className="gap-3">
-          {filtered.map((row) => {
+        <FlatList
+          data={filtered}
+          keyExtractor={(row) => row.id}
+          scrollEnabled={false}
+          ItemSeparatorComponent={() => <View className="h-3" />}
+          renderItem={({ item: row }) => {
             const status = resolveStatus(row, memberSet, pendingEmailSet, pendingPhoneSet);
 
             return (
-              <View
-                key={row.id}
-                className="rounded-2xl border border-glass-border bg-charcoal-900 p-4">
+              <View className="rounded-2xl border border-glass-border bg-charcoal-900 p-4">
                 <Text variant="body">{row.name}</Text>
                 <Text variant="caption" muted className="mt-1">
                   {contactSubtitle(row)}
@@ -315,8 +311,8 @@ export function GroupContactList({
                 )}
               </View>
             );
-          })}
-        </View>
+          }}
+        />
       )}
     </View>
   );

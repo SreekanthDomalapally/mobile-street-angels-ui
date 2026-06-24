@@ -1,19 +1,24 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { Alert, AppState, BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveMap } from '@/components/map/LiveMap';
 import { EventTimeline } from '@/components/sos/EventTimeline';
 import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
-import { ResponderCard } from '@/components/sos/ResponderCard';
+import { ResponderList } from '@/components/sos/ResponderList';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
 import { openAppSettings } from '@/lib/openAppSettings';
+import { markPerf } from '@/lib/perf';
 import { updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
-import { getCurrentLocation, requestBackgroundLocationPermission, watchLocation } from '@/services/location';
+import {
+  getCurrentLocationIfPermitted,
+  requestBackgroundLocationPermission,
+  watchLocation,
+} from '@/services/location';
 import { startBackgroundLocationUpdates } from '@/services/backgroundLocation';
 import { scheduleEmergencyNotification } from '@/services/notifications';
 import { findActiveAlert } from '@/services/sosRecovery';
@@ -24,23 +29,31 @@ import type { Coordinates } from '@/types';
 
 export default function SOSActiveScreen() {
   const insets = useSafeAreaInsets();
-  const {
-    activeAlert,
-    resetSOS,
-    updateResponders,
-    addTimelineEvent,
-    setActiveAlert,
-  } = useSOSStore();
+  const activeAlert = useSOSStore((s) => s.activeAlert);
+  const liveLocation = useSOSStore((s) => s.liveLocation);
+  const isActivating = useSOSStore((s) => s.isActivating);
+  const resetSOS = useSOSStore((s) => s.resetSOS);
+  const updateResponders = useSOSStore((s) => s.updateResponders);
+  const addTimelineEvent = useSOSStore((s) => s.addTimelineEvent);
+  const setActiveAlert = useSOSStore((s) => s.setActiveAlert);
+  const setLiveLocation = useSOSStore((s) => s.setLiveLocation);
   const [recovering, setRecovering] = useState(!activeAlert);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [locationPushFailed, setLocationPushFailed] = useState(false);
+
+  const mapLocation = liveLocation ?? activeAlert?.location ?? null;
 
   const exitToHome = useCallback(() => {
     resetSOS();
     router.replace('/(tabs)');
   }, [resetSOS]);
 
-  // Recover alert if store was cleared (e.g. app was killed) before redirecting home.
+  useEffect(() => {
+    if (activeAlert && !recovering) {
+      markPerf('alert_screen_ready');
+    }
+  }, [activeAlert, recovering]);
+
   useEffect(() => {
     if (activeAlert) {
       setRecovering(false);
@@ -82,12 +95,21 @@ export default function SOSActiveScreen() {
     return () => subscription.remove();
   }, [activeAlert]);
 
+  const handleLiveLocationChange = useCallback(
+    (coords: Coordinates) => {
+      setLiveLocation(coords);
+    },
+    [setLiveLocation]
+  );
+
   useEffect(() => {
-    if (!activeAlert) return;
+    if (!activeAlert || activeAlert.id === 'pending') return;
 
     let cancelled = false;
     let stopWatching: (() => void) | undefined;
     let stopBackground: (() => Promise<void>) | undefined;
+    let bgGranted = false;
+    let appStateSub: { remove: () => void } | undefined;
 
     scheduleEmergencyNotification(
       'SOS Active',
@@ -110,34 +132,36 @@ export default function SOSActiveScreen() {
           }
         });
         alertSocket.onLocationUpdate((coords) => {
-          const current = useSOSStore.getState().activeAlert;
-          if (!current) return;
-          setActiveAlert({ ...current, location: coords });
+          setLiveLocation(coords);
         });
 
         const pushLocation = async (coords: Coordinates) => {
           const current = useSOSStore.getState().activeAlert;
-          if (!current || cancelled) return;
+          if (!current || cancelled || current.id === 'pending') return;
           try {
             await updateAlertLocation(current.id, coords, coords.accuracyMeters);
-            setActiveAlert({ ...current, location: coords });
+            setLiveLocation(coords);
             setLocationPushFailed(false);
           } catch {
             setLocationPushFailed(true);
           }
         };
 
-        const freshLocation = await getCurrentLocation({ highAccuracy: true });
-        if (!freshLocation && !cancelled) {
-          setLocationWarning(
-            'Location unavailable — responders may not see your latest position. Check location permissions.'
-          );
-        }
-        if (freshLocation && !cancelled) {
-          await pushLocation(freshLocation);
-        }
+        void getCurrentLocationIfPermitted({ highAccuracy: true, timeoutMs: 8000 })
+          .then((freshLocation) => {
+            if (!freshLocation || cancelled) {
+              if (!freshLocation && !cancelled) {
+                setLocationWarning(
+                  'Location unavailable — responders may not see your latest position. Check location permissions.'
+                );
+              }
+              return;
+            }
+            return pushLocation(freshLocation);
+          })
+          .catch(() => undefined);
 
-        const bgGranted = await requestBackgroundLocationPermission();
+        bgGranted = await requestBackgroundLocationPermission();
         if (!bgGranted && !cancelled) {
           setLocationWarning(
             'Background location is off — your position may stop updating if you leave the app.'
@@ -145,12 +169,30 @@ export default function SOSActiveScreen() {
         }
 
         if (!cancelled) {
-          stopWatching = await watchLocation(pushLocation, { highAccuracy: true });
-          try {
-            stopBackground = await startBackgroundLocationUpdates(pushLocation);
-          } catch {
-            // Foreground watch still active if background task unavailable.
-          }
+          stopWatching = await watchLocation(pushLocation, { mode: 'active_sos' });
+
+          appStateSub = AppState.addEventListener('change', (nextState) => {
+            if (cancelled) return;
+            void (async () => {
+              if (nextState === 'background' && bgGranted && !stopBackground) {
+                stopWatching?.();
+                stopWatching = undefined;
+                try {
+                  stopBackground = await startBackgroundLocationUpdates(pushLocation);
+                } catch {
+                  if (!stopWatching) {
+                    stopWatching = await watchLocation(pushLocation, { mode: 'active_sos' });
+                  }
+                }
+              } else if (nextState === 'active' && stopBackground) {
+                await stopBackground();
+                stopBackground = undefined;
+                if (!stopWatching) {
+                  stopWatching = await watchLocation(pushLocation, { mode: 'active_sos' });
+                }
+              }
+            })();
+          });
         }
       } catch (error) {
         console.warn('[sos] Active alert setup failed:', error);
@@ -160,15 +202,21 @@ export default function SOSActiveScreen() {
 
     return () => {
       cancelled = true;
+      appStateSub?.remove();
       alertSocket.disconnect();
       stopWatching?.();
       void stopBackground?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeAlert object identity changes on each location tick
-  }, [activeAlert?.id, addTimelineEvent, exitToHome, setActiveAlert, updateResponders]);
+  }, [
+    activeAlert?.id,
+    addTimelineEvent,
+    exitToHome,
+    setLiveLocation,
+    updateResponders,
+  ]);
 
   const handleEndAlert = async () => {
-    if (!activeAlert) return;
+    if (!activeAlert || activeAlert.id === 'pending') return;
     try {
       await endSOSAlert(activeAlert.id);
     } catch (error) {
@@ -190,7 +238,7 @@ export default function SOSActiveScreen() {
   };
 
   const handleCancel = async () => {
-    if (activeAlert) {
+    if (activeAlert && activeAlert.id !== 'pending') {
       try {
         await endSOSAlert(activeAlert.id);
       } catch {
@@ -205,19 +253,16 @@ export default function SOSActiveScreen() {
   }
 
   const enRouteCount = activeAlert.responders.filter((r) => r.status === 'en_route').length;
+  const sending = isActivating || activeAlert.id === 'pending';
 
   return (
     <View className="flex-1 bg-charcoal-950">
       <View className="h-[45%]">
         <LiveMap
-          userLocation={activeAlert.location}
+          userLocation={mapLocation}
           responders={activeAlert.responders}
           followUser
-          onLiveLocationChange={(coords) => {
-            const current = useSOSStore.getState().activeAlert;
-            if (!current) return;
-            setActiveAlert({ ...current, location: coords });
-          }}
+          onLiveLocationChange={handleLiveLocationChange}
         />
         <View
           className="absolute left-0 right-0 flex-row items-center justify-between px-4"
@@ -226,7 +271,7 @@ export default function SOSActiveScreen() {
             <View className="flex-row items-center gap-2">
               <View className="h-2 w-2 rounded-full bg-emergency" />
               <Text variant="caption" className="font-semibold text-emergency-glow">
-                SOS Active
+                {sending ? 'Sending SOS…' : 'SOS Active'}
               </Text>
             </View>
           </GlassCard>
@@ -245,10 +290,12 @@ export default function SOSActiveScreen() {
         style={{ marginTop: -24 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: 20 }}>
         <Text variant="title" className="mb-1">
-          Help is coming
+          {sending ? 'Sending your alert…' : 'Help is coming'}
         </Text>
         <Text variant="body" muted className="mb-4">
-          {enRouteCount} responder{enRouteCount === 1 ? '' : 's'} on the way
+          {sending
+            ? 'Notifying your trusted contacts now.'
+            : `${enRouteCount} responder${enRouteCount === 1 ? '' : 's'} on the way`}
         </Text>
 
         <EmergencyDisclaimer compact className="mb-4" />
@@ -278,7 +325,7 @@ export default function SOSActiveScreen() {
             Waiting for responses from your trusted group…
           </Text>
         ) : (
-          activeAlert.responders.map((r) => <ResponderCard key={r.id} responder={r} />)
+          <ResponderList responders={activeAlert.responders} />
         )}
 
         <Text variant="label" className="mb-3 mt-6">
@@ -287,7 +334,12 @@ export default function SOSActiveScreen() {
         <EventTimeline events={activeAlert.timeline} />
 
         <View className="mt-6 gap-3">
-          <Button title="I'm safe — end alert" variant="primary" onPress={handleEndAlert} />
+          <Button
+            title="I'm safe — end alert"
+            variant="primary"
+            onPress={handleEndAlert}
+            disabled={sending}
+          />
           <Button title="Cancel alert" variant="ghost" onPress={confirmCancel} />
         </View>
       </ScrollView>

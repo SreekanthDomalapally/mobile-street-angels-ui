@@ -242,13 +242,16 @@ export async function loadDeviceContacts(): Promise<DeviceContact[]> {
   const granted = await requestContactsPermission();
   if (!granted) return [];
 
-  const strategies = [
-    loadFromGetAllPath,
-    loadFromNewApiBulk,
-    loadFromLegacyApiAllFields,
-    loadFromLegacyApi,
-  ];
+  const primary = await runContactLoadStrategy(loadFromNewApiBulk);
+  if (primary.length > 0) {
+    return primary;
+  }
 
-  const results = await Promise.all(strategies.map((strategy) => runContactLoadStrategy(strategy)));
-  return mergeDeviceContacts(results);
+  const fallback = await runContactLoadStrategy(loadFromGetAllPath);
+  if (fallback.length > 0) {
+    return fallback;
+  }
+
+  const legacy = await runContactLoadStrategy(loadFromLegacyApi);
+  return legacy.length > 0 ? legacy : runContactLoadStrategy(loadFromLegacyApiAllFields);
 }

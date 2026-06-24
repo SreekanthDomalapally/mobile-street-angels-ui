@@ -1,6 +1,6 @@
 import { LocationFallback } from '@/components/map/LocationFallback';
 import { isNativeMapSupported } from '@/lib/maps';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, {
   Circle,
@@ -13,6 +13,8 @@ import type { Coordinates, Responder } from '@/types';
 
 const STREET_LEVEL_DELTA = 0.006;
 const MAX_ACCURACY_RADIUS_METERS = 500;
+const REGION_ANIMATE_MIN_MS = 1500;
+const REGION_MOVE_THRESHOLD = 0.00008;
 
 interface LiveMapProps {
   userLocation?: Coordinates | null;
@@ -41,6 +43,45 @@ function isValidLocation(coords: Coordinates | null | undefined): coords is Coor
   );
 }
 
+function movedEnough(prev: Coordinates | null, next: Coordinates): boolean {
+  if (!prev) return true;
+  return (
+    Math.abs(prev.latitude - next.latitude) > REGION_MOVE_THRESHOLD ||
+    Math.abs(prev.longitude - next.longitude) > REGION_MOVE_THRESHOLD
+  );
+}
+
+const ResponderMarkers = memo(function ResponderMarkers({
+  responders,
+}: {
+  responders: Responder[];
+}) {
+  const valid = useMemo(
+    () =>
+      responders.filter(
+        (responder) =>
+          responder.coordinates &&
+          isValidCoordinate(responder.coordinates.latitude) &&
+          isValidCoordinate(responder.coordinates.longitude)
+      ),
+    [responders]
+  );
+
+  return (
+    <>
+      {valid.map((responder) => (
+        <Marker
+          key={responder.id}
+          coordinate={responder.coordinates!}
+          title={responder.name}
+          description={responder.status}
+          pinColor="#4a8f6a"
+        />
+      ))}
+    </>
+  );
+});
+
 export function LiveMap({
   userLocation,
   responders = [],
@@ -48,6 +89,8 @@ export function LiveMap({
   onLiveLocationChange,
 }: LiveMapProps) {
   const mapRef = useRef<MapView>(null);
+  const lastAnimatedAt = useRef(0);
+  const lastAnimatedCoords = useRef<Coordinates | null>(null);
   const [liveCoords, setLiveCoords] = useState<Coordinates | null>(
     isValidLocation(userLocation) ? userLocation : null
   );
@@ -55,14 +98,29 @@ export function LiveMap({
     userLocation?.accuracyMeters
   );
 
+  const animateIfNeeded = useCallback(
+    (coords: Coordinates) => {
+      if (!followUser) return;
+      const now = Date.now();
+      if (
+        now - lastAnimatedAt.current < REGION_ANIMATE_MIN_MS &&
+        !movedEnough(lastAnimatedCoords.current, coords)
+      ) {
+        return;
+      }
+      lastAnimatedAt.current = now;
+      lastAnimatedCoords.current = coords;
+      mapRef.current?.animateToRegion(toRegion(coords), 400);
+    },
+    [followUser]
+  );
+
   useEffect(() => {
     if (!isValidLocation(userLocation)) return;
     setLiveCoords(userLocation);
     setAccuracyMeters(userLocation.accuracyMeters);
-    if (followUser) {
-      mapRef.current?.animateToRegion(toRegion(userLocation), 400);
-    }
-  }, [followUser, userLocation?.latitude, userLocation?.longitude, userLocation?.accuracyMeters]);
+    animateIfNeeded(userLocation);
+  }, [animateIfNeeded, userLocation?.latitude, userLocation?.longitude, userLocation?.accuracyMeters]);
 
   const initialRegion = useMemo(() => {
     if (!isValidLocation(userLocation)) return undefined;
@@ -86,12 +144,9 @@ export function LiveMap({
       setLiveCoords(coords);
       setAccuracyMeters(coordinate.accuracy);
       onLiveLocationChange?.(coords);
-
-      if (followUser) {
-        mapRef.current?.animateToRegion(toRegion(coords), 400);
-      }
+      animateIfNeeded(coords);
     },
-    [followUser, onLiveLocationChange]
+    [animateIfNeeded, onLiveLocationChange]
   );
 
   if (!isValidLocation(userLocation) || !initialRegion) {
@@ -129,22 +184,7 @@ export function LiveMap({
             strokeWidth={1}
           />
         )}
-        {responders
-          .filter(
-            (responder) =>
-              responder.coordinates &&
-              isValidCoordinate(responder.coordinates.latitude) &&
-              isValidCoordinate(responder.coordinates.longitude)
-          )
-          .map((responder) => (
-            <Marker
-              key={responder.id}
-              coordinate={responder.coordinates!}
-              title={responder.name}
-              description={responder.status}
-              pinColor="#4a8f6a"
-            />
-          ))}
+        <ResponderMarkers responders={responders} />
       </MapView>
     </View>
   );

@@ -1,6 +1,6 @@
 import { clearPersistedActiveAlert, persistActiveAlertId } from '@/services/sosSession';
 import { create } from 'zustand';
-import type { EmergencyType, Responder, SOSAlert, TimelineEvent } from '@/types';
+import type { Coordinates, EmergencyType, Responder, SOSAlert, TimelineEvent } from '@/types';
 
 interface SOSState {
   status: 'idle' | 'arming' | 'active' | 'responding' | 'resolved' | 'cancelled';
@@ -8,6 +8,7 @@ interface SOSState {
   holdProgress: number;
   countdown: number | null;
   activeAlert: SOSAlert | null;
+  liveLocation: Coordinates | null;
   isOffline: boolean;
   isActivating: boolean;
   activationError: string | null;
@@ -19,6 +20,7 @@ interface SOSState {
   setActivating: (value: boolean) => void;
   setActivationError: (message: string | null) => void;
   setActiveAlert: (alert: SOSAlert) => void;
+  setLiveLocation: (coords: Coordinates | null) => void;
   cancelSOS: () => void;
   updateResponders: (responders: Responder[]) => void;
   addTimelineEvent: (event: TimelineEvent) => void;
@@ -32,6 +34,7 @@ const idleState = {
   holdProgress: 0,
   countdown: null,
   activeAlert: null,
+  liveLocation: null,
   isActivating: false,
   activationError: null,
 };
@@ -52,16 +55,20 @@ export const useSOSStore = create<SOSState>((set, get) => ({
   setActivating: (isActivating) => set({ isActivating }),
   setActivationError: (activationError) => set({ activationError }),
   setActiveAlert: (alert) => {
-    void persistActiveAlertId(alert.id);
+    if (alert.id !== 'pending') {
+      void persistActiveAlertId(alert.id);
+    }
     set({
       status: alert.status === 'responding' ? 'responding' : 'active',
       holdProgress: 1,
       countdown: null,
       activeAlert: alert,
+      liveLocation: alert.location,
       isActivating: false,
       activationError: null,
     });
   },
+  setLiveLocation: (liveLocation) => set({ liveLocation }),
   cancelSOS: () => {
     clearSession();
     set(idleState);

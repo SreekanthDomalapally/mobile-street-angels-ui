@@ -1,20 +1,31 @@
 import { getSelectedSosGroupId } from '@/components/home/SosGroupPicker';
 import { evaluateSOSReadiness } from '@/lib/sosReadiness';
-import { refreshOnboardingFlags } from '@/services/onboardingState';
-import { hasLocationPermission } from '@/services/location';
 import { getOnboardingFlagsSnapshot } from '@/stores/authStore';
 import { ApiError } from '@/services/api/client';
 import { createSOSAlert, resolveSOSAlert } from '@/services/api/alerts';
-import { fetchGroups } from '@/services/api/groups';
-import { getCurrentLocation } from '@/services/location';
+import { getSOSLocation, hasLocationPermission } from '@/services/location';
 import { isRetryableError } from '@/lib/retryableError';
 import { enqueuePendingSOS } from '@/services/sosQueue';
 import { useSettingsStore } from '@/stores/settingsStore';
-import type { EmergencyType, SOSAlert } from '@/types';
+import type { Coordinates, EmergencyType, Group, SOSAlert } from '@/types';
 
-export async function triggerSOS(emergencyType: EmergencyType): Promise<SOSAlert> {
-  const flags = getOnboardingFlagsSnapshot() ?? (await refreshOnboardingFlags());
-  const groups = await fetchGroups();
+export type TriggerSOSParams = {
+  emergencyType: EmergencyType;
+  groups: Group[];
+  groupId?: string;
+  location?: Coordinates;
+};
+
+export async function triggerSOS({
+  emergencyType,
+  groups,
+  groupId: preferredGroupId,
+  location: providedLocation,
+}: TriggerSOSParams): Promise<SOSAlert> {
+  const flags = getOnboardingFlagsSnapshot();
+  if (!flags) {
+    throw new ApiError('Complete setup before sending SOS.', 400, 'not_ready');
+  }
   const locationGranted = await hasLocationPermission();
   const readiness = evaluateSOSReadiness(flags, groups, locationGranted);
 
@@ -30,7 +41,7 @@ export async function triggerSOS(emergencyType: EmergencyType): Promise<SOSAlert
     );
   }
 
-  const location = await getCurrentLocation({ highAccuracy: true });
+  const location = providedLocation ?? (await getSOSLocation());
   if (!location) {
     throw new ApiError(
       'Location access is required to send an SOS alert.',
@@ -39,8 +50,10 @@ export async function triggerSOS(emergencyType: EmergencyType): Promise<SOSAlert
     );
   }
 
-  const preferredGroupId = useSettingsStore.getState().emergency.defaultSosGroupId;
-  const groupId = getSelectedSosGroupId(groups, preferredGroupId);
+  const settingsGroupId = useSettingsStore.getState().emergency.defaultSosGroupId;
+  const groupId =
+    preferredGroupId ??
+    getSelectedSosGroupId(groups, settingsGroupId);
   if (!groupId) {
     throw new ApiError('Select a group for SOS alerts.', 400, 'no_group');
   }

@@ -26,6 +26,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  FlatList,
   ScrollView,
   TextInput,
   View,
@@ -311,30 +312,34 @@ export default function GroupsScreen() {
                 Each circle is private. People you invite only join this circle — they may have
                 their own with the same name.
               </Text>
-              {groups?.map((group) => {
-                const enriched =
-                  selectedGroupId === group.id && selectedGroup
-                    ? {
-                        ...group,
-                        memberCount: Math.max(
-                          group.memberCount,
-                          selectedGroup.memberCount,
-                          selectedGroup.members.length
-                        ),
-                        members: selectedGroup.members,
-                        pendingInvites: selectedGroup.pendingInvites,
-                      }
-                    : group;
+              <FlatList
+                data={groups ?? []}
+                keyExtractor={(group) => group.id}
+                scrollEnabled={false}
+                renderItem={({ item: group }) => {
+                  const enriched =
+                    selectedGroupId === group.id && selectedGroup
+                      ? {
+                          ...group,
+                          memberCount: Math.max(
+                            group.memberCount,
+                            selectedGroup.memberCount,
+                            selectedGroup.members.length
+                          ),
+                          members: selectedGroup.members,
+                          pendingInvites: selectedGroup.pendingInvites,
+                        }
+                      : group;
 
-                return (
-                  <GroupCard
-                    key={group.id}
-                    group={enriched}
-                    selected={selectedGroupId === group.id}
-                    onPress={() => setSelectedGroupId(group.id)}
-                  />
-                );
-              })}
+                  return (
+                    <GroupCard
+                      group={enriched}
+                      selected={selectedGroupId === group.id}
+                      onPress={() => setSelectedGroupId(group.id)}
+                    />
+                  );
+                }}
+              />
 
               {selectedGroupId && (
                 <View className="mt-4 border-t border-glass-border pt-6">

@@ -7,6 +7,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
   Easing,
+  runOnJS,
+  runOnUI,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -22,34 +25,43 @@ interface SOSButtonProps {
 
 export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   const holdDuration = useSettingsStore((s) => s.emergency.holdDurationMs);
-  const { status, holdProgress, startArming, cancelArming, setHoldProgress } =
-    useSOSStore();
+  const status = useSOSStore((s) => s.status);
+  const startArming = useSOSStore((s) => s.startArming);
+  const cancelArming = useSOSStore((s) => s.cancelArming);
   const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdCompleted = useRef(false);
   const [isPressed, setIsPressed] = useState(false);
   const [holdHint, setHoldHint] = useState<string | null>(null);
   const pulse = useSharedValue(1);
+  const holdProgress = useSharedValue(0);
 
   useEffect(() => {
+    if (disabled || status !== "idle") {
+      pulse.value = 1;
+      return;
+    }
     pulse.value = withRepeat(
       withTiming(1.08, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
       -1,
       true,
     );
-  }, [pulse]);
+  }, [disabled, pulse, status]);
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        scale:
-          status === "idle" && !isPressed ? pulse.value : 1,
+        scale: status === "idle" && !isPressed ? pulse.value : 1,
       },
     ],
   }));
 
   const ringStyle = useAnimatedStyle(() => ({
-    opacity: 0.3 + holdProgress * 0.5,
-    transform: [{ scale: 1 + holdProgress * 0.15 }],
+    opacity: 0.3 + holdProgress.value * 0.5,
+    transform: [{ scale: 1 + holdProgress.value * 0.15 }],
+  }));
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${holdProgress.value * 100}%`,
   }));
 
   const clearHold = useCallback(() => {
@@ -57,6 +69,10 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
       clearInterval(holdTimer.current);
       holdTimer.current = null;
     }
+    runOnUI(() => {
+      "worklet";
+      holdProgress.value = 0;
+    })();
     cancelArming();
     setIsPressed(false);
   }, [cancelArming]);
@@ -72,7 +88,7 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
     holdTimer.current = setInterval(() => {
       const elapsed = Date.now() - start;
       const progress = Math.min(elapsed / holdDuration, 1);
-      setHoldProgress(progress);
+      holdProgress.value = progress;
       if (progress >= 1) {
         holdCompleted.current = true;
         clearHold();
@@ -85,7 +101,7 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
     status,
     holdDuration,
     startArming,
-    setHoldProgress,
+    holdProgress,
     clearHold,
     onActivate,
   ]);
@@ -93,12 +109,21 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   const endHold = useCallback(() => {
     if (holdCompleted.current) return;
 
-    const progress = useSOSStore.getState().holdProgress;
-    if (progress > 0 && progress < 1) {
+    if (holdProgress.value > 0 && holdProgress.value < 1) {
       setHoldHint(`Keep holding for ${holdDuration / 1000} seconds to request help`);
     }
     clearHold();
-  }, [clearHold, holdDuration]);
+  }, [clearHold, holdDuration, holdProgress]);
+
+  useAnimatedReaction(
+    () => holdProgress.value,
+    (value, prev) => {
+      if (Math.floor(value * 20) !== Math.floor((prev ?? 0) * 20)) {
+        runOnJS(useSOSStore.getState().setHoldProgress)(value);
+      }
+    },
+    []
+  );
 
   const isArming = status === "arming";
 
@@ -138,10 +163,7 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
         </View>
         {isArming && (
           <View className="absolute bottom-4 left-4 right-4 h-1 overflow-hidden rounded-full bg-white/20">
-            <View
-              className="h-full rounded-full bg-white"
-              style={{ width: `${holdProgress * 100}%` }}
-            />
+            <AnimatedView className="h-full rounded-full bg-white" style={progressBarStyle} />
           </View>
         )}
       </Pressable>

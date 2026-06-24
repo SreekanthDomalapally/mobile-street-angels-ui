@@ -14,7 +14,11 @@ import { useAuthStore } from '@/stores/authStore';
 import type { OnboardingFlags } from '@/types';
 import { type Href, router } from 'expo-router';
 
-export async function refreshOnboardingFlags(): Promise<OnboardingFlags> {
+const REFRESH_TTL_MS = 5000;
+let refreshPromise: Promise<OnboardingFlags> | null = null;
+let lastRefreshAt = 0;
+
+async function computeAndStoreFlags(): Promise<OnboardingFlags> {
   const state = useAuthStore.getState();
   const user = state.user;
 
@@ -78,8 +82,32 @@ export async function refreshOnboardingFlags(): Promise<OnboardingFlags> {
   return flags;
 }
 
+export async function refreshOnboardingFlags(force = false): Promise<OnboardingFlags> {
+  const cached = useAuthStore.getState().onboardingFlags;
+  const now = Date.now();
+
+  if (!force && cached && now - lastRefreshAt < REFRESH_TTL_MS) {
+    return cached;
+  }
+
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = computeAndStoreFlags()
+    .then((flags) => {
+      lastRefreshAt = Date.now();
+      return flags;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+}
+
 export async function navigateAfterOnboardingStep(): Promise<void> {
-  const flags = await refreshOnboardingFlags();
+  const flags = await refreshOnboardingFlags(true);
   router.replace(onboardingStepToHref(flags.next_step) as Href);
 }
 
@@ -90,23 +118,23 @@ export async function markContactsSynced(): Promise<void> {
   if (state.onboarding) {
     state.setOnboarding({ ...state.onboarding, contacts_synced: true });
   }
-  await refreshOnboardingFlags();
+  await refreshOnboardingFlags(true);
 }
 
 export async function markTrustedMinimumMet(): Promise<void> {
   await setTrustedMinimumMet(true);
   const count = await countAcceptedTrustedContacts().catch(() => 1);
   await patchOnboardingProgress({ trusted_contacts_count: Math.max(1, count) });
-  await refreshOnboardingFlags();
+  await refreshOnboardingFlags(true);
 }
 
 export async function markGroupCreated(): Promise<void> {
   const groups = await fetchGroups().catch(() => []);
   await patchOnboardingProgress({ groups_created_count: groups.length });
-  await refreshOnboardingFlags();
+  await refreshOnboardingFlags(true);
 }
 
 export async function markOnboardingComplete(): Promise<void> {
   await patchOnboardingProgress({ onboarding_complete: true });
-  await refreshOnboardingFlags();
+  await refreshOnboardingFlags(true);
 }

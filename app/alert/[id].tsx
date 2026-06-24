@@ -32,6 +32,8 @@ export default function AlertResponseScreen() {
   const [liveAlert, setLiveAlert] = useState<SOSAlert | null>(null);
   const [responderLocation, setResponderLocation] = useState<Coordinates | null>(null);
 
+  const [wsConnected, setWsConnected] = useState(false);
+
   const {
     data: alert,
     isLoading,
@@ -42,7 +44,7 @@ export default function AlertResponseScreen() {
     queryFn: () => fetchAlert(id!),
     enabled: Boolean(id),
     retry: 1,
-    refetchInterval: 15000,
+    refetchInterval: wsConnected ? false : 15000,
   });
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function AlertResponseScreen() {
       if (!token || cancelled) return;
 
       alertSocket.connect(id, token);
+      if (!cancelled) setWsConnected(true);
       alertSocket.onRespondersUpdate((responders) => {
         setLiveAlert((current) => (current ? { ...current, responders } : current));
       });
@@ -83,6 +86,7 @@ export default function AlertResponseScreen() {
 
     return () => {
       cancelled = true;
+      setWsConnected(false);
       alertSocket.disconnect();
     };
   }, [id, liveAlert?.id]);

@@ -2,10 +2,17 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePushTokenSync } from '@/hooks/usePushTokenSync';
 import { useTripWatchRecovery } from '@/hooks/useTripWatchRecovery';
 import { useSOSRecovery } from '@/hooks/useSOSRecovery';
-import { queryClient } from '@/lib/queryClient';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PERSISTED_QUERY_KEYS, queryClient } from '@/lib/queryClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'street-angels-query-cache',
+});
 
 function NetworkListener() {
   useNetworkStatus();
@@ -31,13 +38,24 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister: asyncStoragePersister,
+            maxAge: 1000 * 60 * 60 * 24,
+            dehydrateOptions: {
+              shouldDehydrateQuery: (query) =>
+                PERSISTED_QUERY_KEYS.some(
+                  (key) => JSON.stringify(key) === JSON.stringify(query.queryKey)
+                ),
+            },
+          }}>
           <NetworkListener />
           <PushTokenListener />
           <TripWatchRecoveryListener />
           <SOSRecoveryListener />
           {children}
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

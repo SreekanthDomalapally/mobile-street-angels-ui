@@ -2,9 +2,12 @@ import { LocationFallback } from '@/components/map/LocationFallback';
 import { isNativeMapSupported } from '@/lib/maps';
 import { ARRIVAL_RADIUS_METERS } from '@/lib/geo';
 import type { Coordinates, TripDestination } from '@/types';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+
+const REGION_ANIMATE_MIN_MS = 1500;
+const REGION_MOVE_THRESHOLD = 0.00008;
 
 interface TripWatchMapProps {
   travelerLocation?: Coordinates | null;
@@ -36,12 +39,22 @@ function toRegion(a: Coordinates, b?: Coordinates): Region {
   };
 }
 
+function movedEnough(prev: Coordinates | null, next: Coordinates): boolean {
+  if (!prev) return true;
+  return (
+    Math.abs(prev.latitude - next.latitude) > REGION_MOVE_THRESHOLD ||
+    Math.abs(prev.longitude - next.longitude) > REGION_MOVE_THRESHOLD
+  );
+}
+
 export function TripWatchMap({
   travelerLocation,
   destination,
   followTraveler = true,
 }: TripWatchMapProps) {
   const mapRef = useRef<MapView>(null);
+  const lastAnimatedAt = useRef(0);
+  const lastAnimatedCoords = useRef<Coordinates | null>(null);
 
   const region = useMemo(() => {
     if (travelerLocation && destination) return toRegion(travelerLocation, destination);
@@ -50,10 +63,27 @@ export function TripWatchMap({
     return undefined;
   }, [travelerLocation, destination]);
 
+  const animateIfNeeded = useCallback(
+    (nextRegion: Region, anchor?: Coordinates | null) => {
+      if (!followTraveler || !anchor) return;
+      const now = Date.now();
+      if (
+        now - lastAnimatedAt.current < REGION_ANIMATE_MIN_MS &&
+        !movedEnough(lastAnimatedCoords.current, anchor)
+      ) {
+        return;
+      }
+      lastAnimatedAt.current = now;
+      lastAnimatedCoords.current = anchor;
+      mapRef.current?.animateToRegion(nextRegion, 500);
+    },
+    [followTraveler]
+  );
+
   useEffect(() => {
-    if (!region || !followTraveler) return;
-    mapRef.current?.animateToRegion(region, 500);
-  }, [followTraveler, region?.latitude, region?.longitude]);
+    if (!region) return;
+    animateIfNeeded(region, travelerLocation ?? destination ?? null);
+  }, [animateIfNeeded, region, travelerLocation, destination]);
 
   if (!region) {
     return <View className="flex-1 bg-charcoal-900" />;

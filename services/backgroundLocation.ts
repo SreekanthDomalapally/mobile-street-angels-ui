@@ -40,9 +40,9 @@ export async function startBackgroundLocationUpdates(
   const started = await Location.hasStartedLocationUpdatesAsync(SOS_BACKGROUND_LOCATION_TASK);
   if (!started) {
     await Location.startLocationUpdatesAsync(SOS_BACKGROUND_LOCATION_TASK, {
-      accuracy: Location.Accuracy.BestForNavigation,
-      distanceInterval: 5,
-      timeInterval: 3000,
+      accuracy: Location.Accuracy.High,
+      distanceInterval: 10,
+      timeInterval: 5000,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
         notificationTitle: 'SOS active',

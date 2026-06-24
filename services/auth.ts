@@ -52,7 +52,6 @@ async function applyOnboardingFromUser(user: User, accessToken: string) {
   } catch {
     useAuthStore.getState().setPhoneVerified(Boolean(user.phoneVerified));
   }
-  await refreshOnboardingFlags().catch(() => undefined);
 }
 
 export async function signInWithEmail(params: LoginParams): Promise<User> {

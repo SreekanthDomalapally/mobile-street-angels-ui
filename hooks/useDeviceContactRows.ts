@@ -13,10 +13,9 @@ import { useQuery } from '@tanstack/react-query';
 
 export type DeviceContactRow = DeviceContact & {
   primaryEmail?: string;
-  /** Registered YouHoo Alert email (from lookup), used for group invites */
   accountEmail?: string;
-  /** Email to use when sending a group invite */
   inviteEmail?: string;
+  normalizedPhones: string[];
   onPlatform: boolean;
   userId?: string;
   canReach: boolean;
@@ -106,6 +105,7 @@ async function enrichContacts(contacts: DeviceContact[]): Promise<DeviceContactR
       primaryEmail,
       accountEmail,
       inviteEmail,
+      normalizedPhones,
       onPlatform,
       userId: emailMatch?.user_id ?? phoneUser?.user_id,
       canReach: Boolean(inviteEmail || contact.phoneNumbers[0]),
@@ -153,7 +153,7 @@ export function useDeviceContactRows(enabled = true) {
     queryFn: fetchDeviceContactRows,
     enabled,
     retry: 1,
-    staleTime: 0,
+    staleTime: 1000 * 60 * 5,
   });
 
   return {

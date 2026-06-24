@@ -11,7 +11,7 @@ import { useCircleContacts } from '@/hooks/useCircleContacts';
 import { useGroups } from '@/hooks/useGroups';
 import type { CircleContact } from '@/types';
 import { useMemo, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { FlatList, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ContactsScreen() {
@@ -38,51 +38,55 @@ export default function ContactsScreen() {
 
   return (
     <View className="flex-1 bg-charcoal-950">
-      <ScrollView
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{
           paddingTop: insets.top + 16,
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: 20,
+          flexGrow: 1,
         }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <View className="mb-6 flex-row items-center justify-between gap-3">
-          <Text variant="title">Contacts</Text>
-          <Button title="+ Add" size="sm" onPress={() => setShowPicker(true)} />
-        </View>
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            <View className="mb-6 flex-row items-center justify-between gap-3">
+              <Text variant="title">Contacts</Text>
+              <Button title="+ Add" size="sm" onPress={() => setShowPicker(true)} />
+            </View>
 
-        <Text variant="body" muted className="mb-4">
-          Trusted contacts and people in your safety groups.
-        </Text>
+            <Text variant="body" muted className="mb-4">
+              Trusted contacts and people in your safety groups.
+            </Text>
 
-        <TrustedContactsPanel />
+            <TrustedContactsPanel />
 
-        <TextInput
-          className="mb-4 min-h-[48px] rounded-2xl border border-glass-border bg-charcoal-900 px-4 text-base text-white"
-          placeholder="Search contacts"
-          placeholderTextColor="#6d6d75"
-          value={search}
-          onChangeText={setSearch}
-        />
-
-        {filtered.length === 0 ? (
+            <TextInput
+              className="mb-4 min-h-[48px] rounded-2xl border border-glass-border bg-charcoal-900 px-4 text-base text-white"
+              placeholder="Search contacts"
+              placeholderTextColor="#6d6d75"
+              value={search}
+              onChangeText={setSearch}
+            />
+          </>
+        }
+        ListEmptyComponent={
           <EmptyState
             icon="book-outline"
             title="No contacts yet"
             description="Add family and friends to your groups so they can respond when you send an SOS."
             action={<Button title="Add contact" onPress={() => setShowPicker(true)} />}
           />
-        ) : (
-          filtered.map((contact) => (
-            <CircleContactCard
-              key={contact.id}
-              contact={contact}
-              groups={groups ?? []}
-              onPress={() => setSelectedContact(contact)}
-            />
-          ))
+        }
+        renderItem={({ item: contact }) => (
+          <CircleContactCard
+            contact={contact}
+            groups={groups ?? []}
+            onPress={() => setSelectedContact(contact)}
+          />
         )}
-      </ScrollView>
+      />
 
       <ContactPickerSheet
         visible={showPicker}

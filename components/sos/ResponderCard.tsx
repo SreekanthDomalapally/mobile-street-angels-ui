@@ -1,4 +1,5 @@
 import { Linking, Pressable, View } from 'react-native';
+import { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -11,7 +12,7 @@ interface ResponderCardProps {
   compact?: boolean;
 }
 
-export function ResponderCard({ responder, compact }: ResponderCardProps) {
+export const ResponderCard = memo(function ResponderCard({ responder, compact }: ResponderCardProps) {
   const call = () => {
     if (responder.phone) Linking.openURL(`tel:${responder.phone}`);
   };
@@ -40,4 +41,4 @@ export function ResponderCard({ responder, compact }: ResponderCardProps) {
       </View>
     </GlassCard>
   );
-}
+});

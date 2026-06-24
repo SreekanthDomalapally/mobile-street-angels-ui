@@ -10,6 +10,9 @@ export interface StoredAuthTokens {
   refreshToken: string;
 }
 
+/** In-memory cache avoids duplicate SecureStore reads during cold start. */
+let memoryTokens: StoredAuthTokens | null | undefined;
+
 function useSecureStore(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
 }
@@ -38,24 +41,36 @@ async function deleteItem(key: string): Promise<void> {
 }
 
 export async function saveAuthTokens(accessToken: string, refreshToken: string): Promise<void> {
+  memoryTokens = { accessToken, refreshToken };
   await setItem(ACCESS_TOKEN_KEY, accessToken);
   await setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 export async function getAuthTokens(): Promise<StoredAuthTokens | null> {
+  if (memoryTokens !== undefined) {
+    return memoryTokens;
+  }
+
   try {
     const accessToken = await getItem(ACCESS_TOKEN_KEY);
     const refreshToken = await getItem(REFRESH_TOKEN_KEY);
 
-    if (!accessToken || !refreshToken) return null;
-    return { accessToken, refreshToken };
+    if (!accessToken || !refreshToken) {
+      memoryTokens = null;
+      return null;
+    }
+
+    memoryTokens = { accessToken, refreshToken };
+    return memoryTokens;
   } catch (error) {
     console.warn('[tokenStorage] Failed to read auth tokens:', error);
+    memoryTokens = null;
     return null;
   }
 }
 
 export async function clearAuthTokens(): Promise<void> {
+  memoryTokens = null;
   try {
     await deleteItem(ACCESS_TOKEN_KEY);
     await deleteItem(REFRESH_TOKEN_KEY);

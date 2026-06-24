@@ -1,4 +1,5 @@
 import '../global.css';
+import '@/lib/perf';
 import '@/services/backgroundLocation';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';

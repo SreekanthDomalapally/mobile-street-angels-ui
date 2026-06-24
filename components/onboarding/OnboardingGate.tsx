@@ -24,8 +24,13 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (flags) {
+      setChecking(false);
+      return;
+    }
+
     let cancelled = false;
-    setChecking((prev) => prev || !useAuthStore.getState().onboardingFlags);
+    setChecking(true);
 
     (async () => {
       try {
@@ -42,7 +47,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, flags]);
 
   useEffect(() => {
     if (!isAuthenticated) {

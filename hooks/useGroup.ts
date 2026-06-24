@@ -7,6 +7,6 @@ export function useGroup(groupId: string | undefined) {
     queryFn: () => fetchGroupWithMembers(groupId!),
     enabled: Boolean(groupId),
     retry: 1,
-    staleTime: 0,
+    staleTime: 1000 * 60 * 2,
   });
 }
