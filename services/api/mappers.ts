@@ -11,12 +11,14 @@ import type {
   TimelineEvent,
 } from '@/types';
 
-/** API alert_type enum values */
+/** API alert_type enum values — canonical vocabulary shared with the app. */
 export type ApiAlertType =
-  | 'unsafe_situation'
-  | 'medical_help'
+  | 'medical'
+  | 'personal_safety'
   | 'car_breakdown'
-  | 'pickup_request'
+  | 'need_pickup'
+  | 'lost_or_stranded'
+  | 'general_help'
   | 'custom';
 
 export type ApiAlertStatus = 'active' | 'resolved' | 'cancelled';
@@ -26,6 +28,7 @@ export interface ApiAlertResponseItem {
   user_id: string;
   response_type: string;
   eta_minutes: number | null;
+  distance_km?: number | null;
   created_at: string;
 }
 
@@ -65,12 +68,15 @@ export interface ApiGroupOut {
   description: string | null;
   is_temporary: boolean;
   expires_at: string | null;
+  priority?: number;
+  visibility?: string;
   created_by: string;
   created_at: string;
   member_count?: number;
   my_role?: string | null;
   members?: ApiGroupMemberOut[];
   pending_invites?: ApiGroupPendingInviteOut[];
+  emergency_types?: string[];
 }
 
 export interface ApiGroupInviteOut {
@@ -92,20 +98,21 @@ export interface ApiContactDirectoryItem {
   status: 'member' | 'invited';
 }
 
-const EMERGENCY_TO_API: Record<EmergencyType, ApiAlertType> = {
-  medical: 'medical_help',
-  safety: 'unsafe_situation',
-  harassment: 'unsafe_situation',
-  accident: 'car_breakdown',
-  other: 'custom',
-};
+const EMERGENCY_TYPES: readonly EmergencyType[] = [
+  'medical',
+  'personal_safety',
+  'car_breakdown',
+  'need_pickup',
+  'lost_or_stranded',
+  'general_help',
+  'custom',
+];
 
-const API_TO_EMERGENCY: Record<string, EmergencyType> = {
+/** Legacy API values (pre-Phase 0) mapped to the canonical vocabulary. */
+const LEGACY_API_TO_EMERGENCY: Record<string, EmergencyType> = {
+  unsafe_situation: 'personal_safety',
   medical_help: 'medical',
-  unsafe_situation: 'safety',
-  car_breakdown: 'accident',
-  pickup_request: 'other',
-  custom: 'other',
+  pickup_request: 'need_pickup',
 };
 
 const RESPONSE_TO_STATUS: Record<string, ResponderStatus> = {
@@ -116,11 +123,14 @@ const RESPONSE_TO_STATUS: Record<string, ResponderStatus> = {
 };
 
 export function mapEmergencyTypeToApi(type: EmergencyType): ApiAlertType {
-  return EMERGENCY_TO_API[type];
+  return type;
 }
 
 export function mapApiAlertTypeToEmergency(type: string): EmergencyType {
-  return API_TO_EMERGENCY[type] ?? 'other';
+  if ((EMERGENCY_TYPES as readonly string[]).includes(type)) {
+    return type as EmergencyType;
+  }
+  return LEGACY_API_TO_EMERGENCY[type] ?? 'custom';
 }
 
 export function mapApiStatusToAlertStatus(
@@ -141,6 +151,7 @@ function mapResponseToResponder(item: ApiAlertResponseItem): Responder {
     name: `Responder ${item.user_id.slice(0, 8)}`,
     status,
     etaMinutes: item.eta_minutes ?? undefined,
+    distanceKm: item.distance_km ?? undefined,
   };
 }
 
@@ -221,6 +232,9 @@ export function mapApiGroupToGroup(group: ApiGroupOut): Group {
     myRole: group.my_role ?? undefined,
     isTemporary: group.is_temporary,
     expiresAt: group.expires_at ?? undefined,
+    priority: group.priority,
+    visibility: group.visibility,
+    emergencyTypes: group.emergency_types as Group['emergencyTypes'],
   };
 }
 

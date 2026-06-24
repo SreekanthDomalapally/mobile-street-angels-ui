@@ -1,5 +1,5 @@
 import { Text } from "@/components/ui/Text";
-import { emergencyTypes } from "@/data/mock";
+import { fallbackEmergencyTypes, useEmergencyTypes } from "@/hooks/useEmergencyCatalog";
 import { useSOSStore } from "@/stores/sosStore";
 import type { EmergencyType } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,13 +9,17 @@ import { Pressable, View } from "react-native";
 const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   medkit: "medkit-outline",
   shield: "shield-outline",
-  "alert-circle": "alert-circle-outline",
   car: "car-outline",
-  "help-circle": "help-circle-outline",
+  "hand-left": "hand-left-outline",
+  compass: "compass-outline",
+  "help-buoy": "help-buoy-outline",
+  "ellipsis-horizontal": "ellipsis-horizontal-circle-outline",
 };
 
 export function EmergencyTypePicker() {
   const { emergencyType, setEmergencyType, status } = useSOSStore();
+  const { data } = useEmergencyTypes();
+  const types = data ?? fallbackEmergencyTypes;
   const disabled = status !== "idle";
 
   return (
@@ -24,15 +28,15 @@ export function EmergencyTypePicker() {
         Emergency type
       </Text>
       <View className="flex-row flex-wrap justify-between gap-y-2 px-1">
-        {emergencyTypes.map((type) => {
-          const selected = emergencyType === type.id;
+        {types.map((type) => {
+          const selected = emergencyType === type.code;
           return (
             <Pressable
-              key={type.id}
+              key={type.code}
               onPress={() => {
                 if (disabled) return;
                 Haptics.selectionAsync();
-                setEmergencyType(type.id as EmergencyType);
+                setEmergencyType(type.code as EmergencyType);
               }}
               disabled={disabled}
               className={`min-h-[48px] w-[48%] flex-row items-center gap-2 rounded-2xl border px-3 py-3 ${
@@ -52,7 +56,7 @@ export function EmergencyTypePicker() {
                 variant="body"
                 className={`shrink ${selected ? "text-emergency-glow" : ""}`}
               >
-                {type.label}
+                {type.name}
               </Text>
             </Pressable>
           );

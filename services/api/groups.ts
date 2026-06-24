@@ -1,4 +1,4 @@
-import type { Group, GroupInvite } from '@/types';
+import type { EmergencyType, Group, GroupInvite } from '@/types';
 import { authenticatedRequest } from './client';
 import { mapApiGroupInvite, mapApiGroupToGroup, type ApiGroupInviteOut, type ApiGroupOut } from './mappers';
 
@@ -7,6 +7,9 @@ export interface CreateGroupParams {
   description?: string;
   isTemporary?: boolean;
   expiresAt?: string;
+  priority?: number;
+  visibility?: string;
+  emergencyTypes?: EmergencyType[];
 }
 
 export async function fetchGroups(): Promise<Group[]> {
@@ -80,7 +83,46 @@ export async function createGroup(params: CreateGroupParams): Promise<Group> {
       description: params.description,
       is_temporary: params.isTemporary ?? false,
       expires_at: params.expiresAt,
+      ...(params.priority !== undefined ? { priority: params.priority } : {}),
+      ...(params.visibility !== undefined ? { visibility: params.visibility } : {}),
+      ...(params.emergencyTypes !== undefined ? { emergency_types: params.emergencyTypes } : {}),
     }),
   });
   return mapApiGroupToGroup(group);
+}
+
+export interface UpdateGroupParams {
+  name?: string;
+  description?: string;
+  priority?: number;
+  visibility?: string;
+}
+
+export async function updateGroup(groupId: string, params: UpdateGroupParams): Promise<Group> {
+  const group = await authenticatedRequest<ApiGroupOut>(`/groups/${groupId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      ...(params.name !== undefined ? { name: params.name } : {}),
+      ...(params.description !== undefined ? { description: params.description } : {}),
+      ...(params.priority !== undefined ? { priority: params.priority } : {}),
+      ...(params.visibility !== undefined ? { visibility: params.visibility } : {}),
+    }),
+  });
+  return mapApiGroupToGroup(group);
+}
+
+export async function fetchGroupEmergencyTypes(groupId: string): Promise<EmergencyType[]> {
+  const types = await authenticatedRequest<string[]>(`/groups/${groupId}/emergency-types`);
+  return types as EmergencyType[];
+}
+
+export async function setGroupEmergencyTypes(
+  groupId: string,
+  emergencyTypes: EmergencyType[]
+): Promise<EmergencyType[]> {
+  const types = await authenticatedRequest<string[]>(`/groups/${groupId}/emergency-types`, {
+    method: 'PUT',
+    body: JSON.stringify({ emergency_types: emergencyTypes }),
+  });
+  return types as EmergencyType[];
 }

@@ -1,5 +1,6 @@
 import type {
   ActivityItem,
+  EmergencyType,
   Group,
   Responder,
   SOSAlert,
@@ -125,7 +126,7 @@ export const mockTimeline: TimelineEvent[] = [
 export const mockActiveAlert: SOSAlert = {
   id: 'alert-001',
   userId: 'user-1',
-  type: 'safety',
+  type: 'personal_safety',
   status: 'responding',
   createdAt: new Date(Date.now() - 120000).toISOString(),
   location: MOCK_USER_LOCATION,
@@ -167,10 +168,21 @@ export const mockActivity: ActivityItem[] = [
   },
 ];
 
-export const emergencyTypes = [
-  { id: 'medical' as const, label: 'Medical', icon: 'medkit' as const },
-  { id: 'safety' as const, label: 'Safety', icon: 'shield' as const },
-  { id: 'harassment' as const, label: 'Harassment', icon: 'alert-circle' as const },
-  { id: 'accident' as const, label: 'Accident', icon: 'car' as const },
-  { id: 'other' as const, label: 'Other', icon: 'help-circle' as const },
+export interface EmergencyTypeOption {
+  id: EmergencyType;
+  label: string;
+  icon: string;
+  description: string;
+  severity: number;
+}
+
+/** Canonical catalog — matches the API `/emergency-types` vocabulary 1:1. */
+export const emergencyTypes: EmergencyTypeOption[] = [
+  { id: 'medical', label: 'Medical Help', icon: 'medkit', description: 'Injury or illness', severity: 1 },
+  { id: 'personal_safety', label: 'Personal Safety', icon: 'shield', description: 'Feeling unsafe', severity: 1 },
+  { id: 'car_breakdown', label: 'Car Breakdown', icon: 'car', description: 'Roadside trouble', severity: 3 },
+  { id: 'need_pickup', label: 'Need Pickup', icon: 'hand-left', description: 'Need a ride', severity: 3 },
+  { id: 'lost_or_stranded', label: 'Lost or Stranded', icon: 'compass', description: 'Cannot get home', severity: 2 },
+  { id: 'general_help', label: 'General Help', icon: 'help-buoy', description: 'Non-critical help', severity: 4 },
+  { id: 'custom', label: 'Custom', icon: 'ellipsis-horizontal', description: 'Describe it yourself', severity: 3 },
 ];

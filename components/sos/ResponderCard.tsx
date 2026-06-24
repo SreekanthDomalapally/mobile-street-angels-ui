@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Text } from '@/components/ui/Text';
-import { formatEta, getResponderStatusLabel } from '@/lib/utils';
+import { formatDistance, formatEta, getResponderStatusLabel } from '@/lib/utils';
 import type { Responder } from '@/types';
 
 interface ResponderCardProps {
@@ -24,6 +24,7 @@ export function ResponderCard({ responder, compact }: ResponderCardProps) {
           <Text variant="subtitle">{responder.name}</Text>
           <Text variant="caption" className="text-responder-light">
             {getResponderStatusLabel(responder.status)}
+            {responder.distanceKm != null && ` · ${formatDistance(responder.distanceKm)}`}
             {responder.etaMinutes != null && ` · ${formatEta(responder.etaMinutes)}`}
           </Text>
         </View>

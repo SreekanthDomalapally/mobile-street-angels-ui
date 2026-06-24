@@ -56,6 +56,24 @@ export async function getCurrentLocation(
   return toCoordinates(location);
 }
 
+/** Get location only if permission is already granted — never prompts. */
+export async function getCurrentLocationIfPermitted(
+  options: LocationOptions = {}
+): Promise<Coordinates | null> {
+  const granted = await hasLocationPermission();
+  if (!granted) return null;
+
+  await ensureLocationServices();
+
+  const location = await Location.getCurrentPositionAsync({
+    accuracy: options.highAccuracy
+      ? Location.Accuracy.BestForNavigation
+      : Location.Accuracy.Balanced,
+  });
+
+  return toCoordinates(location);
+}
+
 export async function watchLocation(
   callback: (coords: Coordinates) => void,
   options: LocationOptions = {}

@@ -42,7 +42,7 @@ function clearSession() {
 
 export const useSOSStore = create<SOSState>((set, get) => ({
   ...idleState,
-  emergencyType: 'safety',
+  emergencyType: 'personal_safety',
   isOffline: false,
   setEmergencyType: (emergencyType) => set({ emergencyType }),
   setHoldProgress: (holdProgress) => set({ holdProgress }),

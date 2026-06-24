@@ -1,4 +1,11 @@
-export type EmergencyType = 'medical' | 'safety' | 'harassment' | 'accident' | 'other';
+export type EmergencyType =
+  | 'medical'
+  | 'personal_safety'
+  | 'car_breakdown'
+  | 'need_pickup'
+  | 'lost_or_stranded'
+  | 'general_help'
+  | 'custom';
 
 export type AlertStatus =
   | 'idle'
@@ -9,6 +16,41 @@ export type AlertStatus =
   | 'cancelled';
 
 export type ResponderStatus = 'notified' | 'viewing' | 'en_route' | 'arrived' | 'completed';
+
+export type SkillLevel = 'basic' | 'intermediate' | 'professional';
+
+export interface EmergencyTypeMeta {
+  code: EmergencyType;
+  name: string;
+  icon: string;
+  description: string;
+  severity: number;
+  sortOrder: number;
+}
+
+export interface Skill {
+  code: string;
+  name: string;
+  category: string;
+  sortOrder: number;
+}
+
+export interface UserSkill {
+  skillCode: string;
+  name: string;
+  category: string;
+  level: SkillLevel;
+  verified: boolean;
+}
+
+export interface ResponderProfile {
+  certifications: string[];
+  languages: string[];
+  vehicleAvailable: boolean;
+  medicalBackground?: string;
+  availableForEmergencies: boolean;
+  locationVisibility: string;
+}
 
 export interface Coordinates {
   latitude: number;
@@ -113,6 +155,9 @@ export interface Group {
   myRole?: string;
   isTemporary?: boolean;
   expiresAt?: string;
+  priority?: number;
+  visibility?: string;
+  emergencyTypes?: EmergencyType[];
   color?: string;
 }
 

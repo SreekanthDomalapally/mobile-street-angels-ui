@@ -14,7 +14,8 @@ import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -248,6 +249,39 @@ export default function GroupsScreen() {
               {selectedGroupId && (
                 <View className="mt-4 border-t border-glass-border pt-6">
                   <TripWatchGroupSection groupId={selectedGroupId} />
+
+                  {(() => {
+                    const role =
+                      selectedGroup?.myRole ??
+                      groups?.find((g) => g.id === selectedGroupId)?.myRole;
+                    if (role !== 'owner' && role !== 'admin') return null;
+                    const groupName =
+                      selectedGroup?.name ??
+                      groups?.find((g) => g.id === selectedGroupId)?.name ??
+                      '';
+                    return (
+                      <Pressable
+                        onPress={() =>
+                          router.push({
+                            pathname: '/group/emergency-types',
+                            params: { groupId: selectedGroupId, name: groupName },
+                          })
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel="Configure emergency types"
+                        className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
+                      >
+                        <Ionicons name="git-branch-outline" size={20} color="#a0a0a8" />
+                        <View className="flex-1">
+                          <Text variant="body">Emergency types</Text>
+                          <Text variant="caption" muted>
+                            Choose which emergencies this circle responds to
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
+                      </Pressable>
+                    );
+                  })()}
 
                   <GroupMembersSection
                     group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}

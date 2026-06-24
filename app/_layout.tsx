@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { colors } from '@/constants/theme';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuthBootstrap } from '@/hooks/useAuth';
+import { useLocationSync } from '@/hooks/useLocationSync';
 import { useNotificationRouting } from '@/hooks/useNotificationRouting';
 
 export { AppErrorBoundary as ErrorBoundary } from '@/components/common/AppErrorBoundary';
@@ -21,6 +22,7 @@ export default function RootLayout() {
 
   useAuthBootstrap();
   useNotificationRouting();
+  useLocationSync();
 
   useEffect(() => {
     if (error) throw error;
@@ -60,6 +62,8 @@ export default function RootLayout() {
           name="group/[id]"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="responder-profile" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="group/emergency-types" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="trip/start" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="trip/active"

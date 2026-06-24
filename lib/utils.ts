@@ -22,6 +22,12 @@ export function formatEta(minutes?: number): string {
   return `${minutes} min`;
 }
 
+export function formatDistance(km?: number): string {
+  if (km == null) return '';
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(1)} km away`;
+}
+
 export function getResponderStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     notified: 'Notified',

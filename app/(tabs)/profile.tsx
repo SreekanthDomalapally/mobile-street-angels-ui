@@ -60,6 +60,19 @@ export default function ProfileScreen() {
       <GroupInvitesSection />
 
       <Text variant="label" className="mb-2">
+        Emergency readiness
+      </Text>
+      <View className="mb-6 rounded-2xl border border-glass-border bg-charcoal-900 px-4">
+        <SettingsRow
+          label="Responder profile"
+          description="Skills, availability & how you can help"
+          icon="medkit-outline"
+          showChevron
+          onPress={() => router.push("/responder-profile")}
+        />
+      </View>
+
+      <Text variant="label" className="mb-2">
         Notifications
       </Text>
       <View className="mb-2 rounded-2xl border border-glass-border bg-charcoal-900 px-4">
