@@ -3,9 +3,14 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
-const initializeCore = require.resolve('react-native/Libraries/Core/InitializeCore');
+if (!config.resolver.assetExts.includes('ttf')) {
+  config.resolver.assetExts.push('ttf');
+}
+
 const upstreamGetModulesRunBeforeMainModule =
   config.serializer?.getModulesRunBeforeMainModule;
+
+const initializeCore = require.resolve('react-native/Libraries/Core/InitializeCore');
 
 config.serializer = {
   ...config.serializer,

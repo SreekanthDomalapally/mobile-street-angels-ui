@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { colors } from '@/constants/theme';
 import { AppProviders } from '@/providers/AppProviders';
+import { useAppFonts } from '@/hooks/useAppFonts';
 import { useAuthBootstrap } from '@/hooks/useAuth';
 import { useLocationSync } from '@/hooks/useLocationSync';
 import { useNotificationRouting } from '@/hooks/useNotificationRouting';
@@ -17,13 +18,26 @@ export { AppErrorBoundary as ErrorBoundary } from '@/components/common/AppErrorB
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const { fontsLoaded, fontError } = useAppFonts();
   useAuthBootstrap();
   useNotificationRouting();
   useLocationSync();
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontError) {
+      console.warn('[fonts] Failed to load app fonts:', fontError);
+    }
+  }, [fontError]);
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <AppProviders>

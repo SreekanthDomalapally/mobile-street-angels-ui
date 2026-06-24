@@ -4,7 +4,6 @@ export type EmergencyType =
   | 'car_breakdown'
   | 'need_pickup'
   | 'lost_or_stranded'
-  | 'general_help'
   | 'custom';
 
 export type AlertStatus =

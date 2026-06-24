@@ -9,6 +9,7 @@ import {
   formatEmergencyTypeCircleCount,
   formatEmergencyTypeCircleCountBadge,
 } from "@/lib/groupLabels";
+import { getEmergencyTypeLabel } from "@/lib/emergencyTypeLabels";
 import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -25,7 +26,6 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   car: "car-outline",
   "hand-left": "hand-left-outline",
   compass: "compass-outline",
-  "help-buoy": "help-buoy-outline",
   "ellipsis-horizontal": "ellipsis-horizontal-circle-outline",
 };
 
@@ -35,7 +35,9 @@ export function EmergencyTypePicker() {
   const { data: groups, isLoading: groupsLoading } = useGroups();
   const currentUserId = useAuthStore((s) => s.user?.id);
   const preferredGroupId = useSettingsStore((s) => s.emergency.defaultSosGroupId);
-  const types = typesCatalog ?? fallbackEmergencyTypes;
+  const types = (typesCatalog ?? fallbackEmergencyTypes).filter((type) =>
+    fallbackEmergencyTypes.some((fallback) => fallback.code === type.code)
+  );
   const disabled = status !== "idle";
 
   const selectedGroup = useMemo(() => {
@@ -64,6 +66,7 @@ export function EmergencyTypePicker() {
               ? `${formatEmergencyTypeCircleCount(circleCount)}, ${userCount ?? 0} people`
               : null;
           const typeColors = getEmergencyTypeColors(code);
+          const label = getEmergencyTypeLabel(code);
           return (
             <Pressable
               key={type.code}
@@ -82,7 +85,7 @@ export function EmergencyTypePicker() {
               } ${disabled ? "opacity-50" : ""}`}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={countLabel ? `${type.name}, ${countLabel}` : type.name}
+              accessibilityLabel={countLabel ? `${label}, ${countLabel}` : label}
             >
               <Ionicons
                 name={iconMap[type.icon] ?? "help-circle-outline"}
@@ -93,9 +96,9 @@ export function EmergencyTypePicker() {
                 variant="body"
                 numberOfLines={1}
                 style={selected ? { color: typeColors.glow } : undefined}
-                className="min-w-0 flex-1"
+                className="min-w-0 flex-1 shrink"
               >
-                {type.name}
+                {label}
               </Text>
               {circleCount !== null && userCount !== null ? (
                 <View className="flex-row items-center gap-1">

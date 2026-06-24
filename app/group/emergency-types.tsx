@@ -6,6 +6,7 @@ import {
   useSetGroupEmergencyTypes,
 } from "@/hooks/useGroupEmergencyTypes";
 import { useGroups } from "@/hooks/useGroups";
+import { getEmergencyTypeLabel } from "@/lib/emergencyTypeLabels";
 import {
   countCirclesForEmergencyType,
   formatEmergencyTypeCircleCount,
@@ -24,7 +25,6 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   car: "car-outline",
   "hand-left": "hand-left-outline",
   compass: "compass-outline",
-  "help-buoy": "help-buoy-outline",
   "ellipsis-horizontal": "ellipsis-horizontal-circle-outline",
 };
 
@@ -139,10 +139,7 @@ export default function GroupEmergencyTypesScreen() {
                   />
                   <View className="flex-1">
                     <Text variant="body" className={isSelected ? "text-responder-light" : ""}>
-                      {type.name}
-                    </Text>
-                    <Text variant="caption" muted>
-                      {type.description}
+                      {getEmergencyTypeLabel(type.code)}
                     </Text>
                     {circleCount > 0 ? (
                       <Text variant="caption" className="mt-0.5 text-responder-light">

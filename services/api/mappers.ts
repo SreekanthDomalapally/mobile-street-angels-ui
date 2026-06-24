@@ -18,7 +18,6 @@ export type ApiAlertType =
   | 'car_breakdown'
   | 'need_pickup'
   | 'lost_or_stranded'
-  | 'general_help'
   | 'custom';
 
 export type ApiAlertStatus = 'active' | 'resolved' | 'cancelled';
@@ -109,15 +108,16 @@ const EMERGENCY_TYPES: readonly EmergencyType[] = [
   'car_breakdown',
   'need_pickup',
   'lost_or_stranded',
-  'general_help',
   'custom',
 ];
 
-/** Legacy API values (pre-Phase 0) mapped to the canonical vocabulary. */
+/** Legacy API values mapped to the canonical vocabulary. */
 const LEGACY_API_TO_EMERGENCY: Record<string, EmergencyType> = {
   unsafe_situation: 'personal_safety',
   medical_help: 'medical',
   pickup_request: 'need_pickup',
+  general_help: 'need_pickup',
+  my_neighbourhood: 'need_pickup',
 };
 
 const RESPONSE_TO_STATUS: Record<string, ResponderStatus> = {
@@ -136,6 +136,20 @@ export function mapApiAlertTypeToEmergency(type: string): EmergencyType {
     return type as EmergencyType;
   }
   return LEGACY_API_TO_EMERGENCY[type] ?? 'custom';
+}
+
+/** Normalize group/API emergency type lists (maps retired codes, dedupes). */
+export function normalizeEmergencyTypes(types: string[] | undefined): EmergencyType[] {
+  if (!types?.length) return [];
+  const seen = new Set<EmergencyType>();
+  const normalized: EmergencyType[] = [];
+  for (const raw of types) {
+    const code = mapApiAlertTypeToEmergency(raw);
+    if (seen.has(code)) continue;
+    seen.add(code);
+    normalized.push(code);
+  }
+  return normalized;
 }
 
 export function mapApiStatusToAlertStatus(
@@ -242,7 +256,7 @@ export function mapApiGroupToGroup(group: ApiGroupOut): Group {
     expiresAt: group.expires_at ?? undefined,
     priority: group.priority,
     visibility: group.visibility,
-    emergencyTypes: group.emergency_types as Group['emergencyTypes'],
+    emergencyTypes: normalizeEmergencyTypes(group.emergency_types),
   };
 }
 

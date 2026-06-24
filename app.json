@@ -79,7 +79,13 @@
           "contactsPermission": "Allow YouHoo Alert to access contacts so you can add trusted people to your groups."
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-font",
+        {
+          "fonts": ["./assets/fonts/Ionicons.ttf"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

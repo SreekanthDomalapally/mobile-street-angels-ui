@@ -1,6 +1,6 @@
 import type { EmergencyType, Group, GroupInvite } from '@/types';
 import { authenticatedRequest } from './client';
-import { mapApiGroupInvite, mapApiGroupToGroup, type ApiGroupInviteOut, type ApiGroupOut } from './mappers';
+import { mapApiGroupInvite, mapApiGroupToGroup, normalizeEmergencyTypes, type ApiGroupInviteOut, type ApiGroupOut } from './mappers';
 
 export interface CreateGroupParams {
   name: string;
@@ -113,7 +113,7 @@ export async function updateGroup(groupId: string, params: UpdateGroupParams): P
 
 export async function fetchGroupEmergencyTypes(groupId: string): Promise<EmergencyType[]> {
   const types = await authenticatedRequest<string[]>(`/groups/${groupId}/emergency-types`);
-  return types as EmergencyType[];
+  return normalizeEmergencyTypes(types);
 }
 
 export async function setGroupEmergencyTypes(
@@ -124,5 +124,5 @@ export async function setGroupEmergencyTypes(
     method: 'PUT',
     body: JSON.stringify({ emergency_types: emergencyTypes }),
   });
-  return types as EmergencyType[];
+  return normalizeEmergencyTypes(types);
 }

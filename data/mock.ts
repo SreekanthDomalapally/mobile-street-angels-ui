@@ -178,11 +178,10 @@ export interface EmergencyTypeOption {
 
 /** Canonical catalog — matches the API `/emergency-types` vocabulary 1:1. */
 export const emergencyTypes: EmergencyTypeOption[] = [
-  { id: 'medical', label: 'Medical Help', icon: 'medkit', description: 'Injury or illness', severity: 1 },
-  { id: 'personal_safety', label: 'Personal Safety', icon: 'shield', description: 'Feeling unsafe', severity: 1 },
-  { id: 'car_breakdown', label: 'Car Breakdown', icon: 'car', description: 'Roadside trouble', severity: 3 },
-  { id: 'need_pickup', label: 'Need Pickup', icon: 'hand-left', description: 'Need a ride', severity: 3 },
-  { id: 'lost_or_stranded', label: 'Lost or Stranded', icon: 'compass', description: 'Cannot get home', severity: 2 },
-  { id: 'general_help', label: 'General Help', icon: 'help-buoy', description: 'Non-critical help', severity: 4 },
+  { id: 'medical', label: 'Medical', icon: 'medkit', description: 'Injury or illness', severity: 1 },
+  { id: 'personal_safety', label: 'Safety', icon: 'shield', description: 'Feeling unsafe', severity: 1 },
+  { id: 'car_breakdown', label: 'Breakdown', icon: 'car', description: 'Roadside trouble', severity: 3 },
+  { id: 'need_pickup', label: 'Pickup', icon: 'hand-left', description: 'Need a ride', severity: 3 },
+  { id: 'lost_or_stranded', label: 'Lost', icon: 'compass', description: 'Cannot get home', severity: 2 },
   { id: 'custom', label: 'Custom', icon: 'ellipsis-horizontal', description: 'Describe it yourself', severity: 3 },
 ];
