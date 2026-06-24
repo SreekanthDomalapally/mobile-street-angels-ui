@@ -9,6 +9,7 @@ import {
   formatEmergencyTypeCircleCount,
   formatEmergencyTypeCircleCountBadge,
 } from "@/lib/groupLabels";
+import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSOSStore } from "@/stores/sosStore";
@@ -62,6 +63,7 @@ export function EmergencyTypePicker() {
             circleCount !== null
               ? `${formatEmergencyTypeCircleCount(circleCount)}, ${userCount ?? 0} people`
               : null;
+          const typeColors = getEmergencyTypeColors(code);
           return (
             <Pressable
               key={type.code}
@@ -71,10 +73,12 @@ export function EmergencyTypePicker() {
                 setEmergencyType(code);
               }}
               disabled={disabled}
+              style={{
+                borderColor: selected ? typeColors.border : undefined,
+                backgroundColor: selected ? typeColors.surface : undefined,
+              }}
               className={`min-h-[52px] w-[48%] flex-row items-center gap-2 rounded-2xl border px-3 py-2.5 ${
-                selected
-                  ? "border-emergency/50 bg-emergency/15"
-                  : "border-glass-border bg-charcoal-800"
+                selected ? "" : "border-glass-border bg-charcoal-800"
               } ${disabled ? "opacity-50" : ""}`}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
@@ -83,34 +87,40 @@ export function EmergencyTypePicker() {
               <Ionicons
                 name={iconMap[type.icon] ?? "help-circle-outline"}
                 size={20}
-                color={selected ? "#e85d5d" : "#a0a0a8"}
+                color={selected ? typeColors.glow : typeColors.muted}
               />
               <Text
                 variant="body"
                 numberOfLines={1}
-                className={`min-w-0 flex-1 ${selected ? "text-emergency-glow" : ""}`}
+                style={selected ? { color: typeColors.glow } : undefined}
+                className="min-w-0 flex-1"
               >
                 {type.name}
               </Text>
               {circleCount !== null && userCount !== null ? (
                 <View className="flex-row items-center gap-1">
                   <View
+                    style={{
+                      backgroundColor:
+                        circleCount === 0
+                          ? typeColors.surface
+                          : selected
+                            ? typeColors.surfaceStrong
+                            : undefined,
+                    }}
                     className={`min-w-[24px] items-center rounded-full px-1.5 py-0.5 ${
-                      circleCount === 0
-                        ? "bg-emergency/15"
-                        : selected
-                          ? "bg-emergency/25"
-                          : "bg-responder/20"
+                      circleCount === 0 || selected ? "" : "bg-responder/20"
                     }`}
                   >
                     <Text
                       variant="label"
+                      style={
+                        circleCount === 0 || selected
+                          ? { color: typeColors.glow }
+                          : undefined
+                      }
                       className={`normal-case text-xs ${
-                        circleCount === 0
-                          ? "text-emergency-glow"
-                          : selected
-                            ? "text-emergency-glow"
-                            : "text-responder-light"
+                        circleCount === 0 || selected ? "" : "text-responder-light"
                       }`}
                     >
                       {formatEmergencyTypeCircleCountBadge(circleCount)}

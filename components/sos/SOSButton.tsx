@@ -1,5 +1,6 @@
 import { Text } from "@/components/ui/Text";
 import { sosConfig } from "@/constants/theme";
+import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSOSStore } from "@/stores/sosStore";
 import * as Haptics from "expo-haptics";
@@ -25,9 +26,11 @@ interface SOSButtonProps {
 
 export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   const holdDuration = useSettingsStore((s) => s.emergency.holdDurationMs);
+  const emergencyType = useSOSStore((s) => s.emergencyType);
   const status = useSOSStore((s) => s.status);
   const startArming = useSOSStore((s) => s.startArming);
   const cancelArming = useSOSStore((s) => s.cancelArming);
+  const typeColors = getEmergencyTypeColors(emergencyType);
   const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdCompleted = useRef(false);
   const [isPressed, setIsPressed] = useState(false);
@@ -134,21 +137,22 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
     >
       <AnimatedView
         pointerEvents="none"
-        style={pulseStyle}
-        className="absolute h-52 w-52 rounded-full bg-emergency/10"
+        style={[pulseStyle, { backgroundColor: typeColors.ring }]}
+        className="absolute h-52 w-52 rounded-full"
       />
       <AnimatedView
         pointerEvents="none"
-        style={ringStyle}
-        className="absolute h-56 w-56 rounded-full bg-emergency/20"
+        style={[ringStyle, { backgroundColor: typeColors.ringOuter }]}
+        className="absolute h-56 w-56 rounded-full"
       />
       <Pressable
         onPressIn={startHold}
         onPressOut={endHold}
         disabled={disabled || (status !== "idle" && status !== "arming")}
-        className={`h-48 w-48 items-center justify-center rounded-full shadow-lg ${
-          disabled ? "bg-emergency/40" : "bg-emergency"
-        }`}
+        style={{
+          backgroundColor: disabled ? `${typeColors.primary}66` : typeColors.primary,
+        }}
+        className="h-48 w-48 items-center justify-center rounded-full shadow-lg"
         accessibilityRole="button"
         accessibilityHint={`Hold for ${holdDuration / 1000} seconds to send SOS`}
         accessibilityState={{ busy: isArming }}

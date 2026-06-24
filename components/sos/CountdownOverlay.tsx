@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
+import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useSOSStore } from "@/stores/sosStore";
 import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
@@ -25,7 +26,9 @@ export function CountdownOverlay({
   onCancel,
 }: CountdownOverlayProps) {
   const countdown = useSOSStore((s) => s.countdown);
+  const emergencyType = useSOSStore((s) => s.emergencyType);
   const setCountdown = useSOSStore((s) => s.setCountdown);
+  const typeColors = getEmergencyTypeColors(emergencyType);
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -65,10 +68,16 @@ export function CountdownOverlay({
           {loading ? "Sending alert to your trusted group…" : "Sending alert in…"}
         </Text>
         <Animated.View
-          style={animStyle}
-          className="mb-12 h-32 w-32 items-center justify-center rounded-full border-4 border-emergency"
+          style={[
+            animStyle,
+            {
+              borderColor: typeColors.primary,
+              backgroundColor: typeColors.surface,
+            },
+          ]}
+          className="mb-12 h-32 w-32 items-center justify-center rounded-full border-4"
         >
-          <Text variant="hero" className="text-emergency-glow">
+          <Text variant="hero" style={{ color: typeColors.glow }}>
             {loading ? "…" : countdown}
           </Text>
         </Animated.View>
