@@ -1,5 +1,5 @@
 import { Text } from "@/components/ui/Text";
-import { formatGroupSubtitle } from "@/lib/groupLabels";
+import { formatEmergencyTypeCount, formatGroupSubtitle } from "@/lib/groupLabels";
 import type { Group } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, View } from "react-native";
@@ -40,6 +40,12 @@ export function GroupCard({ group, selected = false, onPress }: GroupCardProps) 
         <Text variant="caption" muted>
           {formatGroupSubtitle(group)}
         </Text>
+        <View className="mt-1 flex-row items-center gap-1">
+          <Ionicons name="git-branch-outline" size={12} color="#6d6d75" />
+          <Text variant="caption" muted>
+            {formatEmergencyTypeCount(group)}
+          </Text>
+        </View>
       </View>
       {selected ? (
         <Ionicons name="checkmark-circle" size={22} color="#6bb892" />

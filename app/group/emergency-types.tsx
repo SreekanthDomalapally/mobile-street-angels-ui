@@ -5,6 +5,7 @@ import {
   useGroupEmergencyTypes,
   useSetGroupEmergencyTypes,
 } from "@/hooks/useGroupEmergencyTypes";
+import { useGroups } from "@/hooks/useGroups";
 import type { EmergencyType } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -31,9 +32,24 @@ export default function GroupEmergencyTypesScreen() {
   const types = catalog ?? fallbackEmergencyTypes;
   const current = useGroupEmergencyTypes(groupId);
   const save = useSetGroupEmergencyTypes(groupId ?? "");
+  const { data: groups } = useGroups();
 
   const [selected, setSelected] = useState<Set<EmergencyType>>(new Set());
   const [hydrated, setHydrated] = useState(false);
+
+  // How many of the user's circles handle a given type. The circle being edited
+  // reflects the live (unsaved) selection so the count updates as you toggle.
+  const circleCountForType = (code: EmergencyType) => {
+    let count = 0;
+    for (const group of groups ?? []) {
+      if (group.id === groupId) {
+        if (selected.has(code)) count += 1;
+      } else if (group.emergencyTypes?.includes(code)) {
+        count += 1;
+      }
+    }
+    return count;
+  };
 
   useEffect(() => {
     if (!hydrated && current.data) {
@@ -105,6 +121,7 @@ export default function GroupEmergencyTypesScreen() {
           <View className="mb-8 gap-2">
             {types.map((type) => {
               const isSelected = selected.has(type.code);
+              const circleCount = circleCountForType(type.code);
               return (
                 <Pressable
                   key={type.code}
@@ -129,6 +146,11 @@ export default function GroupEmergencyTypesScreen() {
                     <Text variant="caption" muted>
                       {type.description}
                     </Text>
+                    {circleCount > 0 && (
+                      <Text variant="caption" className="mt-0.5 text-responder-light">
+                        In {circleCount} {circleCount === 1 ? "circle" : "circles"}
+                      </Text>
+                    )}
                   </View>
                   {isSelected && <Ionicons name="checkmark-circle" size={22} color="#6bb892" />}
                 </Pressable>

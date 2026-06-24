@@ -20,6 +20,16 @@ export function formatGroupPickerLabel(group: Group): string {
   return `${group.name} · ${formatGroupSubtitle(group)}`;
 }
 
+/**
+ * Summarises how many emergency types a circle responds to. An empty list means
+ * the circle has no filter configured, so it is alerted for every emergency type.
+ */
+export function formatEmergencyTypeCount(group: Group): string {
+  const count = group.emergencyTypes?.length ?? 0;
+  if (count === 0) return 'All emergencies';
+  return count === 1 ? '1 emergency type' : `${count} emergency types`;
+}
+
 export function hasOwnedGroupNamed(groups: Group[] | undefined, name: string): boolean {
   const normalized = name.trim().toLowerCase();
   if (!normalized || !groups?.length) return false;
