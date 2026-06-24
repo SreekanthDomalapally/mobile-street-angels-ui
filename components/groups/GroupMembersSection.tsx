@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import type { Group, GroupMember, GroupPendingInvite } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -19,7 +19,19 @@ function roleLabel(role: string, isYou: boolean): string {
   return 'Member';
 }
 
-function MemberRow({ member, isYou }: { member: GroupMember; isYou: boolean }) {
+function MemberRow({
+  member,
+  isYou,
+  canRemove,
+  removing,
+  onRemove,
+}: {
+  member: GroupMember;
+  isYou: boolean;
+  canRemove: boolean;
+  removing: boolean;
+  onRemove?: (member: GroupMember) => void;
+}) {
   return (
     <View className="flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 p-4">
       <View className="h-11 w-11 items-center justify-center rounded-full bg-responder/20">
@@ -40,6 +52,21 @@ function MemberRow({ member, isYou }: { member: GroupMember; isYou: boolean }) {
           {roleLabel(member.role, isYou)}
         </Text>
       </View>
+      {canRemove && onRemove ? (
+        <Pressable
+          onPress={() => onRemove(member)}
+          disabled={removing}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${member.displayName} from circle`}
+          hitSlop={8}
+          className="p-1">
+          {removing ? (
+            <ActivityIndicator size="small" color="#e85d5d" />
+          ) : (
+            <Ionicons name="close-circle-outline" size={24} color="#e85d5d" />
+          )}
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -68,9 +95,18 @@ function PendingRow({ invite }: { invite: GroupPendingInvite }) {
 interface GroupMembersSectionProps {
   group?: Group | null;
   loading?: boolean;
+  canManageMembers?: boolean;
+  removingUserId?: string | null;
+  onRemoveMember?: (member: GroupMember) => void;
 }
 
-export function GroupMembersSection({ group, loading = false }: GroupMembersSectionProps) {
+export function GroupMembersSection({
+  group,
+  loading = false,
+  canManageMembers = false,
+  removingUserId = null,
+  onRemoveMember,
+}: GroupMembersSectionProps) {
   const currentUser = useAuthStore((s) => s.user);
 
   const members = useMemo(() => {
@@ -131,13 +167,24 @@ export function GroupMembersSection({ group, loading = false }: GroupMembersSect
         </View>
       ) : (
         <View className="mb-4 gap-3">
-          {members.map((member) => (
-            <MemberRow
-              key={member.userId}
-              member={member}
-              isYou={member.userId === currentUser?.id}
-            />
-          ))}
+          {members.map((member) => {
+            const isYou = member.userId === currentUser?.id;
+            const canRemove =
+              canManageMembers &&
+              member.role !== 'owner' &&
+              !isYou &&
+              Boolean(onRemoveMember);
+            return (
+              <MemberRow
+                key={member.userId}
+                member={member}
+                isYou={isYou}
+                canRemove={canRemove}
+                removing={removingUserId === member.userId}
+                onRemove={onRemoveMember}
+              />
+            );
+          })}
         </View>
       )}
 

@@ -61,6 +61,11 @@ export function formatEmergencyTypeCircleCount(count: number): string {
   return count === 1 ? '1 circle' : `${count} circles`;
 }
 
+/** Compact badge for emergency-type chips (e.g. "2" or "0"). */
+export function formatEmergencyTypeCircleCountBadge(count: number): string {
+  return String(count);
+}
+
 export function hasOwnedGroupNamed(groups: Group[] | undefined, name: string): boolean {
   const normalized = name.trim().toLowerCase();
   if (!normalized || !groups?.length) return false;

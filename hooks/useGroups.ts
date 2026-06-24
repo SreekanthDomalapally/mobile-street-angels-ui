@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createGroup, fetchGroups, updateGroup } from '@/services/api/groups';
+import { createGroup, fetchGroups, removeGroupMember, updateGroup } from '@/services/api/groups';
 import type { CreateGroupParams, UpdateGroupParams } from '@/services/api/groups';
 
 export function useGroups() {
@@ -33,6 +33,21 @@ export function useUpdateGroup() {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['group', group.id] });
       queryClient.invalidateQueries({ queryKey: ['activity'] });
+    },
+  });
+}
+
+export function useRemoveGroupMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ groupId, userId }: { groupId: string; userId: string }) =>
+      removeGroupMember(groupId, userId),
+    onSuccess: (_data, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['group-invites'] });
     },
   });
 }

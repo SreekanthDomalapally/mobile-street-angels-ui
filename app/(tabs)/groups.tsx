@@ -9,7 +9,7 @@ import { TripWatchGroupSection } from '@/components/trip/TripWatchGroupSection';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useGroup } from '@/hooks/useGroup';
-import { useCreateGroup, useGroups, useUpdateGroup } from '@/hooks/useGroups';
+import { useCreateGroup, useGroups, useRemoveGroupMember, useUpdateGroup } from '@/hooks/useGroups';
 import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
@@ -18,7 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import type { GroupMember } from '@/types';
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -45,6 +47,7 @@ export default function GroupsScreen() {
   const { data: groups, isLoading, isError, refetch } = useGroups();
   const createGroupMutation = useCreateGroup();
   const updateGroupMutation = useUpdateGroup();
+  const removeMemberMutation = useRemoveGroupMember();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [renameVisible, setRenameVisible] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -195,10 +198,47 @@ export default function GroupsScreen() {
     queryClient.invalidateQueries({ queryKey: ['contacts'] });
     queryClient.invalidateQueries({ queryKey: ['group-invites'] });
     if (selectedGroupId) {
-      void refetchGroup();
       queryClient.invalidateQueries({ queryKey: ['group', selectedGroupId] });
+      void refetchGroup();
     }
   };
+
+  const handleRemoveMember = (member: GroupMember) => {
+    if (!selectedGroupId) return;
+    Alert.alert(
+      'Remove from circle?',
+      `Remove ${member.displayName} from this circle? They will no longer receive SOS alerts from it.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await removeMemberMutation.mutateAsync({
+                  groupId: selectedGroupId,
+                  userId: member.userId,
+                });
+                handleGroupUpdated();
+              } catch (error) {
+                Alert.alert(
+                  'Could not remove member',
+                  error instanceof ApiError
+                    ? error.message
+                    : 'Please try again in a moment.'
+                );
+              }
+            })();
+          },
+        },
+      ]
+    );
+  };
+
+  const selectedRole =
+    selectedGroup?.myRole ?? groups?.find((g) => g.id === selectedGroupId)?.myRole;
+  const canManageMembers = selectedRole === 'owner' || selectedRole === 'admin';
 
   const onCreate = async (data: GroupForm) => {
     setFormError(null);
@@ -364,6 +404,13 @@ export default function GroupsScreen() {
                   <GroupMembersSection
                     group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}
                     loading={isGroupLoading}
+                    canManageMembers={canManageMembers}
+                    removingUserId={
+                      removeMemberMutation.isPending
+                        ? (removeMemberMutation.variables?.userId ?? null)
+                        : null
+                    }
+                    onRemoveMember={canManageMembers ? handleRemoveMember : undefined}
                   />
 
                   <GroupContactList
