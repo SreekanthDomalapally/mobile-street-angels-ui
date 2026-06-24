@@ -126,8 +126,6 @@ export default function AlertResponseScreen() {
       `https://maps.google.com/?q=${liveAlert.location.latitude},${liveAlert.location.longitude}`
     );
 
-  const callEmergency = () => Linking.openURL('tel:999');
-
   const respond = (
     responseType: 'i_can_help' | 'on_my_way' | 'calling_now' | 'unable_to_help',
     etaMinutes?: number
@@ -210,7 +208,6 @@ export default function AlertResponseScreen() {
             icon={<Ionicons name="navigate" size={20} color="#fff" style={{ marginRight: 8 }} />}
             onPress={navigate}
           />
-          <Button title="Call emergency services" variant="secondary" onPress={callEmergency} />
           <Button
             title="Unable to help"
             variant="ghost"
