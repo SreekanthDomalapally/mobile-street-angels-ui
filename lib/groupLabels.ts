@@ -1,4 +1,4 @@
-import type { Group } from '@/types';
+import type { EmergencyType, Group } from '@/types';
 
 function memberLabel(count: number): string {
   return count === 1 ? '1 member' : `${count} members`;
@@ -28,6 +28,37 @@ export function formatEmergencyTypeCount(group: Group): string {
   const count = group.emergencyTypes?.length ?? 0;
   if (count === 0) return 'All emergencies';
   return count === 1 ? '1 emergency type' : `${count} emergency types`;
+}
+
+/** Matches API routing: empty emergencyTypes means the circle responds to every type. */
+export function groupHandlesEmergencyType(group: Group, code: EmergencyType): boolean {
+  const configured = group.emergencyTypes ?? [];
+  if (configured.length === 0) return true;
+  return configured.includes(code);
+}
+
+/** How many of the user's circles would be alerted for a given emergency type. */
+export function countCirclesForEmergencyType(
+  groups: Group[] | undefined,
+  code: EmergencyType,
+  override?: { groupId: string; types: EmergencyType[] },
+): number {
+  if (!groups?.length) return 0;
+  let count = 0;
+  for (const group of groups) {
+    if (override?.groupId === group.id) {
+      const handlesAll = override.types.length === 0;
+      if (handlesAll || override.types.includes(code)) count += 1;
+    } else if (groupHandlesEmergencyType(group, code)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export function formatEmergencyTypeCircleCount(count: number): string {
+  if (count === 0) return 'No circles';
+  return count === 1 ? '1 circle' : `${count} circles`;
 }
 
 export function hasOwnedGroupNamed(groups: Group[] | undefined, name: string): boolean {

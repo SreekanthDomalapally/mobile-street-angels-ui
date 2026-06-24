@@ -6,6 +6,10 @@ import {
   useSetGroupEmergencyTypes,
 } from "@/hooks/useGroupEmergencyTypes";
 import { useGroups } from "@/hooks/useGroups";
+import {
+  countCirclesForEmergencyType,
+  formatEmergencyTypeCircleCount,
+} from "@/lib/groupLabels";
 import type { EmergencyType } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -37,23 +41,13 @@ export default function GroupEmergencyTypesScreen() {
   const [selected, setSelected] = useState<Set<EmergencyType>>(new Set());
   const [hydrated, setHydrated] = useState(false);
 
-  // How many of the user's circles handle a given type. Matches routing rules:
-  // empty emergencyTypes = circle responds to ALL types; otherwise must include code.
-  // The circle being edited reflects the live (unsaved) selection.
-  const circleCountForType = (code: EmergencyType) => {
-    let count = 0;
-    for (const group of groups ?? []) {
-      if (group.id === groupId) {
-        const handlesAll = selected.size === 0;
-        if (handlesAll || selected.has(code)) count += 1;
-      } else {
-        const configured = group.emergencyTypes ?? [];
-        const handlesAll = configured.length === 0;
-        if (handlesAll || configured.includes(code)) count += 1;
-      }
-    }
-    return count;
-  };
+  const circleCountForType = (code: EmergencyType) =>
+    groupId
+      ? countCirclesForEmergencyType(groups, code, {
+          groupId,
+          types: [...selected],
+        })
+      : countCirclesForEmergencyType(groups, code);
 
   useEffect(() => {
     if (!hydrated && current.data) {
@@ -152,7 +146,7 @@ export default function GroupEmergencyTypesScreen() {
                     </Text>
                     {circleCount > 0 ? (
                       <Text variant="caption" className="mt-0.5 text-responder-light">
-                        {circleCount} {circleCount === 1 ? "circle" : "circles"} respond to this
+                        {formatEmergencyTypeCircleCount(circleCount)} respond to this
                       </Text>
                     ) : (
                       <Text variant="caption" muted className="mt-0.5">
