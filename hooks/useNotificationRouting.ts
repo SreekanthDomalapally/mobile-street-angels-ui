@@ -11,6 +11,7 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { useSOSStore } from '@/stores/sosStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useQueryClient } from '@tanstack/react-query';
 import { router, type Href } from 'expo-router';
 import { useEffect } from 'react';
 
@@ -81,6 +82,7 @@ function routeFromResponse(
 
 export function useNotificationRouting() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!arePushNotificationsSupported() || !isAuthenticated) return;
@@ -106,6 +108,10 @@ export function useNotificationRouting() {
         const parsed = parseNotificationData(data);
         if (!shouldHandleNotification(parsed)) return;
 
+        if (parsed.kind === 'sos_alert') {
+          queryClient.invalidateQueries({ queryKey: ['activity'] });
+        }
+
         if (parsed.kind === 'sos_alert' && !parsed.isOwnAlert && parsed.alertId) {
           navigateForNotification(parsed, false);
         }
@@ -124,5 +130,5 @@ export function useNotificationRouting() {
       receivedSub?.remove();
       responseSub?.remove();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, queryClient]);
 }

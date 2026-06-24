@@ -15,5 +15,6 @@ export function useActivity() {
         );
     },
     retry: 1,
+    staleTime: 0,
   });
 }
