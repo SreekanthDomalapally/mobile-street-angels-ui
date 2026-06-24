@@ -10,8 +10,8 @@ import {
 } from '@/services/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useSOSStore } from '@/stores/sosStore';
+import { queryClient } from '@/lib/queryClient';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { useQueryClient } from '@tanstack/react-query';
 import { router, type Href } from 'expo-router';
 import { useEffect } from 'react';
 
@@ -82,7 +82,6 @@ function routeFromResponse(
 
 export function useNotificationRouting() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!arePushNotificationsSupported() || !isAuthenticated) return;
@@ -130,5 +129,5 @@ export function useNotificationRouting() {
       receivedSub?.remove();
       responseSub?.remove();
     };
-  }, [isAuthenticated, queryClient]);
+  }, [isAuthenticated]);
 }
