@@ -24,6 +24,9 @@
     "preview": {
       "extends": "base",
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_EMERGENCY_DIAL_ENABLED": "false"
+      },
       "android": {
         "buildType": "apk"
       }

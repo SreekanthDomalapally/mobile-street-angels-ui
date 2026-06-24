@@ -34,6 +34,12 @@ const EMERGENCY_BY_REGION: Record<string, string> = {
 
 const DEFAULT_EMERGENCY = '112';
 
+/** Set EXPO_PUBLIC_EMERGENCY_DIAL_ENABLED=false to hide Call 999/911/112 during internal testing. */
+export function isEmergencyDialEnabled(): boolean {
+  const flag = process.env.EXPO_PUBLIC_EMERGENCY_DIAL_ENABLED?.trim().toLowerCase();
+  return flag !== 'false' && flag !== '0';
+}
+
 /** Best-effort region from device locale (no extra native module). */
 export function getDeviceRegion(): string {
   try {

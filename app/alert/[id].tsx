@@ -6,7 +6,11 @@ import { LiveMap } from '@/components/map/LiveMap';
 import { Text } from '@/components/ui/Text';
 import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
 import { distanceKm, estimateEtaMinutes, formatDistance } from '@/lib/geo';
-import { dialEmergencyServices, emergencyDialLabel } from '@/lib/emergencyDial';
+import {
+  dialEmergencyServices,
+  emergencyDialLabel,
+  isEmergencyDialEnabled,
+} from '@/lib/emergencyDial';
 import { fetchAlert, respondToAlert } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import { getCurrentLocation } from '@/services/location';
@@ -210,12 +214,14 @@ export default function AlertResponseScreen() {
               onPress={callUser}
             />
           ) : null}
-          <Button
-            title={emergencyDialLabel()}
-            variant="secondary"
-            icon={<Ionicons name="medkit" size={20} color="#fff" style={{ marginRight: 8 }} />}
-            onPress={callEmergency}
-          />
+          {isEmergencyDialEnabled() ? (
+            <Button
+              title={emergencyDialLabel()}
+              variant="secondary"
+              icon={<Ionicons name="medkit" size={20} color="#fff" style={{ marginRight: 8 }} />}
+              onPress={callEmergency}
+            />
+          ) : null}
           <Button
             title="I can help"
             variant="emergency"
