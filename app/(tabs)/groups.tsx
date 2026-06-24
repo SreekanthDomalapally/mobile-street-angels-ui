@@ -9,7 +9,7 @@ import { TripWatchGroupSection } from '@/components/trip/TripWatchGroupSection';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useGroup } from '@/hooks/useGroup';
-import { useCreateGroup, useGroups } from '@/hooks/useGroups';
+import { useCreateGroup, useGroups, useUpdateGroup } from '@/hooks/useGroups';
 import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
@@ -44,7 +44,11 @@ export default function GroupsScreen() {
   const { selected: selectedParam } = useLocalSearchParams<{ selected?: string }>();
   const { data: groups, isLoading, isError, refetch } = useGroups();
   const createGroupMutation = useCreateGroup();
+  const updateGroupMutation = useUpdateGroup();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [renameVisible, setRenameVisible] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
   const { data: selectedGroup, isLoading: isGroupLoading, refetch: refetchGroup } = useGroup(
     selectedGroupId ?? undefined
   );
@@ -66,7 +70,7 @@ export default function GroupsScreen() {
   }, [groups, selectedGroupId]);
 
   useEffect(() => {
-    if (!modalVisible) {
+    if (!modalVisible && !renameVisible) {
       return;
     }
 
@@ -81,7 +85,7 @@ export default function GroupsScreen() {
       showSub.remove();
       hideSub.remove();
     };
-  }, [modalVisible]);
+  }, [modalVisible, renameVisible]);
 
   useFocusEffect(
     useCallback(() => {
@@ -127,6 +131,52 @@ export default function GroupsScreen() {
     setKeyboardHeight(0);
     setModalVisible(false);
     setFormError(null);
+  };
+
+  const openRename = (currentName: string) => {
+    setRenameValue(currentName);
+    setRenameError(null);
+    setRenameVisible(true);
+  };
+
+  const closeRename = () => {
+    Keyboard.dismiss();
+    setKeyboardHeight(0);
+    setRenameVisible(false);
+    setRenameError(null);
+  };
+
+  const onRename = async () => {
+    if (!selectedGroupId) return;
+    const trimmed = renameValue.trim();
+    if (trimmed.length < 2) {
+      setRenameError('Name must be at least 2 characters');
+      return;
+    }
+    const clash = (groups ?? []).some(
+      (group) =>
+        group.id !== selectedGroupId &&
+        group.myRole === 'owner' &&
+        group.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (clash) {
+      setRenameError(`You already have a circle named "${trimmed}".`);
+      return;
+    }
+    try {
+      await updateGroupMutation.mutateAsync({
+        groupId: selectedGroupId,
+        params: { name: trimmed },
+      });
+      closeRename();
+      handleGroupUpdated();
+    } catch (error) {
+      setRenameError(
+        error instanceof ApiError
+          ? error.message
+          : 'Could not rename group. Please try again.'
+      );
+    }
   };
 
   const {
@@ -254,6 +304,34 @@ export default function GroupsScreen() {
                     const role =
                       selectedGroup?.myRole ??
                       groups?.find((g) => g.id === selectedGroupId)?.myRole;
+                    if (role !== 'owner') return null;
+                    const groupName =
+                      selectedGroup?.name ??
+                      groups?.find((g) => g.id === selectedGroupId)?.name ??
+                      '';
+                    return (
+                      <Pressable
+                        onPress={() => openRename(groupName)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Rename circle"
+                        className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
+                      >
+                        <Ionicons name="create-outline" size={20} color="#a0a0a8" />
+                        <View className="flex-1">
+                          <Text variant="body">Rename circle</Text>
+                          <Text variant="caption" muted>
+                            Change the name of this circle you created
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
+                      </Pressable>
+                    );
+                  })()}
+
+                  {(() => {
+                    const role =
+                      selectedGroup?.myRole ??
+                      groups?.find((g) => g.id === selectedGroupId)?.myRole;
                     if (role !== 'owner' && role !== 'admin') return null;
                     const groupName =
                       selectedGroup?.name ??
@@ -358,6 +436,49 @@ export default function GroupsScreen() {
                 title="Create"
                 loading={createGroupMutation.isPending}
                 onPress={handleSubmit(onCreate)}
+              />
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={renameVisible} animationType="slide" transparent onRequestClose={closeRename}>
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable className="flex-1 justify-end bg-black/70" onPress={closeRename}>
+            <Pressable
+              className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
+              style={{
+                paddingBottom:
+                  keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
+              }}
+              onPress={(e) => e.stopPropagation()}>
+              <Text variant="title" className="mb-6">
+                Rename circle
+              </Text>
+              <TextInput
+                className="mb-2 min-h-[52px] rounded-2xl border border-glass-border bg-charcoal-800 px-4 text-base text-white"
+                placeholder="Group name"
+                placeholderTextColor="#6d6d75"
+                value={renameValue}
+                onChangeText={(text) => {
+                  setRenameValue(text);
+                  if (renameError) setRenameError(null);
+                }}
+                autoFocus
+                accessibilityLabel="Group name"
+              />
+              {renameError && (
+                <Text variant="caption" className="mb-4 text-emergency">
+                  {renameError}
+                </Text>
+              )}
+              <Button
+                title="Save"
+                className="mt-4"
+                loading={updateGroupMutation.isPending}
+                onPress={onRename}
               />
             </Pressable>
           </Pressable>
