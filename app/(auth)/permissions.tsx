@@ -1,6 +1,8 @@
 import { AppLogo } from '@/components/ui/AppLogo';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
+import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
+import { openAppSettings } from '@/lib/openAppSettings';
 import { markOnboardingComplete } from '@/services/onboardingState';
 import { requestLocationPermission, requestBackgroundLocationPermission } from '@/services/location';
 import { ensureNotificationPermission } from '@/services/notifications';
@@ -8,8 +10,8 @@ import { syncPushTokenWithServer } from '@/services/pushRegistration';
 import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const steps = [
@@ -36,7 +38,17 @@ export default function PermissionsScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const setPermissionsGranted = useAuthStore((s) => s.setPermissionsGranted);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setShowSettings(false);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const current = steps[stepIndex];
 
@@ -58,14 +70,18 @@ export default function PermissionsScreen() {
       if (current.id === 'location') {
         const granted = await requestLocationPermission();
         if (!granted) {
-          setError('Location is required for emergency alerts.');
+          setError('Location is required for emergency alerts. Enable it in Settings.');
+          setShowSettings(true);
           return;
         }
         await requestBackgroundLocationPermission();
       } else {
         const granted = await ensureNotificationPermission();
         if (!granted) {
-          setError('Notifications are required so you can receive SOS alerts.');
+          setError(
+            'Notifications are required so you can receive SOS alerts. Enable them in Settings.'
+          );
+          setShowSettings(true);
           return;
         }
         // Token may fail on emulators without Google Play / FCM — permission is enough to continue.
@@ -97,9 +113,11 @@ export default function PermissionsScreen() {
       <Text variant="title" className="mb-4">
         {current.title}
       </Text>
-      <Text variant="body" muted className="mb-8 leading-relaxed">
+      <Text variant="body" muted className="mb-6 leading-relaxed">
         {current.description}
       </Text>
+
+      <EmergencyDisclaimer compact className="mb-6" />
 
       {error && (
         <Text variant="caption" className="mb-4 text-emergency">
@@ -109,6 +127,13 @@ export default function PermissionsScreen() {
 
       <View className="mt-auto gap-3">
         <Button title="Allow access" size="lg" loading={loading} onPress={requestCurrent} />
+        {showSettings ? (
+          <Button
+            title="Open Settings"
+            variant="secondary"
+            onPress={() => void openAppSettings()}
+          />
+        ) : null}
       </View>
     </View>
   );

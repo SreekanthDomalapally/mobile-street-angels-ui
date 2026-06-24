@@ -4,7 +4,9 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { LoadingState } from '@/components/common/LoadingState';
 import { LiveMap } from '@/components/map/LiveMap';
 import { Text } from '@/components/ui/Text';
+import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
 import { distanceKm, estimateEtaMinutes, formatDistance } from '@/lib/geo';
+import { dialEmergencyServices, emergencyDialLabel } from '@/lib/emergencyDial';
 import { fetchAlert, respondToAlert } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import { getCurrentLocation } from '@/services/location';
@@ -126,6 +128,15 @@ export default function AlertResponseScreen() {
       `https://maps.google.com/?q=${liveAlert.location.latitude},${liveAlert.location.longitude}`
     );
 
+  const callUser = () => {
+    if (!liveAlert.creatorPhone) return;
+    void Linking.openURL(`tel:${liveAlert.creatorPhone}`);
+  };
+
+  const callEmergency = () => {
+    void dialEmergencyServices().catch(() => undefined);
+  };
+
   const respond = (
     responseType: 'i_can_help' | 'on_my_way' | 'calling_now' | 'unable_to_help',
     etaMinutes?: number
@@ -153,12 +164,16 @@ export default function AlertResponseScreen() {
             <Ionicons name="alert-circle" size={28} color="#e85d5d" />
           </View>
           <View className="flex-1">
-            <Text variant="title">Someone needs help</Text>
+            <Text variant="title">
+              {liveAlert.creatorName ? `${liveAlert.creatorName} needs help` : 'Someone needs help'}
+            </Text>
             <Text variant="caption" muted>
               {liveAlert.type} · {new Date(liveAlert.createdAt).toLocaleTimeString()}
             </Text>
           </View>
         </View>
+
+        <EmergencyDisclaimer compact className="mb-4" />
 
         {distance != null && (
           <GlassCard className="mb-4">
@@ -185,6 +200,22 @@ export default function AlertResponseScreen() {
         )}
 
         <View className="gap-3">
+          {liveAlert.creatorPhone ? (
+            <Button
+              title="Call user"
+              variant="emergency"
+              size="lg"
+              icon={<Ionicons name="call" size={20} color="#fff" style={{ marginRight: 8 }} />}
+              loading={respondMutation.isPending}
+              onPress={callUser}
+            />
+          ) : null}
+          <Button
+            title={emergencyDialLabel()}
+            variant="secondary"
+            icon={<Ionicons name="medkit" size={20} color="#fff" style={{ marginRight: 8 }} />}
+            onPress={callEmergency}
+          />
           <Button
             title="I can help"
             variant="emergency"

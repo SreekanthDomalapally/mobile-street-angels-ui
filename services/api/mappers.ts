@@ -29,6 +29,8 @@ export interface ApiAlertResponseItem {
   response_type: string;
   eta_minutes: number | null;
   distance_km?: number | null;
+  responder_name?: string | null;
+  responder_phone?: string | null;
   created_at: string;
 }
 
@@ -43,6 +45,9 @@ export interface ApiAlertOut {
   status: ApiAlertStatus | string;
   created_at: string;
   resolved_at: string | null;
+  creator_name?: string | null;
+  creator_phone?: string | null;
+  recipient_count?: number | null;
   responses: ApiAlertResponseItem[];
 }
 
@@ -148,10 +153,11 @@ function mapResponseToResponder(item: ApiAlertResponseItem): Responder {
   const status = RESPONSE_TO_STATUS[item.response_type] ?? 'notified';
   return {
     id: item.user_id,
-    name: `Responder ${item.user_id.slice(0, 8)}`,
+    name: item.responder_name?.trim() || `Responder ${item.user_id.slice(0, 8)}`,
     status,
     etaMinutes: item.eta_minutes ?? undefined,
     distanceKm: item.distance_km ?? undefined,
+    phone: item.responder_phone ?? undefined,
   };
 }
 
@@ -197,6 +203,8 @@ export function mapApiAlertToSOSAlert(alert: ApiAlertOut): SOSAlert {
   return {
     id: alert.id,
     userId: alert.created_by,
+    creatorName: alert.creator_name ?? undefined,
+    creatorPhone: alert.creator_phone ?? undefined,
     type: mapApiAlertTypeToEmergency(alert.alert_type),
     status: mapApiStatusToAlertStatus(alert.status, responders.length > 0),
     createdAt: alert.created_at,

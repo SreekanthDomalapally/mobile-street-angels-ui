@@ -204,6 +204,8 @@ export interface TimelineEvent {
 export interface SOSAlert {
   id: string;
   userId: string;
+  creatorName?: string;
+  creatorPhone?: string;
   type: EmergencyType;
   status: AlertStatus;
   createdAt: string;

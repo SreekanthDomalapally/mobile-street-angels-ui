@@ -1,9 +1,9 @@
 import { TripWatchBanner } from "@/components/home/TripWatchBanner";
 import { NearbyResponders } from "@/components/home/NearbyResponders";
 import { ReadinessBanner } from "@/components/home/ReadinessBanner";
-import { SosGroupPicker } from "@/components/home/SosGroupPicker";
 import { StatusIndicator } from "@/components/home/StatusIndicator";
 import { CountdownOverlay } from "@/components/sos/CountdownOverlay";
+import { EmergencyDisclaimer } from "@/components/sos/EmergencyDisclaimer";
 import { EmergencyTypePicker } from "@/components/sos/EmergencyTypePicker";
 import { SOSButton } from "@/components/sos/SOSButton";
 import { AppLogo } from "@/components/ui/AppLogo";
@@ -13,7 +13,7 @@ import { ApiError } from "@/services/api/client";
 import { triggerSOS } from "@/services/sos";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { isSOSLive, useSOSStore } from "@/stores/sosStore";
-import { useFocusEffect, router } from "expo-router";
+import { useFocusEffect, router, type Href } from "expo-router";
 import { useCallback } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -96,6 +96,10 @@ export default function HomeScreen() {
       setActivating(false);
       setCountdown(null);
       cancelArming();
+      if (error instanceof ApiError && error.code === "queued") {
+        router.replace("/sos/pending" as Href);
+        return;
+      }
       setActivationError(
         error instanceof ApiError
           ? error.message
@@ -141,13 +145,15 @@ export default function HomeScreen() {
 
         <ReadinessBanner readiness={readiness} />
 
+        <EmergencyDisclaimer compact className="mb-4" />
+
         {sosInProgress && (
           <Text variant="body" muted className="mb-4">
             Return to your active alert to see responders and end the alert.
           </Text>
         )}
 
-        <SosGroupPicker />
+        <EmergencyTypePicker />
 
         <View className="my-6 items-center">
           <SOSButton onActivate={handleSOSComplete} disabled={!sosEnabled} />
@@ -158,8 +164,6 @@ export default function HomeScreen() {
             {activationError}
           </Text>
         )}
-
-        <EmergencyTypePicker />
 
         <View className="mt-6">
           <TripWatchBanner />

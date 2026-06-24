@@ -1,17 +1,20 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveMap } from '@/components/map/LiveMap';
 import { EventTimeline } from '@/components/sos/EventTimeline';
+import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
 import { ResponderCard } from '@/components/sos/ResponderCard';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
+import { openAppSettings } from '@/lib/openAppSettings';
 import { updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import { getCurrentLocation, requestBackgroundLocationPermission, watchLocation } from '@/services/location';
+import { startBackgroundLocationUpdates } from '@/services/backgroundLocation';
 import { scheduleEmergencyNotification } from '@/services/notifications';
 import { findActiveAlert } from '@/services/sosRecovery';
 import { endSOSAlert } from '@/services/sos';
@@ -29,6 +32,8 @@ export default function SOSActiveScreen() {
     setActiveAlert,
   } = useSOSStore();
   const [recovering, setRecovering] = useState(!activeAlert);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
+  const [locationPushFailed, setLocationPushFailed] = useState(false);
 
   const exitToHome = useCallback(() => {
     resetSOS();
@@ -82,6 +87,7 @@ export default function SOSActiveScreen() {
 
     let cancelled = false;
     let stopWatching: (() => void) | undefined;
+    let stopBackground: (() => Promise<void>) | undefined;
 
     scheduleEmergencyNotification(
       'SOS Active',
@@ -115,23 +121,40 @@ export default function SOSActiveScreen() {
           try {
             await updateAlertLocation(current.id, coords, coords.accuracyMeters);
             setActiveAlert({ ...current, location: coords });
+            setLocationPushFailed(false);
           } catch {
-            // Location updates are best-effort during an active alert.
+            setLocationPushFailed(true);
           }
         };
 
         const freshLocation = await getCurrentLocation({ highAccuracy: true });
+        if (!freshLocation && !cancelled) {
+          setLocationWarning(
+            'Location unavailable — responders may not see your latest position. Check location permissions.'
+          );
+        }
         if (freshLocation && !cancelled) {
           await pushLocation(freshLocation);
         }
 
-        await requestBackgroundLocationPermission();
+        const bgGranted = await requestBackgroundLocationPermission();
+        if (!bgGranted && !cancelled) {
+          setLocationWarning(
+            'Background location is off — your position may stop updating if you leave the app.'
+          );
+        }
 
         if (!cancelled) {
           stopWatching = await watchLocation(pushLocation, { highAccuracy: true });
+          try {
+            stopBackground = await startBackgroundLocationUpdates(pushLocation);
+          } catch {
+            // Foreground watch still active if background task unavailable.
+          }
         }
       } catch (error) {
         console.warn('[sos] Active alert setup failed:', error);
+        setLocationWarning('Could not start live location sharing. Check permissions in Settings.');
       }
     })();
 
@@ -139,6 +162,7 @@ export default function SOSActiveScreen() {
       cancelled = true;
       alertSocket.disconnect();
       stopWatching?.();
+      void stopBackground?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- activeAlert object identity changes on each location tick
   }, [activeAlert?.id, addTimelineEvent, exitToHome, setActiveAlert, updateResponders]);
@@ -152,6 +176,17 @@ export default function SOSActiveScreen() {
     } finally {
       exitToHome();
     }
+  };
+
+  const confirmCancel = () => {
+    Alert.alert(
+      'Cancel SOS alert?',
+      'Your trusted contacts will be told the alert has ended. Only cancel if you are safe.',
+      [
+        { text: 'Keep alert active', style: 'cancel' },
+        { text: 'Cancel alert', style: 'destructive', onPress: () => void handleCancel() },
+      ]
+    );
   };
 
   const handleCancel = async () => {
@@ -196,7 +231,7 @@ export default function SOSActiveScreen() {
             </View>
           </GlassCard>
           <Pressable
-            onPress={handleCancel}
+            onPress={confirmCancel}
             className="rounded-full bg-charcoal-900/90 px-4 py-2"
             accessibilityRole="button"
             accessibilityLabel="Cancel SOS">
@@ -212,9 +247,28 @@ export default function SOSActiveScreen() {
         <Text variant="title" className="mb-1">
           Help is coming
         </Text>
-        <Text variant="body" muted className="mb-6">
+        <Text variant="body" muted className="mb-4">
           {enRouteCount} responder{enRouteCount === 1 ? '' : 's'} on the way
         </Text>
+
+        <EmergencyDisclaimer compact className="mb-4" />
+
+        {(locationWarning || locationPushFailed) && (
+          <View className="mb-4 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+            <Text variant="caption" className="text-warning">
+              {locationPushFailed
+                ? 'Failed to share your location with responders. Check your connection.'
+                : locationWarning}
+            </Text>
+            {locationWarning ? (
+              <Pressable onPress={() => void openAppSettings()} className="mt-2">
+                <Text variant="caption" className="text-responder-light">
+                  Open Settings
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
 
         <Text variant="label" className="mb-3">
           Responders
@@ -234,7 +288,7 @@ export default function SOSActiveScreen() {
 
         <View className="mt-6 gap-3">
           <Button title="I'm safe — end alert" variant="primary" onPress={handleEndAlert} />
-          <Button title="Cancel alert" variant="ghost" onPress={handleCancel} />
+          <Button title="Cancel alert" variant="ghost" onPress={confirmCancel} />
         </View>
       </ScrollView>
     </View>
