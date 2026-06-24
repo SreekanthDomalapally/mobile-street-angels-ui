@@ -56,6 +56,42 @@ export function countCirclesForEmergencyType(
   return count;
 }
 
+/** Unique people (excluding sender) who could be notified across matching circles. */
+export function countUsersForEmergencyType(
+  groups: Group[] | undefined,
+  code: EmergencyType,
+  excludeUserId?: string,
+): number {
+  if (!groups?.length) return 0;
+  const userIds = new Set<string>();
+  let estimate = 0;
+  for (const group of groups) {
+    if (!groupHandlesEmergencyType(group, code)) continue;
+    if (group.members.length > 0) {
+      for (const member of group.members) {
+        if (excludeUserId && member.userId === excludeUserId) continue;
+        userIds.add(member.userId);
+      }
+    } else {
+      estimate += Math.max(0, (group.memberCount ?? 1) - 1);
+    }
+  }
+  return userIds.size > 0 ? userIds.size : estimate;
+}
+
+/** People in one circle who would be notified for this type (excludes sender). */
+export function countUsersForEmergencyTypeInGroup(
+  group: Group | undefined,
+  code: EmergencyType,
+  excludeUserId?: string,
+): number {
+  if (!group || !groupHandlesEmergencyType(group, code)) return 0;
+  if (group.members.length > 0) {
+    return group.members.filter((m) => m.userId !== excludeUserId).length;
+  }
+  return Math.max(0, (group.memberCount ?? 1) - 1);
+}
+
 export function formatEmergencyTypeCircleCount(count: number): string {
   if (count === 0) return 'No circles';
   return count === 1 ? '1 circle' : `${count} circles`;
