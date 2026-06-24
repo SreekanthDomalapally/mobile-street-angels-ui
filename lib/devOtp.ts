@@ -1,4 +1,4 @@
-/** Backend returns dev_otp when API ENVIRONMENT=development (no SMS is sent). */
+/** Backend returns dev_otp when API ENVIRONMENT=development or DEV_OTP_ENABLED=true (no SMS). */
 export function testOtpHint(devOtp?: string | null): string | null {
   const code = devOtp?.trim();
   if (!code) return null;

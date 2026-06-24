@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { OtpInput } from '@/components/auth/OtpInput';
 import { Text } from '@/components/ui/Text';
 import { confirmPhoneSignIn, resendPhoneSignIn, type PhoneSignInSession } from '@/services/firebasePhoneAuth';
+import { getLastDevOtp, setLastDevOtp } from '@/services/phoneAuthSession';
 import { signInWithPhoneSession } from '@/services/auth';
 import { formatPhoneForDisplay } from '@/services/phone';
 import { testOtpHint, usesBackendPhoneOtp } from '@/lib/devOtp';
@@ -20,13 +21,12 @@ export default function OtpVerificationScreen() {
     phone?: string;
     countryCode?: string;
     useBackendOtp?: string;
-    devOtp?: string;
   }>();
   const { setLoading, isLoading } = useAuthStore();
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
-  const [devHint, setDevHint] = useState<string | null>(() => testOtpHint(params.devOtp));
+  const [devHint, setDevHint] = useState<string | null>(() => testOtpHint(getLastDevOtp()));
 
   const session = useMemo<PhoneSignInSession | null>(() => {
     if (!params.phone || !params.countryCode) return null;
@@ -73,8 +73,10 @@ export default function OtpVerificationScreen() {
     try {
       const next = await resendPhoneSignIn(session);
       setSecondsLeft(RESEND_SECONDS);
+      setLastDevOtp(next.devOtp);
       const hint = testOtpHint(next.devOtp);
       if (hint) setDevHint(hint);
+      else setDevHint(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not resend code.');
     } finally {
@@ -119,13 +121,20 @@ export default function OtpVerificationScreen() {
 
       <OtpInput value={otp} onChange={setOtp} disabled={isLoading} />
 
-      {devHint && (
+      {devHint ? (
         <View className="mt-4 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3">
           <Text variant="body" className="text-center text-warning">
             {devHint}
           </Text>
         </View>
-      )}
+      ) : usesBackendPhoneOtp() ? (
+        <View className="mt-4 rounded-2xl border border-emergency/40 bg-emergency/10 px-4 py-3">
+          <Text variant="body" className="text-center text-emergency-glow">
+            No test code from the server. Ask the admin to set DEV_OTP_ENABLED=true on Railway,
+            redeploy the API, then tap Resend code.
+          </Text>
+        </View>
+      ) : null}
 
       <Button
         title="Verify"

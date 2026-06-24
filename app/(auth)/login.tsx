@@ -11,6 +11,7 @@ import {
 import { normalizePhoneE164 } from '@/services/phone';
 import { usesBackendPhoneOtp } from '@/lib/devOtp';
 import { startPhoneSignIn } from '@/services/firebasePhoneAuth';
+import { setLastDevOtp } from '@/services/phoneAuthSession';
 import { useAuthStore } from '@/stores/authStore';
 import { type Href, router } from 'expo-router';
 import { useState } from 'react';
@@ -35,11 +36,11 @@ export default function PhoneLoginScreen() {
     setLoading(true);
     try {
       const session = await startPhoneSignIn(e164, country.code);
+      setLastDevOtp(session.devOtp);
       const query = new URLSearchParams({
         phone: e164,
         countryCode: country.code,
         useBackendOtp: session.useBackendOtp ? '1' : '0',
-        devOtp: session.devOtp ?? '',
       }).toString();
       router.push(`/(auth)/phone-otp?${query}` as Href);
     } catch (err) {
