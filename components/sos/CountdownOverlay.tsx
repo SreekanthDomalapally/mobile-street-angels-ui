@@ -3,7 +3,7 @@ import { Text } from "@/components/ui/Text";
 import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useSOSStore } from "@/stores/sosStore";
 import * as Haptics from "expo-haptics";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Modal, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -30,10 +30,12 @@ export function CountdownOverlay({
   const setCountdown = useSOSStore((s) => s.setCountdown);
   const typeColors = getEmergencyTypeColors(emergencyType);
   const scale = useSharedValue(1);
+  const completingRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
-    if (countdown === null) setCountdown(seconds);
-  }, [countdown, seconds, setCountdown]);
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (loading || countdown === null || countdown < 1) return;
@@ -42,18 +44,23 @@ export function CountdownOverlay({
       withTiming(1.2, { duration: 150 }),
       withTiming(1, { duration: 150 }),
     );
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
 
     const timer = setTimeout(() => {
       if (countdown <= 1) {
-        onComplete();
+        if (completingRef.current) return;
+        completingRef.current = true;
+        void Promise.resolve(onCompleteRef.current()).catch((error) => {
+          completingRef.current = false;
+          console.warn("[sos] Countdown complete failed:", error);
+        });
       } else {
         setCountdown(countdown - 1);
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [countdown, loading, onComplete, setCountdown, scale]);
+  }, [countdown, loading, setCountdown, scale]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

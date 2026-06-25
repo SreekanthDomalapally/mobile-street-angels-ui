@@ -16,6 +16,7 @@ interface SOSState {
   setHoldProgress: (progress: number) => void;
   setCountdown: (count: number | null) => void;
   startArming: () => void;
+  finishArming: () => void;
   cancelArming: () => void;
   setActivating: (value: boolean) => void;
   setActivationError: (message: string | null) => void;
@@ -51,6 +52,7 @@ export const useSOSStore = create<SOSState>((set, get) => ({
   setHoldProgress: (holdProgress) => set({ holdProgress }),
   setCountdown: (countdown) => set({ countdown }),
   startArming: () => set({ status: 'arming', holdProgress: 0, activationError: null }),
+  finishArming: () => set({ status: 'idle', holdProgress: 0 }),
   cancelArming: () => set({ status: 'idle', holdProgress: 0, countdown: null }),
   setActivating: (isActivating) => set({ isActivating }),
   setActivationError: (activationError) => set({ activationError }),

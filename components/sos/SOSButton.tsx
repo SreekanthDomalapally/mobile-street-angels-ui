@@ -8,9 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
   Easing,
-  runOnJS,
   runOnUI,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -24,19 +22,34 @@ interface SOSButtonProps {
   disabled?: boolean;
 }
 
+function safeHaptic(fn: () => Promise<void>) {
+  void fn().catch(() => undefined);
+}
+
 export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   const holdDuration = useSettingsStore((s) => s.emergency.holdDurationMs);
   const emergencyType = useSOSStore((s) => s.emergencyType);
   const status = useSOSStore((s) => s.status);
   const startArming = useSOSStore((s) => s.startArming);
+  const finishArming = useSOSStore((s) => s.finishArming);
   const cancelArming = useSOSStore((s) => s.cancelArming);
   const typeColors = getEmergencyTypeColors(emergencyType);
   const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdCompleted = useRef(false);
-  const [isPressed, setIsPressed] = useState(false);
+  const onActivateRef = useRef(onActivate);
   const [holdHint, setHoldHint] = useState<string | null>(null);
   const pulse = useSharedValue(1);
   const holdProgress = useSharedValue(0);
+
+  const setHoldProgressOnUI = useCallback((progress: number) => {
+    runOnUI((value: number) => {
+      holdProgress.value = value;
+    })(progress);
+  }, [holdProgress]);
+
+  useEffect(() => {
+    onActivateRef.current = onActivate;
+  }, [onActivate]);
 
   useEffect(() => {
     if (disabled || status !== "idle") {
@@ -51,11 +64,7 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   }, [disabled, pulse, status]);
 
   const pulseStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        scale: status === "idle" && !isPressed ? pulse.value : 1,
-      },
-    ],
+    transform: [{ scale: pulse.value }],
   }));
 
   const ringStyle = useAnimatedStyle(() => ({
@@ -64,50 +73,54 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   }));
 
   const progressBarStyle = useAnimatedStyle(() => ({
-    width: `${holdProgress.value * 100}%`,
+    transform: [{ scaleX: holdProgress.value }],
   }));
 
-  const clearHold = useCallback(() => {
+  const stopHoldTimer = useCallback(() => {
     if (holdTimer.current) {
       clearInterval(holdTimer.current);
       holdTimer.current = null;
     }
-    runOnUI(() => {
-      "worklet";
-      holdProgress.value = 0;
-    })();
-    cancelArming();
-    setIsPressed(false);
-  }, [cancelArming]);
+  }, []);
+
+  const resetHoldProgress = useCallback(() => {
+    setHoldProgressOnUI(0);
+  }, [setHoldProgressOnUI]);
+
+  const releaseHold = useCallback(
+    (completed: boolean) => {
+      stopHoldTimer();
+      resetHoldProgress();
+      if (completed) {
+        finishArming();
+      } else {
+        cancelArming();
+      }
+    },
+    [cancelArming, finishArming, resetHoldProgress, stopHoldTimer],
+  );
 
   const startHold = useCallback(() => {
     if (disabled || status !== "idle") return;
     holdCompleted.current = false;
     setHoldHint(null);
-    setIsPressed(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
     startArming();
     const start = Date.now();
     holdTimer.current = setInterval(() => {
       const elapsed = Date.now() - start;
       const progress = Math.min(elapsed / holdDuration, 1);
-      holdProgress.value = progress;
+      setHoldProgressOnUI(progress);
       if (progress >= 1) {
         holdCompleted.current = true;
-        clearHold();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        onActivate();
+        releaseHold(true);
+        safeHaptic(() =>
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+        );
+        onActivateRef.current();
       }
     }, 50);
-  }, [
-    disabled,
-    status,
-    holdDuration,
-    startArming,
-    holdProgress,
-    clearHold,
-    onActivate,
-  ]);
+  }, [disabled, status, holdDuration, startArming, setHoldProgressOnUI, releaseHold]);
 
   const endHold = useCallback(() => {
     if (holdCompleted.current) return;
@@ -115,18 +128,14 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
     if (holdProgress.value > 0 && holdProgress.value < 1) {
       setHoldHint(`Keep holding for ${holdDuration / 1000} seconds to request help`);
     }
-    clearHold();
-  }, [clearHold, holdDuration, holdProgress]);
+    releaseHold(false);
+  }, [holdDuration, holdProgress, releaseHold]);
 
-  useAnimatedReaction(
-    () => holdProgress.value,
-    (value, prev) => {
-      if (Math.floor(value * 20) !== Math.floor((prev ?? 0) * 20)) {
-        runOnJS(useSOSStore.getState().setHoldProgress)(value);
-      }
-    },
-    []
-  );
+  useEffect(() => {
+    return () => {
+      stopHoldTimer();
+    };
+  }, [stopHoldTimer]);
 
   const isArming = status === "arming";
 
@@ -167,7 +176,10 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
         </View>
         {isArming && (
           <View className="absolute bottom-4 left-4 right-4 h-1 overflow-hidden rounded-full bg-white/20">
-            <AnimatedView className="h-full rounded-full bg-white" style={progressBarStyle} />
+            <AnimatedView
+              className="h-full w-full origin-left rounded-full bg-white"
+              style={progressBarStyle}
+            />
           </View>
         )}
       </Pressable>

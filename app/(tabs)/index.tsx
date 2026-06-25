@@ -65,92 +65,98 @@ export default function HomeScreen() {
         return;
       }
 
-      if (
-        !state.activeAlert &&
-        (state.countdown !== null ||
-          state.status === "arming" ||
-          state.isActivating)
-      ) {
+      // Abandoned mid-hold only — do not reset during countdown overlay.
+      if (!state.activeAlert && state.status === "arming" && state.countdown === null) {
         resetSOS();
       }
     }, [resetSOS]),
   );
 
   const handleSOSComplete = () => {
-    if (!sosEnabled || isSOSLive()) return;
+    if (!sosEnabled || isSOSLive() || countdown !== null) return;
     markPerf("sos_press");
     setActivationError(null);
     setCountdown(countdownSeconds);
   };
 
   const handleCountdownComplete = async () => {
-    if (!readiness.ready) {
-      setActivationError(readiness.reason ?? "Complete setup before sending SOS.");
-      setCountdown(null);
-      cancelArming();
-      return;
-    }
+    try {
+      if (!readiness.ready) {
+        setActivationError(readiness.reason ?? "Complete setup before sending SOS.");
+        setCountdown(null);
+        cancelArming();
+        return;
+      }
 
-    if (isSOSLive()) {
+      if (isSOSLive()) {
+        router.replace("/sos/active");
+        return;
+      }
+
+      const groupsList = groups ?? [];
+      if (!groupsList.length) {
+        setActivationError("Create a trusted group before sending an SOS alert.");
+        setCountdown(null);
+        cancelArming();
+        return;
+      }
+
+      setActivating(true);
+      setActivationError(null);
+
+      const location = await getSOSLocation();
+      if (!location) {
+        setActivating(false);
+        setCountdown(null);
+        cancelArming();
+        setActivationError("Location access is required to send an SOS alert.");
+        return;
+      }
+
+      const userId = useAuthStore.getState().user?.id ?? "";
+      setActiveAlert({
+        id: "pending",
+        userId,
+        type: emergencyType,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        location,
+        responders: [],
+        timeline: [],
+      });
       router.replace("/sos/active");
-      return;
-    }
 
-    const groupsList = groups ?? [];
-    if (!groupsList.length) {
-      setActivationError("Create a trusted group before sending an SOS alert.");
-      setCountdown(null);
-      cancelArming();
-      return;
-    }
-
-    setActivating(true);
-    setActivationError(null);
-
-    const location = await getSOSLocation();
-    if (!location) {
+      try {
+        const alert = await triggerSOS({
+          emergencyType,
+          groups: groupsList,
+          location,
+        });
+        markPerf("alert_created");
+        setActiveAlert(alert);
+      } catch (error) {
+        if (error instanceof ApiError && error.code === "queued") {
+          resetSOS();
+          router.replace("/sos/pending" as Href);
+          return;
+        }
+        resetSOS();
+        router.replace("/(tabs)");
+        setActivationError(
+          error instanceof ApiError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "SOS failed. Please try again.",
+        );
+      }
+    } catch (error) {
+      console.warn("[sos] Activation failed:", error);
       setActivating(false);
       setCountdown(null);
       cancelArming();
-      setActivationError("Location access is required to send an SOS alert.");
-      return;
-    }
-
-    const userId = useAuthStore.getState().user?.id ?? "";
-    setActiveAlert({
-      id: "pending",
-      userId,
-      type: emergencyType,
-      status: "active",
-      createdAt: new Date().toISOString(),
-      location,
-      responders: [],
-      timeline: [],
-    });
-    router.replace("/sos/active");
-
-    try {
-      const alert = await triggerSOS({
-        emergencyType,
-        groups: groupsList,
-        location,
-      });
-      markPerf("alert_created");
-      setActiveAlert(alert);
-    } catch (error) {
-      if (error instanceof ApiError && error.code === "queued") {
-        resetSOS();
-        router.replace("/sos/pending" as Href);
-        return;
-      }
-      resetSOS();
-      router.replace("/(tabs)");
       setActivationError(
-        error instanceof ApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "SOS failed. Please try again.",
+        error instanceof Error ? error.message : "SOS failed. Please try again.",
       );
     }
   };
@@ -201,7 +207,10 @@ export default function HomeScreen() {
         <EmergencyTypePicker />
 
         <View className="my-6 items-center">
-          <SOSButton onActivate={handleSOSComplete} disabled={!sosEnabled} />
+          <SOSButton
+            onActivate={handleSOSComplete}
+            disabled={!sosEnabled || countdown !== null}
+          />
         </View>
 
         {activationError && (
