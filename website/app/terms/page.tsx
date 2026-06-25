@@ -16,7 +16,7 @@ export default function TermsPage() {
         <h1 className="text-3xl font-bold mt-6 text-navy dark:text-white">Terms of Service</h1>
         <p className="mt-4 text-muted leading-relaxed">
           YouHooAlert is a community assistance tool, not a replacement for emergency services.
-          Always call local emergency numbers when in immediate danger.
+          If this is a life-threatening emergency, contact your local emergency services directly.
         </p>
         <p className="mt-4 text-muted leading-relaxed">
           Complete terms will be published before launch. Questions:{" "}

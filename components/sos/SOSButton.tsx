@@ -1,5 +1,4 @@
 import { Text } from "@/components/ui/Text";
-import { sosConfig } from "@/constants/theme";
 import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSOSStore } from "@/stores/sosStore";
@@ -28,6 +27,7 @@ function safeHaptic(fn: () => Promise<void>) {
 
 export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
   const holdDuration = useSettingsStore((s) => s.emergency.holdDurationMs);
+  const countdownSeconds = useSettingsStore((s) => s.emergency.countdownSeconds);
   const emergencyType = useSOSStore((s) => s.emergencyType);
   const status = useSOSStore((s) => s.status);
   const startArming = useSOSStore((s) => s.startArming);
@@ -184,8 +184,7 @@ export function SOSButton({ onActivate, disabled = false }: SOSButtonProps) {
         )}
       </Pressable>
       <Text variant="caption" muted className="mt-6 text-center">
-        Hold {sosConfig.holdDurationMs / 1000}s · then{" "}
-        {sosConfig.countdownSeconds}s countdown
+        Hold {holdDuration / 1000}s · then {countdownSeconds}s countdown
       </Text>
       {holdHint && (
         <Text variant="caption" className="mt-2 text-center text-warning">

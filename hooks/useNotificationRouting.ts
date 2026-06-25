@@ -1,7 +1,5 @@
-import {
-  parseNotificationData,
-  type ParsedNotificationPayload,
-} from '@/lib/notificationPayload';
+import { parseNotificationData, type ParsedNotificationPayload } from '@/lib/notificationPayload';
+import { logSosEvent } from '@/lib/sosLog';
 import { respondToAlert } from '@/services/api/alerts';
 import {
   arePushNotificationsSupported,
@@ -75,6 +73,16 @@ function routeFromResponse(
   replace = false
 ) {
   const parsed = parseNotificationData(data);
+  if (parsed.alertId) {
+    const recipientId = useAuthStore.getState().user?.id;
+    logSosEvent('NOTIFICATION_OPENED', {
+      alert_id: parsed.alertId,
+      sender_user_id: parsed.senderUserId,
+      correlation_id: parsed.correlationId,
+      recipient_user_ids: recipientId ? [recipientId] : undefined,
+      recipient_count: recipientId ? 1 : undefined,
+    });
+  }
   void handleNotificationAction(actionIdentifier, parsed);
   navigateForNotification(parsed, replace);
   void clearNotificationBadge();

@@ -213,6 +213,7 @@ export interface SOSAlert {
   responders: Responder[];
   timeline: TimelineEvent[];
   message?: string;
+  recipientCount?: number;
 }
 
 export interface ActivityItem {

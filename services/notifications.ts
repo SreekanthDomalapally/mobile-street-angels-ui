@@ -114,6 +114,20 @@ function resolveEasProjectId(): string | undefined {
   return extra?.eas?.projectId?.trim() || undefined;
 }
 
+/** Returns true when notification permission is granted (or unavailable in dev). */
+export async function hasNotificationPermission(): Promise<boolean> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return __DEV__;
+  }
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 /** Request notification permission. Required for onboarding — separate from FCM token. */
 export async function ensureNotificationPermission(): Promise<boolean> {
   const Notifications = await loadNotifications();

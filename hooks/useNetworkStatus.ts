@@ -9,7 +9,7 @@ export function useNetworkStatus() {
   const setActiveAlert = useSOSStore((s) => s.setActiveAlert);
 
   const flushQueue = async () => {
-    const alert = await flushPendingSOSQueue();
+    const { alert } = await flushPendingSOSQueue();
     if (!alert) return;
     const { activeAlert } = useSOSStore.getState();
     if (activeAlert) return;

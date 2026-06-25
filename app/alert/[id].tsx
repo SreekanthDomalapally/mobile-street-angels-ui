@@ -6,11 +6,6 @@ import { LiveMap } from '@/components/map/LiveMap';
 import { Text } from '@/components/ui/Text';
 import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
 import { distanceKm, estimateEtaMinutes, formatDistance } from '@/lib/geo';
-import {
-  dialEmergencyServices,
-  emergencyDialLabel,
-  isEmergencyDialEnabled,
-} from '@/lib/emergencyDial';
 import { fetchAlert, respondToAlert } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import { getCurrentLocation } from '@/services/location';
@@ -141,10 +136,6 @@ export default function AlertResponseScreen() {
     void Linking.openURL(`tel:${liveAlert.creatorPhone}`);
   };
 
-  const callEmergency = () => {
-    void dialEmergencyServices().catch(() => undefined);
-  };
-
   const respond = (
     responseType: 'i_can_help' | 'on_my_way' | 'calling_now' | 'unable_to_help',
     etaMinutes?: number
@@ -216,14 +207,6 @@ export default function AlertResponseScreen() {
               icon={<Ionicons name="call" size={20} color="#fff" style={{ marginRight: 8 }} />}
               loading={respondMutation.isPending}
               onPress={callUser}
-            />
-          ) : null}
-          {isEmergencyDialEnabled() ? (
-            <Button
-              title={emergencyDialLabel()}
-              variant="secondary"
-              icon={<Ionicons name="medkit" size={20} color="#fff" style={{ marginRight: 8 }} />}
-              onPress={callEmergency}
             />
           ) : null}
           <Button

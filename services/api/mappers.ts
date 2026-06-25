@@ -227,6 +227,7 @@ export function mapApiAlertToSOSAlert(alert: ApiAlertOut): SOSAlert {
     responders,
     timeline: buildTimelineFromAlert(alert),
     message: alert.message ?? undefined,
+    recipientCount: alert.recipient_count ?? undefined,
   };
 }
 

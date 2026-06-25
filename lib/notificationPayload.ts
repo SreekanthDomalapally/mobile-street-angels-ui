@@ -13,6 +13,8 @@ export interface ParsedNotificationPayload {
   senderName?: string;
   alertType?: string;
   isOwnAlert?: boolean;
+  correlationId?: string;
+  senderUserId?: string;
 }
 
 export function parseNotificationData(
@@ -59,5 +61,19 @@ export function parseNotificationData(
 
   const isOwnAlert = data.is_own_alert === true || data.isOwnAlert === true;
 
-  return { kind, alertId, tripId, senderName, alertType, isOwnAlert };
+  const correlationId =
+    typeof data.correlation_id === 'string'
+      ? data.correlation_id
+      : typeof data.correlationId === 'string'
+        ? data.correlationId
+        : undefined;
+
+  const senderUserId =
+    typeof data.sender_user_id === 'string'
+      ? data.sender_user_id
+      : typeof data.senderUserId === 'string'
+        ? data.senderUserId
+        : undefined;
+
+  return { kind, alertId, tripId, senderName, alertType, isOwnAlert, correlationId, senderUserId };
 }

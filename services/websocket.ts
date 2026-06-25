@@ -99,7 +99,11 @@ export class AlertWebSocket {
     }
 
     if (type === 'alert_resolved' || type === 'alert_created') {
-      const status = String(payload.status ?? type);
+      const rawStatus = String(payload.status ?? '');
+      const status =
+        rawStatus === 'resolved' || type === 'alert_resolved'
+          ? 'resolved'
+          : rawStatus || type;
       this.onStatus?.(status);
     }
   }

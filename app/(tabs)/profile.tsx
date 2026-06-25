@@ -70,6 +70,15 @@ export default function ProfileScreen() {
           showChevron
           onPress={() => router.push("/responder-profile")}
         />
+        {__DEV__ ? (
+          <SettingsRow
+            label="SOS debug tools"
+            description="Location, push, WebSocket tests"
+            icon="bug-outline"
+            showChevron
+            onPress={() => router.push("/debug/sos")}
+          />
+        ) : null}
       </View>
 
       <Text variant="label" className="mb-2">

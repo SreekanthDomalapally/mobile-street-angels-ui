@@ -12,7 +12,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
 import { openAppSettings } from '@/lib/openAppSettings';
 import { markPerf } from '@/lib/perf';
-import { updateAlertLocation } from '@/services/api/alerts';
+import { fetchAlert, updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import {
   getCurrentLocationIfPermitted,
@@ -40,6 +40,7 @@ export default function SOSActiveScreen() {
   const [recovering, setRecovering] = useState(!activeAlert);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [locationPushFailed, setLocationPushFailed] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
 
   const mapLocation = liveLocation ?? activeAlert?.location ?? null;
 
@@ -89,6 +90,20 @@ export default function SOSActiveScreen() {
   }, [activeAlert, setActiveAlert]);
 
   useEffect(() => {
+    if (!activeAlert || activeAlert.id === 'pending' || wsConnected) return;
+
+    const interval = setInterval(() => {
+      void fetchAlert(activeAlert.id)
+        .then((fresh) => {
+          setActiveAlert(fresh);
+        })
+        .catch(() => undefined);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [activeAlert, setActiveAlert, wsConnected]);
+
+  useEffect(() => {
     if (!activeAlert) return;
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
@@ -134,6 +149,9 @@ export default function SOSActiveScreen() {
         alertSocket.onLocationUpdate((coords) => {
           setLiveLocation(coords);
         });
+        if (!cancelled) {
+          setWsConnected(true);
+        }
 
         const pushLocation = async (coords: Coordinates) => {
           const current = useSOSStore.getState().activeAlert;
@@ -202,6 +220,7 @@ export default function SOSActiveScreen() {
 
     return () => {
       cancelled = true;
+      setWsConnected(false);
       appStateSub?.remove();
       alertSocket.disconnect();
       stopWatching?.();
@@ -219,11 +238,33 @@ export default function SOSActiveScreen() {
     if (!activeAlert || activeAlert.id === 'pending') return;
     try {
       await endSOSAlert(activeAlert.id);
+      exitToHome();
     } catch (error) {
       console.warn('[sos] Failed to resolve alert on server:', error);
-    } finally {
-      exitToHome();
+      Alert.alert(
+        'Could not end alert',
+        'We could not confirm the alert ended on the server. Try again when you have a connection.',
+        [
+          { text: 'Keep alert active', style: 'cancel' },
+          {
+            text: 'End locally anyway',
+            style: 'destructive',
+            onPress: () => exitToHome(),
+          },
+        ],
+      );
     }
+  };
+
+  const confirmEndAlert = () => {
+    Alert.alert(
+      'Are you safe and ready to resolve this alert?',
+      'Your trusted contacts will be told the alert has ended.',
+      [
+        { text: 'Keep alert active', style: 'cancel' },
+        { text: 'Yes, end alert', onPress: () => void handleEndAlert() },
+      ],
+    );
   };
 
   const confirmCancel = () => {
@@ -295,7 +336,9 @@ export default function SOSActiveScreen() {
         <Text variant="body" muted className="mb-4">
           {sending
             ? 'Notifying your trusted contacts now.'
-            : `${enRouteCount} responder${enRouteCount === 1 ? '' : 's'} on the way`}
+            : activeAlert.recipientCount != null
+              ? `${activeAlert.recipientCount} contact${activeAlert.recipientCount === 1 ? '' : 's'} notified · ${enRouteCount} responder${enRouteCount === 1 ? '' : 's'} on the way`
+              : `${enRouteCount} responder${enRouteCount === 1 ? '' : 's'} on the way`}
         </Text>
 
         <EmergencyDisclaimer compact className="mb-4" />
@@ -337,7 +380,7 @@ export default function SOSActiveScreen() {
           <Button
             title="I'm safe — end alert"
             variant="primary"
-            onPress={handleEndAlert}
+            onPress={confirmEndAlert}
             disabled={sending}
           />
           <Button title="Cancel alert" variant="ghost" onPress={confirmCancel} />

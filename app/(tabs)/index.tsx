@@ -1,6 +1,7 @@
 import { TripWatchBanner } from "@/components/home/TripWatchBanner";
 import { NearbyResponders } from "@/components/home/NearbyResponders";
 import { ReadinessBanner } from "@/components/home/ReadinessBanner";
+import { SosGroupPicker, getSelectedSosGroupId } from "@/components/home/SosGroupPicker";
 import { StatusIndicator } from "@/components/home/StatusIndicator";
 import { CountdownOverlay } from "@/components/sos/CountdownOverlay";
 import { EmergencyDisclaimer } from "@/components/sos/EmergencyDisclaimer";
@@ -11,16 +12,26 @@ import { Text } from "@/components/ui/Text";
 import { useGroups } from "@/hooks/useGroups";
 import { useSOSReadiness } from "@/hooks/useSOSReadiness";
 import { markPerf } from "@/lib/perf";
+import { logSosEvent } from "@/lib/sosLog";
 import { ApiError } from "@/services/api/client";
 import { getSOSLocation } from "@/services/location";
 import { triggerSOS } from "@/services/sos";
-import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useAuthStore } from "@/stores/authStore";
 import { isSOSLive, useSOSStore } from "@/stores/sosStore";
+import type { Group } from "@/types";
 import { useFocusEffect, router, type Href } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+function countPotentialRecipients(groups: Group[], groupId: string | undefined): number {
+  if (!groupId) return 0;
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) return 0;
+  const members = group.memberCount ?? group.members?.length ?? 0;
+  return Math.max(0, members - 1);
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +40,7 @@ export default function HomeScreen() {
   const countdownSeconds = useSettingsStore(
     (s) => s.emergency.countdownSeconds,
   );
+  const defaultSosGroupId = useSettingsStore((s) => s.emergency.defaultSosGroupId);
   const emergencyType = useSOSStore((s) => s.emergencyType);
   const status = useSOSStore((s) => s.status);
   const countdown = useSOSStore((s) => s.countdown);
@@ -101,6 +113,18 @@ export default function HomeScreen() {
         return;
       }
 
+      const selectedGroupId = getSelectedSosGroupId(groupsList, defaultSosGroupId);
+      const recipientCount = countPotentialRecipients(groupsList, selectedGroupId);
+      if (recipientCount < 1) {
+        setActivating(false);
+        setCountdown(null);
+        cancelArming();
+        setActivationError(
+          "Add at least one other active member to your group before sending SOS.",
+        );
+        return;
+      }
+
       setActivating(true);
       setActivationError(null);
 
@@ -113,35 +137,37 @@ export default function HomeScreen() {
         return;
       }
 
-      const userId = useAuthStore.getState().user?.id ?? "";
-      setActiveAlert({
-        id: "pending",
-        userId,
-        type: emergencyType,
-        status: "active",
-        createdAt: new Date().toISOString(),
-        location,
-        responders: [],
-        timeline: [],
-      });
-      router.replace("/sos/active");
-
       try {
+        logSosEvent("SOS_TRIGGERED", {
+          sender_user_id: useAuthStore.getState().user?.id,
+          recipient_count: recipientCount,
+        });
         const alert = await triggerSOS({
           emergencyType,
           groups: groupsList,
+          groupId: selectedGroupId,
           location,
         });
         markPerf("alert_created");
+        logSosEvent('ALERT_CREATED', {
+          alert_id: alert.id,
+          sender_user_id: alert.userId,
+          recipient_count: alert.recipientCount,
+          correlation_id: undefined,
+        });
         setActiveAlert(alert);
+        setCountdown(null);
+        setActivating(false);
+        router.replace("/sos/active");
       } catch (error) {
+        setActivating(false);
+        setCountdown(null);
+        cancelArming();
         if (error instanceof ApiError && error.code === "queued") {
           resetSOS();
           router.replace("/sos/pending" as Href);
           return;
         }
-        resetSOS();
-        router.replace("/(tabs)");
         setActivationError(
           error instanceof ApiError
             ? error.message
@@ -205,6 +231,8 @@ export default function HomeScreen() {
         )}
 
         <EmergencyTypePicker />
+
+        <SosGroupPicker />
 
         <View className="my-6 items-center">
           <SOSButton

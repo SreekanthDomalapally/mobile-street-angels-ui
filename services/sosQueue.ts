@@ -1,7 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createSOSAlert } from '@/services/api/alerts';
-import { isRetryableError } from '@/lib/retryableError';
+import { shouldKeepQueuedSOS } from '@/lib/retryableError';
 import type { Coordinates, EmergencyType, SOSAlert } from '@/types';
+
+export interface FlushSOSQueueResult {
+  alert: SOSAlert | null;
+  remaining: number;
+  lastError?: string;
+}
 
 const QUEUE_KEY = 'street-angels-pending-sos';
 
@@ -33,12 +39,17 @@ export async function clearPendingSOSQueue(): Promise<void> {
   await AsyncStorage.removeItem(QUEUE_KEY);
 }
 
-export async function flushPendingSOSQueue(): Promise<SOSAlert | null> {
+function flushErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Failed to send SOS alert.';
+}
+
+export async function flushPendingSOSQueue(): Promise<FlushSOSQueueResult> {
   const queue = await getPendingSOSQueue();
-  if (!queue.length) return null;
+  if (!queue.length) return { alert: null, remaining: 0 };
 
   const remaining: PendingSOSPayload[] = [];
   let lastSent: SOSAlert | null = null;
+  let lastError: string | undefined;
 
   for (const item of queue) {
     try {
@@ -49,7 +60,8 @@ export async function flushPendingSOSQueue(): Promise<SOSAlert | null> {
         message: item.message,
       });
     } catch (error) {
-      if (isRetryableError(error)) {
+      lastError = flushErrorMessage(error);
+      if (shouldKeepQueuedSOS(error)) {
         remaining.push(item);
       } else {
         console.warn('[sosQueue] Dropping non-retryable queued alert:', error);
@@ -63,5 +75,5 @@ export async function flushPendingSOSQueue(): Promise<SOSAlert | null> {
     await clearPendingSOSQueue();
   }
 
-  return lastSent;
+  return { alert: lastSent, remaining: remaining.length, lastError };
 }

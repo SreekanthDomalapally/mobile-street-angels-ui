@@ -6,12 +6,16 @@ export interface SOSReadiness {
   reason: string | null;
   ctaHref: string | null;
   ctaLabel: string | null;
+  warning?: string | null;
+  warningCtaHref?: string | null;
+  warningCtaLabel?: string | null;
 }
 
 export function evaluateSOSReadiness(
   flags: OnboardingFlags,
   groups: Group[] | undefined,
-  locationGranted: boolean
+  locationGranted: boolean,
+  notificationsGranted = true
 ): SOSReadiness {
   if (!flags.is_phone_verified) {
     return {
@@ -64,6 +68,18 @@ export function evaluateSOSReadiness(
       reason: 'Finish setup to activate emergency alerts.',
       ctaHref: onboardingStepToHref(flags.next_step),
       ctaLabel: 'Continue setup',
+    };
+  }
+
+  if (!notificationsGranted) {
+    return {
+      ready: true,
+      reason: null,
+      ctaHref: null,
+      ctaLabel: null,
+      warning: 'Enable notifications so you receive responder updates.',
+      warningCtaHref: '/(auth)/permissions',
+      warningCtaLabel: 'Enable notifications',
     };
   }
 

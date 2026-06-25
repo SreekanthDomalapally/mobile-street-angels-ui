@@ -39,7 +39,22 @@ function parseApiErrorMessage(body: unknown, status: number): string {
   if (status === 502) {
     return SERVICE_UNAVAILABLE_MESSAGE;
   }
-  if (typeof record.error === 'string') return toUserFacingErrorMessage(record.error);
+  if (typeof record.error === 'string') {
+    if (record.error === 'Validation failed' && Array.isArray(record.details)) {
+      const detailText = record.details
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object' && 'msg' in item) {
+            return String((item as { msg: unknown }).msg);
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      if (detailText) return toUserFacingErrorMessage(detailText);
+    }
+    return toUserFacingErrorMessage(record.error);
+  }
   if (typeof record.message === 'string') {
     if (record.message === 'Application failed to respond') {
       return SERVICE_UNAVAILABLE_MESSAGE;

@@ -1,24 +1,28 @@
 import { evaluateSOSReadiness } from '@/lib/sosReadiness';
 import { hasLocationPermission } from '@/services/location';
+import { hasNotificationPermission } from '@/services/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useGroups } from '@/hooks/useGroups';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import type { SOSReadiness } from '@/lib/sosReadiness';
 
 export function useSOSReadiness() {
   const flags = useAuthStore((s) => s.onboardingFlags);
   const { data: groups } = useGroups();
   const [locationGranted, setLocationGranted] = useState(false);
+  const [notificationsGranted, setNotificationsGranted] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    void hasLocationPermission().then((granted) => {
-      if (!cancelled) setLocationGranted(granted);
-    });
-    return () => {
-      cancelled = true;
-    };
+  const refreshPermissions = useCallback(() => {
+    void hasLocationPermission().then(setLocationGranted);
+    void hasNotificationPermission().then(setNotificationsGranted);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshPermissions();
+    }, [refreshPermissions]),
+  );
 
   const readiness = useMemo<SOSReadiness>(() => {
     if (!flags) {
@@ -29,8 +33,8 @@ export function useSOSReadiness() {
         ctaLabel: null,
       };
     }
-    return evaluateSOSReadiness(flags, groups, locationGranted);
-  }, [flags, groups, locationGranted]);
+    return evaluateSOSReadiness(flags, groups, locationGranted, notificationsGranted);
+  }, [flags, groups, locationGranted, notificationsGranted]);
 
-  return { readiness, locationGranted, flags };
+  return { readiness, locationGranted, notificationsGranted, flags, refreshPermissions };
 }
