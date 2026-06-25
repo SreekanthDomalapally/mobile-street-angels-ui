@@ -10,6 +10,7 @@ import type {
   SOSAlert,
   TimelineEvent,
 } from '@/types';
+import { getEmergencyTypeLabel } from '@/lib/emergencyTypeLabels';
 
 /** API alert_type enum values — canonical vocabulary shared with the app. */
 export type ApiAlertType =
@@ -175,6 +176,10 @@ function mapResponseToResponder(item: ApiAlertResponseItem): Responder {
   };
 }
 
+function apiAlertResponses(alert: ApiAlertOut): ApiAlertResponseItem[] {
+  return Array.isArray(alert.responses) ? alert.responses : [];
+}
+
 function buildTimelineFromAlert(alert: ApiAlertOut): TimelineEvent[] {
   const events: TimelineEvent[] = [
     {
@@ -186,7 +191,7 @@ function buildTimelineFromAlert(alert: ApiAlertOut): TimelineEvent[] {
     },
   ];
 
-  for (const response of alert.responses) {
+  for (const response of apiAlertResponses(alert)) {
     events.push({
       id: response.id,
       timestamp: response.created_at,
@@ -213,7 +218,8 @@ function responseLabel(responseType: string): string {
 }
 
 export function mapApiAlertToSOSAlert(alert: ApiAlertOut): SOSAlert {
-  const responders = alert.responses.map(mapResponseToResponder);
+  const responses = apiAlertResponses(alert);
+  const responders = responses.map(mapResponseToResponder);
   return {
     id: alert.id,
     userId: alert.created_by,
@@ -300,14 +306,15 @@ export function mapGroupToActivityItem(group: ApiGroupOut): ActivityItem {
 
 export function mapAlertToActivityItem(alert: ApiAlertOut): ActivityItem {
   const emergency = mapApiAlertTypeToEmergency(alert.alert_type);
-  const status = mapApiStatusToAlertStatus(alert.status, alert.responses.length > 0);
+  const responses = apiAlertResponses(alert);
+  const status = mapApiStatusToAlertStatus(alert.status, responses.length > 0);
   return {
     id: `alert-${alert.id}`,
     alertId: alert.id,
     type: 'alert',
-    title: `SOS — ${emergency}`,
+    title: `SOS — ${getEmergencyTypeLabel(emergency)}`,
     subtitle: alert.message ?? 'Emergency alert in your trusted group',
-    timestamp: alert.created_at,
+    timestamp: alert.created_at ?? new Date().toISOString(),
     status,
   };
 }

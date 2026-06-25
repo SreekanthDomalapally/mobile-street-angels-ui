@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { Text } from "@/components/ui/Text";
-import { useActivity } from "@/hooks/useActivity";
+import { useActivity, getActivityErrorMessage } from "@/hooks/useActivity";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { ScrollView, View } from "react-native";
@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
-  const { data: items, isLoading, isError, refetch, isRefetching } = useActivity();
+  const { data: items, isLoading, isError, error, refetch, isRefetching } = useActivity();
 
   useFocusEffect(
     useCallback(() => {
@@ -29,7 +29,12 @@ export default function ActivityScreen() {
       </View>
 
       {isLoading && !isRefetching && <LoadingState message="Loading activity…" />}
-      {isError && <ErrorState onRetry={() => refetch()} />}
+      {isError && (
+        <ErrorState
+          message={getActivityErrorMessage(error)}
+          onRetry={() => refetch()}
+        />
+      )}
       {!isLoading && !isError && (
         <ScrollView
           className="flex-1 px-5"
