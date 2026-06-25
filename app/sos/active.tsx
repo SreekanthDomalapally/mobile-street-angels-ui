@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, AppState, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { AppState, BackHandler, Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveMap } from '@/components/map/LiveMap';
 import { EventTimeline } from '@/components/sos/EventTimeline';
@@ -12,6 +12,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { Text } from '@/components/ui/Text';
 import { openAppSettings } from '@/lib/openAppSettings';
 import { markPerf } from '@/lib/perf';
+import { ApiError } from '@/services/api/client';
 import { fetchAlert, updateAlertLocation } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import {
@@ -41,6 +42,9 @@ export default function SOSActiveScreen() {
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [locationPushFailed, setLocationPushFailed] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [endSheetOpen, setEndSheetOpen] = useState(false);
+  const [endSheetError, setEndSheetError] = useState<string | null>(null);
+  const [endingAlert, setEndingAlert] = useState(false);
 
   const mapLocation = liveLocation ?? activeAlert?.location ?? null;
 
@@ -160,7 +164,9 @@ export default function SOSActiveScreen() {
             await updateAlertLocation(current.id, coords, coords.accuracyMeters);
             setLiveLocation(coords);
             setLocationPushFailed(false);
-          } catch {
+          } catch (error) {
+            // Server throttles updates (~every 5s) — not a connection problem.
+            if (error instanceof ApiError && error.status === 422) return;
             setLocationPushFailed(true);
           }
         };
@@ -234,58 +240,40 @@ export default function SOSActiveScreen() {
     updateResponders,
   ]);
 
+  const openEndSheet = useCallback(() => {
+    setEndSheetError(null);
+    setEndSheetOpen(true);
+  }, []);
+
+  const closeEndSheet = useCallback(() => {
+    if (endingAlert) return;
+    setEndSheetOpen(false);
+    setEndSheetError(null);
+  }, [endingAlert]);
+
   const handleEndAlert = async () => {
     if (!activeAlert || activeAlert.id === 'pending') return;
+    setEndingAlert(true);
+    setEndSheetError(null);
     try {
       await endSOSAlert(activeAlert.id);
+      setEndSheetOpen(false);
       exitToHome();
     } catch (error) {
       console.warn('[sos] Failed to resolve alert on server:', error);
-      Alert.alert(
-        'Could not end alert',
-        'We could not confirm the alert ended on the server. Try again when you have a connection.',
-        [
-          { text: 'Keep alert active', style: 'cancel' },
-          {
-            text: 'End locally anyway',
-            style: 'destructive',
-            onPress: () => exitToHome(),
-          },
-        ],
+      setEndSheetError(
+        error instanceof ApiError
+          ? error.message
+          : 'Could not reach the server. Check your connection and try again.',
       );
+    } finally {
+      setEndingAlert(false);
     }
   };
 
-  const confirmEndAlert = () => {
-    Alert.alert(
-      'Are you safe and ready to resolve this alert?',
-      'Your trusted contacts will be told the alert has ended.',
-      [
-        { text: 'Keep alert active', style: 'cancel' },
-        { text: 'Yes, end alert', onPress: () => void handleEndAlert() },
-      ],
-    );
-  };
-
-  const confirmCancel = () => {
-    Alert.alert(
-      'Cancel SOS alert?',
-      'Your trusted contacts will be told the alert has ended. Only cancel if you are safe.',
-      [
-        { text: 'Keep alert active', style: 'cancel' },
-        { text: 'Cancel alert', style: 'destructive', onPress: () => void handleCancel() },
-      ]
-    );
-  };
-
-  const handleCancel = async () => {
-    if (activeAlert && activeAlert.id !== 'pending') {
-      try {
-        await endSOSAlert(activeAlert.id);
-      } catch {
-        // Still clear local state if network fails.
-      }
-    }
+  const handleEndLocally = () => {
+    setEndSheetOpen(false);
+    setEndSheetError(null);
     exitToHome();
   };
 
@@ -317,11 +305,11 @@ export default function SOSActiveScreen() {
             </View>
           </GlassCard>
           <Pressable
-            onPress={confirmCancel}
+            onPress={openEndSheet}
             className="rounded-full bg-charcoal-900/90 px-4 py-2"
             accessibilityRole="button"
-            accessibilityLabel="Cancel SOS">
-            <Text variant="caption">Cancel</Text>
+            accessibilityLabel="End SOS alert">
+            <Text variant="caption">End alert</Text>
           </Pressable>
         </View>
       </View>
@@ -376,16 +364,82 @@ export default function SOSActiveScreen() {
         </Text>
         <EventTimeline events={activeAlert.timeline} />
 
-        <View className="mt-6 gap-3">
+        <View className="mt-6">
           <Button
             title="I'm safe — end alert"
             variant="primary"
-            onPress={confirmEndAlert}
+            size="lg"
+            onPress={openEndSheet}
             disabled={sending}
           />
-          <Button title="Cancel alert" variant="ghost" onPress={confirmCancel} />
         </View>
       </ScrollView>
+
+      <Modal
+        visible={endSheetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEndSheet}>
+        <Pressable
+          className="flex-1 justify-end bg-black/60"
+          onPress={closeEndSheet}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss">
+          <Pressable
+            className="rounded-t-3xl bg-charcoal-900 px-5 pt-6"
+            style={{ paddingBottom: insets.bottom + 24 }}
+            onPress={(event) => event.stopPropagation()}>
+            <Text variant="title" className="mb-2 text-center">
+              {endSheetError ? 'Could not end alert' : "You're safe?"}
+            </Text>
+            <Text variant="body" muted className="mb-6 text-center leading-relaxed">
+              {endSheetError ??
+                'Your trusted contacts will be notified that this alert has ended. Only continue if you are safe.'}
+            </Text>
+            <View className="gap-3">
+              {endSheetError ? (
+                <>
+                  <Button
+                    title="Try again"
+                    variant="primary"
+                    size="lg"
+                    loading={endingAlert}
+                    onPress={() => void handleEndAlert()}
+                  />
+                  <Button
+                    title="End on this phone only"
+                    variant="ghost"
+                    onPress={handleEndLocally}
+                    disabled={endingAlert}
+                  />
+                  <Button
+                    title="Keep alert active"
+                    variant="secondary"
+                    onPress={closeEndSheet}
+                    disabled={endingAlert}
+                  />
+                </>
+              ) : (
+                <>
+                  <Button
+                    title="Yes, I'm safe — end alert"
+                    variant="primary"
+                    size="lg"
+                    loading={endingAlert}
+                    onPress={() => void handleEndAlert()}
+                  />
+                  <Button
+                    title="Not yet — keep alert active"
+                    variant="ghost"
+                    onPress={closeEndSheet}
+                    disabled={endingAlert}
+                  />
+                </>
+              )}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
