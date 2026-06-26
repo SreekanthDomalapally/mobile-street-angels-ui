@@ -152,6 +152,11 @@ export default function HomeScreen() {
       }
 
       try {
+        logSosEvent('SOS_BUTTON_PRESSED', {
+          sender_user_id: useAuthStore.getState().user?.id,
+          selected_emergency_type: emergencyType,
+          recipient_count: recipientCount,
+        });
         logSosEvent("SOS_TRIGGERED", {
           sender_user_id: useAuthStore.getState().user?.id,
           recipient_count: recipientCount,

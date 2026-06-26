@@ -115,6 +115,14 @@ export function useNotificationRouting() {
         const parsed = parseNotificationData(data);
         if (!shouldHandleNotification(parsed)) return;
 
+        if (parsed.kind === 'sos_alert' && parsed.alertId) {
+          logSosEvent('NOTIFICATION_RECEIVED', {
+            alert_id: parsed.alertId,
+            sender_user_id: parsed.senderUserId,
+            correlation_id: parsed.correlationId,
+          });
+        }
+
         if (parsed.kind === 'sos_alert') {
           queryClient.invalidateQueries({ queryKey: ['activity'] });
         }

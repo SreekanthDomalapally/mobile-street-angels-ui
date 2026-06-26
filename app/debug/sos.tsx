@@ -8,12 +8,21 @@ import { useGroups } from '@/hooks/useGroups';
 import { useSOSReadiness } from '@/hooks/useSOSReadiness';
 import { logSosEvent } from '@/lib/sosLog';
 import { createSOSAlert } from '@/services/api/alerts';
+import {
+  fetchAlertDeliveryReport,
+  fetchSosRoutingPreview,
+  sendTestPushToMe,
+  type AlertDeliveryReport,
+  type RoutingPreview,
+} from '@/services/api/debug';
 import { getApiOrigin } from '@/services/api/http';
 import { getSOSLocation } from '@/services/location';
 import {
   hasNotificationPermission,
   registerForPushNotifications,
 } from '@/services/notifications';
+import { syncPushTokenWithServer } from '@/services/pushRegistration';
+import { getStoredPushToken } from '@/services/pushTokenStorage';
 import { getAccessToken } from '@/services/tokens';
 import { alertSocket } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
@@ -46,8 +55,13 @@ export default function SosDebugScreen() {
   const activationError = useSOSStore((s) => s.activationError);
 
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const [pushTokenOnServer, setPushTokenOnServer] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [lastRecipientCount, setLastRecipientCount] = useState<number | null>(null);
+  const [lastNotificationStatus, setLastNotificationStatus] = useState<string | null>(null);
+  const [routingPreview, setRoutingPreview] = useState<RoutingPreview | null>(null);
+  const [deliveryReport, setDeliveryReport] = useState<AlertDeliveryReport | null>(null);
   const [wsStatus, setWsStatus] = useState<'idle' | 'connected' | 'error'>('idle');
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
 
@@ -57,9 +71,11 @@ export default function SosDebugScreen() {
     defaultGroupId,
   );
   const recipientCount = countRecipients(groups, emergencyType, user?.id);
+  const activeMembersCount = groups?.reduce((sum, g) => sum + (g.memberCount ?? g.members.length), 0) ?? 0;
 
   useEffect(() => {
     void registerForPushNotifications().then(setPushToken).catch(() => setPushToken(null));
+    void getStoredPushToken().then((stored) => setPushTokenOnServer(Boolean(stored)));
   }, []);
 
   const runAction = useCallback(async (label: string, fn: () => Promise<void>) => {
@@ -142,11 +158,41 @@ export default function SosDebugScreen() {
           Push token: {pushToken ? `${pushToken.slice(0, 24)}…` : 'none'}
         </Text>
         <Text variant="caption" muted>
-          Groups: {groups?.length ?? 0} · Active recipients (est.): {recipientCount}
+          Push token registered: {pushTokenOnServer ? 'yes' : 'no'}
+        </Text>
+        <Text variant="caption" muted>
+          Selected emergency type: {emergencyType}
+        </Text>
+        <Text variant="caption" muted>
+          SOS group: {selectedGroupId ?? '—'}
+        </Text>
+        <Text variant="caption" muted>
+          Groups: {groups?.length ?? 0} · Active members (all groups): {activeMembersCount}
+        </Text>
+        <Text variant="caption" muted>
+          Est. recipients for type: {recipientCount}
         </Text>
         <Text variant="caption" muted>
           Last alert ID: {activeAlert?.id ?? '—'}
         </Text>
+        <Text variant="caption" muted>
+          Last recipient count: {lastRecipientCount ?? activeAlert?.recipientCount ?? '—'}
+        </Text>
+        <Text variant="caption" muted>
+          Last notification status: {lastNotificationStatus ?? '—'}
+        </Text>
+        {routingPreview ? (
+          <Text variant="caption" muted>
+            Routing preview: {routingPreview.recipient_count} recipient(s)
+          </Text>
+        ) : null}
+        {deliveryReport ? (
+          <Text variant="caption" muted>
+            Delivery: {deliveryReport.delivery_status?.delivered ?? 0} sent ·{' '}
+            {deliveryReport.delivery_status?.failed ?? 0} failed ·{' '}
+            {deliveryReport.recipients_without_tokens.length} no token
+          </Text>
+        ) : null}
         <Text variant="caption" muted>
           Store error: {activationError ?? '—'}
         </Text>
@@ -180,6 +226,18 @@ export default function SosDebugScreen() {
           }
         />
         <Button
+          title="Sync push token to server"
+          variant="secondary"
+          onPress={() =>
+            void runAction('Sync push token', async () => {
+              const token = await syncPushTokenWithServer();
+              setPushToken(token);
+              setPushTokenOnServer(Boolean(token));
+              if (!token) throw new Error('Failed to sync push token');
+            })
+          }
+        />
+        <Button
           title="Test push token registration"
           variant="secondary"
           onPress={() =>
@@ -189,6 +247,31 @@ export default function SosDebugScreen() {
               const token = await registerForPushNotifications();
               setPushToken(token);
               if (!token) throw new Error('No push token returned');
+            })
+          }
+        />
+        <Button
+          title="Test send notification to me"
+          variant="secondary"
+          onPress={() =>
+            void runAction('Test push to me', async () => {
+              await sendTestPushToMe();
+              setLastNotificationStatus('test push sent');
+            })
+          }
+        />
+        <Button
+          title="Test SOS routing preview"
+          variant="secondary"
+          onPress={() =>
+            void runAction('Routing preview', async () => {
+              if (!selectedGroupId) throw new Error('No SOS group selected');
+              const preview = await fetchSosRoutingPreview(emergencyType, selectedGroupId);
+              setRoutingPreview(preview);
+              setLastRecipientCount(preview.recipient_count);
+              setLastAction(
+                `Routing: ${preview.recipient_count} recipients — ${preview.recipient_user_ids.join(', ')}`,
+              );
             })
           }
         />
@@ -231,7 +314,20 @@ export default function SosDebugScreen() {
                         message: 'SOS debug test',
                       });
                       useSOSStore.getState().setActiveAlert(alert);
+                      setLastRecipientCount(alert.recipientCount ?? null);
                       setLastAction(`Alert created: ${alert.id}`);
+                      try {
+                        const report = await fetchAlertDeliveryReport(alert.id);
+                        setDeliveryReport(report);
+                        const delivered = report.delivery_status?.delivered ?? 0;
+                        const failed = report.delivery_status?.failed ?? 0;
+                        const pending = report.delivery_status?.pending ?? 0;
+                        setLastNotificationStatus(
+                          `queued: ${report.recipient_count} · delivered: ${delivered} · failed: ${failed} · pending: ${pending}`,
+                        );
+                      } catch {
+                        setLastNotificationStatus('delivery report pending (refresh in a few seconds)');
+                      }
                     }),
                 },
               ],
