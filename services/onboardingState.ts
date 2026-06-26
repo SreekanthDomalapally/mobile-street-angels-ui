@@ -3,6 +3,8 @@ import { countAcceptedTrustedContacts } from '@/services/api/trustedContacts';
 import { fetchGroups } from '@/services/api/groups';
 import { fetchOnboardingStatus } from '@/services/api/auth';
 import { patchOnboardingProgress } from '@/services/api/onboarding';
+import { hasLocationPermission } from '@/services/location';
+import { hasNotificationPermission } from '@/services/notifications';
 import {
   getContactsSynced,
   getTrustedMinimumMet,
@@ -66,6 +68,17 @@ async function computeAndStoreFlags(): Promise<OnboardingFlags> {
     existingFlags?.groups_created_count ?? 0
   );
 
+  const [notificationsGranted, locationGranted] = await Promise.all([
+    hasNotificationPermission(),
+    hasLocationPermission(),
+  ]);
+  const runtimePermissionsOk = notificationsGranted && locationGranted;
+  if (state.hasGrantedPermissions && !runtimePermissionsOk) {
+    state.setPermissionsGranted(false);
+  } else if (!state.hasGrantedPermissions && runtimePermissionsOk) {
+    state.setPermissionsGranted(true);
+  }
+
   const flags = computeOnboardingFlags({
     isAuthenticated: state.isAuthenticated,
     phoneVerified: Boolean(user?.phoneVerified || state.hasVerifiedPhone),
@@ -73,7 +86,7 @@ async function computeAndStoreFlags(): Promise<OnboardingFlags> {
     trustedContactsCount,
     groupsCreatedCount,
     hasCompletedIntro: state.hasCompletedOnboarding,
-    hasDevicePermissions: state.hasGrantedPermissions,
+    hasDevicePermissions: runtimePermissionsOk,
     apiOnboardingComplete: apiOnboarding?.onboarding_complete,
     onboarding: apiOnboarding,
   });

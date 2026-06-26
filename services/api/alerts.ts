@@ -23,11 +23,17 @@ export async function createSOSAlert(params: CreateAlertParams): Promise<SOSAler
   };
 
   const { logSosEvent } = await import('@/lib/sosLog');
-  logSosEvent('create_alert_payload', { create_alert_payload: body });
+  logSosEvent('SOS_CREATE_ALERT_PAYLOAD', { create_alert_payload: body });
 
   const alert = await authenticatedRequest<ApiAlertOut>('/alerts', {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+
+  logSosEvent('SOS_CREATE_ALERT_RESPONSE', {
+    alert_id: alert.id,
+    recipient_count: alert.recipient_count ?? undefined,
+    sender_user_id: alert.created_by,
   });
 
   return mapApiAlertToSOSAlert(alert);

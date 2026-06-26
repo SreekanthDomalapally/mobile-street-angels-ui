@@ -80,3 +80,14 @@ export async function fetchSosRoutingPreview(
 export async function sendTestPushToMe(): Promise<void> {
   await debugRequest('/debug/push/test-me', { method: 'POST' });
 }
+
+export async function sendTestPushToGroup(
+  emergencyType: string,
+  groupId: string,
+): Promise<void> {
+  const params = new URLSearchParams({
+    emergency_type: emergencyType,
+    group_id: groupId,
+  });
+  await debugRequest(`/debug/push/test-group?${params.toString()}`, { method: 'POST' });
+}

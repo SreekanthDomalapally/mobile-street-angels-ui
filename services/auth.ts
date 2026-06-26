@@ -68,6 +68,9 @@ export async function registerAndSignIn(params: RegisterParams): Promise<User> {
   await saveAuthTokens(tokens.access_token, tokens.refresh_token);
   const user = await fetchCurrentUser(tokens.access_token);
   await applyOnboardingFromUser(user, tokens.access_token);
+  void syncPushTokenWithServer().catch((error) => {
+    console.warn('[auth] Push token sync after registration failed:', error);
+  });
   return user;
 }
 
@@ -88,6 +91,9 @@ export async function signInWithGoogle(): Promise<User> {
     await saveAuthTokens(tokens.access_token, tokens.refresh_token);
     const user = await fetchCurrentUser(tokens.access_token);
     await applyOnboardingFromUser(user, tokens.access_token);
+    void syncPushTokenWithServer().catch((error) => {
+      console.warn('[auth] Push token sync after Google sign-in failed:', error);
+    });
     return user;
   } catch (error) {
     googleApiError = error;
@@ -109,6 +115,9 @@ export async function signInWithGoogle(): Promise<User> {
     const user = mapApiUser(response.user);
     useAuthStore.getState().setOnboarding(response.onboarding);
     useAuthStore.getState().setUser(user);
+    void syncPushTokenWithServer().catch((error) => {
+      console.warn('[auth] Push token sync after Firebase sign-in failed:', error);
+    });
     return user;
   } catch (firebaseError) {
     console.warn('[auth] Firebase backend login failed:', firebaseError);
@@ -123,6 +132,9 @@ export async function restoreSession(): Promise<User | null> {
   try {
     const user = await fetchCurrentUser(stored.accessToken);
     await applyOnboardingFromUser(user, stored.accessToken);
+    void syncPushTokenWithServer().catch((error) => {
+      console.warn('[auth] Push token sync after session restore failed:', error);
+    });
     return user;
   } catch {
     try {
@@ -130,6 +142,9 @@ export async function restoreSession(): Promise<User | null> {
       await saveAuthTokens(tokens.access_token, tokens.refresh_token);
       const user = await fetchCurrentUser(tokens.access_token);
       await applyOnboardingFromUser(user, tokens.access_token);
+      void syncPushTokenWithServer().catch((error) => {
+        console.warn('[auth] Push token sync after token refresh failed:', error);
+      });
       return user;
     } catch {
       await clearAuthTokens();

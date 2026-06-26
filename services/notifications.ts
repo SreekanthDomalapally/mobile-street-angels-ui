@@ -1,4 +1,6 @@
 import { parseNotificationData } from '@/lib/notificationPayload';
+import { SOS_ALERT_CHANNEL_ID } from '@/lib/notificationChannels';
+import { logSosEvent } from '@/lib/sosLog';
 import { useSettingsStore } from '@/stores/settingsStore';
 import Constants from 'expo-constants';
 import { isRunningInExpoGo } from 'expo';
@@ -38,7 +40,7 @@ async function loadNotifications(): Promise<NotificationsModule | null> {
 
         return {
           shouldShowAlert: shouldShow,
-          shouldPlaySound: shouldShow && !silentMode,
+          shouldPlaySound: shouldShow && (isEmergencyIncoming || !silentMode),
           shouldSetBadge: shouldShow,
           shouldShowBanner: shouldShow,
           shouldShowList: shouldShow,
@@ -58,6 +60,18 @@ async function loadNotifications(): Promise<NotificationsModule | null> {
 
 async function configureNotificationCategories(Notifications: NotificationsModule) {
   if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync(SOS_ALERT_CHANNEL_ID, {
+      name: 'SOS Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 400, 200, 400],
+      lightColor: '#c94a4a',
+      bypassDnd: true,
+      sound: 'default',
+      enableVibrate: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    });
+
+    // Legacy channel kept for older builds / local notifications.
     await Notifications.setNotificationChannelAsync('emergency', {
       name: 'Emergency SOS Alerts',
       importance: Notifications.AndroidImportance.MAX,
@@ -122,6 +136,7 @@ export async function hasNotificationPermission(): Promise<boolean> {
   }
   try {
     const { status } = await Notifications.getPermissionsAsync();
+    logSosEvent('PUSH_PERMISSION_STATUS', { push_permission_status: status });
     return status === 'granted';
   } catch {
     return false;
@@ -182,6 +197,9 @@ export async function registerForPushNotifications(): Promise<string | null> {
       Notifications.getExpoPushTokenAsync({ projectId }),
       15000
     );
+    logSosEvent('EXPO_PUSH_TOKEN_GENERATED', {
+      token_preview: token.data ? `${token.data.slice(0, 28)}…` : undefined,
+    });
     return token.data;
   } catch (error) {
     console.warn('[notifications] Push token unavailable:', error);
@@ -204,7 +222,7 @@ export async function scheduleEmergencyNotification(title: string, body: string)
         priority: Notifications.AndroidNotificationPriority.MAX,
         categoryIdentifier: 'SOS_ALERT',
         data: { type: 'sos_alert', is_own_alert: true },
-        ...(Platform.OS === 'android' ? { channelId: 'emergency' } : {}),
+        ...(Platform.OS === 'android' ? { channelId: SOS_ALERT_CHANNEL_ID } : {}),
       },
       trigger: null,
     });
@@ -221,6 +239,11 @@ export async function clearNotificationBadge(): Promise<void> {
   } catch {
     // Badge clearing is best-effort.
   }
+}
+
+/** Create Android channels + notification handler as early as possible (before remote pushes arrive). */
+export async function initializeNotificationInfrastructure(): Promise<void> {
+  await loadNotifications();
 }
 
 export { loadNotifications };

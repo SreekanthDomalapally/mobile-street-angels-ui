@@ -75,6 +75,13 @@ function routeFromResponse(
   const parsed = parseNotificationData(data);
   if (parsed.alertId) {
     const recipientId = useAuthStore.getState().user?.id;
+    logSosEvent('NOTIFICATION_RESPONSE_OPENED', {
+      alert_id: parsed.alertId,
+      sender_user_id: parsed.senderUserId,
+      correlation_id: parsed.correlationId,
+      recipient_user_ids: recipientId ? [recipientId] : undefined,
+      recipient_count: recipientId ? 1 : undefined,
+    });
     logSosEvent('NOTIFICATION_OPENED', {
       alert_id: parsed.alertId,
       sender_user_id: parsed.senderUserId,
@@ -82,6 +89,7 @@ function routeFromResponse(
       recipient_user_ids: recipientId ? [recipientId] : undefined,
       recipient_count: recipientId ? 1 : undefined,
     });
+    logSosEvent('NOTIFICATION_ALERT_ID', { alert_id: parsed.alertId });
   }
   void handleNotificationAction(actionIdentifier, parsed);
   navigateForNotification(parsed, replace);
@@ -116,11 +124,17 @@ export function useNotificationRouting() {
         if (!shouldHandleNotification(parsed)) return;
 
         if (parsed.kind === 'sos_alert' && parsed.alertId) {
+          logSosEvent('NOTIFICATION_RECEIVED_ON_DEVICE', {
+            alert_id: parsed.alertId,
+            sender_user_id: parsed.senderUserId,
+            correlation_id: parsed.correlationId,
+          });
           logSosEvent('NOTIFICATION_RECEIVED', {
             alert_id: parsed.alertId,
             sender_user_id: parsed.senderUserId,
             correlation_id: parsed.correlationId,
           });
+          logSosEvent('NOTIFICATION_ALERT_ID', { alert_id: parsed.alertId });
         }
 
         if (parsed.kind === 'sos_alert') {

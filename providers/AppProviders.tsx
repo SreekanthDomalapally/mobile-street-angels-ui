@@ -2,12 +2,14 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePushTokenSync } from '@/hooks/usePushTokenSync';
 import { useTripWatchRecovery } from '@/hooks/useTripWatchRecovery';
 import { useSOSRecovery } from '@/hooks/useSOSRecovery';
+import { initializeNotificationInfrastructure } from '@/services/notifications';
 import { PERSISTED_QUERY_KEYS, queryClient } from '@/lib/queryClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
 
 const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
@@ -34,6 +36,15 @@ function SOSRecoveryListener() {
   return null;
 }
 
+function NotificationBootstrap() {
+  useEffect(() => {
+    void initializeNotificationInfrastructure().catch((error) => {
+      console.warn('[notifications] Early init failed:', error);
+    });
+  }, []);
+  return null;
+}
+
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaProvider>
@@ -50,6 +61,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                 ),
             },
           }}>
+          <NotificationBootstrap />
           <NetworkListener />
           <PushTokenListener />
           <TripWatchRecoveryListener />

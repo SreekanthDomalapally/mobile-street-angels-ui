@@ -91,7 +91,7 @@ export function evaluateSOSReadiness(
       ctaHref: null,
       ctaLabel: null,
       warning:
-        'This phone is not registered for push alerts. Your circle may not get notified when you send SOS.',
+        'Notifications are not fully set up on this phone. You may not receive SOS alerts from your circle until you enable notifications and open the app once.',
       warningCtaHref: '/(auth)/permissions',
       warningCtaLabel: 'Fix notifications',
     };

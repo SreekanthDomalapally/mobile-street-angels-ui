@@ -11,6 +11,7 @@ import { createSOSAlert } from '@/services/api/alerts';
 import {
   fetchAlertDeliveryReport,
   fetchSosRoutingPreview,
+  sendTestPushToGroup,
   sendTestPushToMe,
   type AlertDeliveryReport,
   type RoutingPreview,
@@ -272,6 +273,17 @@ export default function SosDebugScreen() {
               setLastAction(
                 `Routing: ${preview.recipient_count} recipients — ${preview.recipient_user_ids.join(', ')}`,
               );
+            })
+          }
+        />
+        <Button
+          title="Test SOS notification to group"
+          variant="secondary"
+          onPress={() =>
+            void runAction('Test group push', async () => {
+              if (!selectedGroupId) throw new Error('No SOS group selected');
+              await sendTestPushToGroup(emergencyType, selectedGroupId);
+              setLastNotificationStatus('test SOS push sent to routed recipients');
             })
           }
         />
