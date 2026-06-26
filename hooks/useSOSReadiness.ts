@@ -1,6 +1,8 @@
 import { evaluateSOSReadiness } from '@/lib/sosReadiness';
 import { hasLocationPermission } from '@/services/location';
 import { hasNotificationPermission } from '@/services/notifications';
+import { syncPushTokenWithServer } from '@/services/pushRegistration';
+import { getStoredPushToken } from '@/services/pushTokenStorage';
 import { useAuthStore } from '@/stores/authStore';
 import { useGroups } from '@/hooks/useGroups';
 import { useFocusEffect } from 'expo-router';
@@ -12,10 +14,19 @@ export function useSOSReadiness() {
   const { data: groups } = useGroups();
   const [locationGranted, setLocationGranted] = useState(false);
   const [notificationsGranted, setNotificationsGranted] = useState(true);
+  const [pushTokenRegistered, setPushTokenRegistered] = useState(true);
 
   const refreshPermissions = useCallback(() => {
     void hasLocationPermission().then(setLocationGranted);
     void hasNotificationPermission().then(setNotificationsGranted);
+    void getStoredPushToken().then(async (stored) => {
+      if (stored) {
+        setPushTokenRegistered(true);
+        return;
+      }
+      const synced = await syncPushTokenWithServer().catch(() => null);
+      setPushTokenRegistered(Boolean(synced));
+    });
   }, []);
 
   useFocusEffect(
@@ -33,8 +44,14 @@ export function useSOSReadiness() {
         ctaLabel: null,
       };
     }
-    return evaluateSOSReadiness(flags, groups, locationGranted, notificationsGranted);
-  }, [flags, groups, locationGranted, notificationsGranted]);
+    return evaluateSOSReadiness(
+      flags,
+      groups,
+      locationGranted,
+      notificationsGranted,
+      pushTokenRegistered,
+    );
+  }, [flags, groups, locationGranted, notificationsGranted, pushTokenRegistered]);
 
   return { readiness, locationGranted, notificationsGranted, flags, refreshPermissions };
 }

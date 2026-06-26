@@ -27,9 +27,10 @@ export function computeOnboardingFlags(input: {
     groupsCreatedCount >= 1 &&
     input.hasDevicePermissions;
 
-  // API may lag behind local progress (e.g. account_status not ACTIVE yet).
+  // Server "complete" only covers account setup — notifications/location stay on-device.
   const onboardingComplete =
-    input.apiOnboardingComplete === true || localOnboardingComplete;
+    localOnboardingComplete ||
+    (input.apiOnboardingComplete === true && input.hasDevicePermissions);
 
   let nextStep: OnboardingStep = 'home';
 

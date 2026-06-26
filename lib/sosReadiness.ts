@@ -15,7 +15,8 @@ export function evaluateSOSReadiness(
   flags: OnboardingFlags,
   groups: Group[] | undefined,
   locationGranted: boolean,
-  notificationsGranted = true
+  notificationsGranted = true,
+  pushTokenRegistered = true,
 ): SOSReadiness {
   if (!flags.is_phone_verified) {
     return {
@@ -77,9 +78,22 @@ export function evaluateSOSReadiness(
       reason: null,
       ctaHref: null,
       ctaLabel: null,
-      warning: 'Enable notifications so you receive responder updates.',
+      warning: 'Enable notifications so you receive SOS alerts from your circle.',
       warningCtaHref: '/(auth)/permissions',
       warningCtaLabel: 'Enable notifications',
+    };
+  }
+
+  if (!pushTokenRegistered) {
+    return {
+      ready: true,
+      reason: null,
+      ctaHref: null,
+      ctaLabel: null,
+      warning:
+        'This phone is not registered for push alerts. Your circle may not get notified when you send SOS.',
+      warningCtaHref: '/(auth)/permissions',
+      warningCtaLabel: 'Fix notifications',
     };
   }
 

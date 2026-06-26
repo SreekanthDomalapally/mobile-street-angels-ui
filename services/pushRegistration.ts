@@ -7,6 +7,7 @@ import {
 } from '@/services/pushTokenStorage';
 import { registerForPushNotifications } from '@/services/notifications';
 import { getAccessToken } from '@/services/tokens';
+import { useAuthStore } from '@/stores/authStore';
 
 export async function syncPushTokenWithServer(): Promise<string | null> {
   const accessToken = await getAccessToken();
@@ -22,6 +23,7 @@ export async function syncPushTokenWithServer(): Promise<string | null> {
 
   await registerDeviceToken(accessToken, pushToken, Platform.OS);
   await setStoredPushToken(pushToken);
+  useAuthStore.getState().setPermissionsGranted(true);
   return pushToken;
 }
 

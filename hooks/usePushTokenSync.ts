@@ -2,6 +2,7 @@ import { arePushNotificationsSupported, loadNotifications } from '@/services/not
 import { syncPushTokenWithServer } from '@/services/pushRegistration';
 import { useAuthStore } from '@/stores/authStore';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 
 /** Re-sync Expo push token when it rotates or app returns to foreground. */
 export function usePushTokenSync() {
@@ -11,9 +12,20 @@ export function usePushTokenSync() {
     if (!isAuthenticated || !arePushNotificationsSupported()) return;
 
     let pushSub: { remove: () => void } | undefined;
+    let appStateSub: { remove: () => void } | undefined;
 
-    void syncPushTokenWithServer().catch((error) => {
-      console.warn('[push] Initial token sync failed:', error);
+    const sync = () => {
+      void syncPushTokenWithServer().catch((error) => {
+        console.warn('[push] Token sync failed:', error);
+      });
+    };
+
+    sync();
+
+    appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        sync();
+      }
     });
 
     (async () => {
@@ -21,14 +33,13 @@ export function usePushTokenSync() {
       if (!Notifications) return;
 
       pushSub = Notifications.addPushTokenListener(() => {
-        void syncPushTokenWithServer().catch((error) => {
-          console.warn('[push] Token refresh sync failed:', error);
-        });
+        sync();
       });
     })();
 
     return () => {
       pushSub?.remove();
+      appStateSub?.remove();
     };
   }, [isAuthenticated]);
 }

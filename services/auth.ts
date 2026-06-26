@@ -21,6 +21,7 @@ import { useTripWatchStore } from '@/stores/tripWatchStore';
 import { useSOSStore } from '@/stores/sosStore';
 import { clearPersistedActiveTrip } from '@/services/tripWatchStorage';
 import { refreshOnboardingFlags } from '@/services/onboardingState';
+import { syncPushTokenWithServer } from '@/services/pushRegistration';
 import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types';
 
@@ -32,6 +33,9 @@ async function applySessionResponse(response: FirebaseLoginResponse) {
   useAuthStore.getState().setOnboarding(response.onboarding);
   useAuthStore.getState().setUser(user);
   await refreshOnboardingFlags().catch(() => undefined);
+  void syncPushTokenWithServer().catch((error) => {
+    console.warn('[auth] Push token sync after sign-in failed:', error);
+  });
   return user;
 }
 
