@@ -75,6 +75,7 @@ export default function RootLayout() {
           options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }}
         />
         <Stack.Screen name="trip/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="debug/sos" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </AppProviders>
   );

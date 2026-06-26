@@ -19,9 +19,10 @@ import { alertSocket } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useSOSStore } from '@/stores/sosStore';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function countRecipients(
@@ -73,13 +74,29 @@ export default function SosDebugScreen() {
     }
   }, []);
 
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
+  }, []);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [goBack]);
+
   if (!__DEV__) {
     return (
       <View className="flex-1 items-center justify-center bg-charcoal-950 px-6">
         <Text variant="body" muted>
           SOS debug tools are only available in development builds.
         </Text>
-        <Button title="Go back" variant="secondary" className="mt-4" onPress={() => router.back()} />
+        <Button title="Go back" variant="secondary" className="mt-4" onPress={goBack} />
       </View>
     );
   }
@@ -92,9 +109,17 @@ export default function SosDebugScreen() {
         paddingBottom: insets.bottom + 24,
         paddingHorizontal: 20,
       }}>
-      <Text variant="title" className="mb-4">
-        SOS Debug
-      </Text>
+      <View className="mb-4 flex-row items-center gap-3">
+        <Pressable
+          onPress={goBack}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          className="h-10 w-10 items-center justify-center rounded-xl bg-charcoal-800"
+        >
+          <Ionicons name="chevron-back" size={22} color="#a0a0a8" />
+        </Pressable>
+        <Text variant="title">SOS Debug</Text>
+      </View>
 
       <View className="mb-4 gap-2 rounded-2xl border border-glass-border bg-charcoal-900 p-4">
         <Text variant="label">Status</Text>
