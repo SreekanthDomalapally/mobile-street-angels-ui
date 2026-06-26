@@ -23,6 +23,7 @@ interface ApiMeProfile {
   certifications?: string[];
   languages?: string[];
   vehicle_available?: boolean;
+  blood_group?: string | null;
   medical_background?: string | null;
   available_for_emergencies?: boolean;
   location_visibility?: string;
@@ -34,6 +35,7 @@ export async function fetchMyProfile(): Promise<ResponderProfile> {
     certifications: me.certifications ?? [],
     languages: me.languages ?? [],
     vehicleAvailable: Boolean(me.vehicle_available),
+    bloodGroup: me.blood_group ?? undefined,
     medicalBackground: me.medical_background ?? undefined,
     availableForEmergencies: me.available_for_emergencies ?? true,
     locationVisibility: me.location_visibility ?? 'groups',
@@ -74,6 +76,7 @@ export async function updateResponderProfile(
   if (updates.certifications !== undefined) body.certifications = updates.certifications;
   if (updates.languages !== undefined) body.languages = updates.languages;
   if (updates.vehicleAvailable !== undefined) body.vehicle_available = updates.vehicleAvailable;
+  if (updates.bloodGroup !== undefined) body.blood_group = updates.bloodGroup;
   if (updates.medicalBackground !== undefined) body.medical_background = updates.medicalBackground;
   if (updates.availableForEmergencies !== undefined)
     body.available_for_emergencies = updates.availableForEmergencies;

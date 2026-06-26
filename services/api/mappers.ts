@@ -47,6 +47,8 @@ export interface ApiAlertOut {
   resolved_at: string | null;
   creator_name?: string | null;
   creator_phone?: string | null;
+  creator_blood_group?: string | null;
+  creator_medical_background?: string | null;
   recipient_count?: number | null;
   responses: ApiAlertResponseItem[];
 }
@@ -230,6 +232,8 @@ export function mapApiAlertToSOSAlert(alert: ApiAlertOut): SOSAlert {
     userId: alert.created_by,
     creatorName: alert.creator_name ?? undefined,
     creatorPhone: alert.creator_phone ?? undefined,
+    creatorBloodGroup: alert.creator_blood_group ?? undefined,
+    creatorMedicalBackground: alert.creator_medical_background ?? undefined,
     type: mapApiAlertTypeToEmergency(alert.alert_type),
     status: mapApiStatusToAlertStatus(alert.status, responders.length > 0),
     createdAt: alert.created_at,

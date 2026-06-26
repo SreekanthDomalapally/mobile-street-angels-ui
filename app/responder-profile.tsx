@@ -8,6 +8,10 @@ import {
   useSetMySkills,
   useUpdateResponderProfile,
 } from "@/hooks/useResponderProfile";
+import {
+  BLOOD_GROUPS,
+  type BloodGroup,
+} from "@/lib/emergencyMedical";
 import type { SkillLevel } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -35,6 +39,7 @@ export default function ResponderProfileScreen() {
   const [vehicle, setVehicle] = useState(false);
   const [visibility, setVisibility] = useState("groups");
   const [languages, setLanguages] = useState("");
+  const [bloodGroup, setBloodGroup] = useState<BloodGroup | null>(null);
   const [medical, setMedical] = useState("");
   const [hydrated, setHydrated] = useState(false);
 
@@ -48,6 +53,12 @@ export default function ResponderProfileScreen() {
       setVehicle(profile.data.vehicleAvailable);
       setVisibility(profile.data.locationVisibility || "groups");
       setLanguages(profile.data.languages.join(", "));
+      const savedBlood = profile.data.bloodGroup;
+      setBloodGroup(
+        savedBlood && BLOOD_GROUPS.includes(savedBlood as BloodGroup)
+          ? (savedBlood as BloodGroup)
+          : null,
+      );
       setMedical(profile.data.medicalBackground ?? "");
       setHydrated(true);
     }
@@ -84,6 +95,7 @@ export default function ResponderProfileScreen() {
           .split(",")
           .map((l) => l.trim())
           .filter(Boolean),
+        bloodGroup: bloodGroup ?? "",
         medicalBackground: medical.trim() || undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -231,6 +243,38 @@ export default function ResponderProfileScreen() {
             placeholderTextColor="#6b6b73"
             className="mb-6 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4 text-base text-white"
           />
+
+          <Text variant="label" className="mb-2">
+            Blood group
+          </Text>
+          <Text variant="caption" muted className="mb-3">
+            Shared with circle members when you send a medical or safety SOS.
+          </Text>
+          <View className="mb-6 flex-row flex-wrap gap-2">
+            {BLOOD_GROUPS.map((group) => {
+              const isSelected = bloodGroup === group;
+              return (
+                <Pressable
+                  key={group}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setBloodGroup(isSelected ? null : group);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  className={`min-h-[44px] min-w-[56px] items-center justify-center rounded-full border px-4 py-2 ${
+                    isSelected
+                      ? "border-responder/60 bg-responder/15"
+                      : "border-glass-border bg-charcoal-800"
+                  }`}
+                >
+                  <Text variant="body" className={isSelected ? "text-responder-light" : ""}>
+                    {group}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           <Text variant="label" className="mb-2">
             Medical background

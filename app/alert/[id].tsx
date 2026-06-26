@@ -6,6 +6,8 @@ import { LiveMap } from '@/components/map/LiveMap';
 import { Text } from '@/components/ui/Text';
 import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
 import { distanceKm, estimateEtaMinutes, formatDistance } from '@/lib/geo';
+import { showsMedicalProfileOnAlert } from '@/lib/emergencyMedical';
+import { getEmergencyTypeLabel } from '@/lib/emergencyTypeLabels';
 import { fetchAlert, respondToAlert } from '@/services/api/alerts';
 import { getAccessToken } from '@/services/tokens';
 import { getCurrentLocation } from '@/services/location';
@@ -173,7 +175,7 @@ export default function AlertResponseScreen() {
               {liveAlert.creatorName ? `${liveAlert.creatorName} needs help` : 'Someone needs help'}
             </Text>
             <Text variant="caption" muted>
-              {liveAlert.type} · {new Date(liveAlert.createdAt).toLocaleTimeString()}
+              {getEmergencyTypeLabel(liveAlert.type)} · {new Date(liveAlert.createdAt).toLocaleTimeString()}
             </Text>
           </View>
         </View>
@@ -197,6 +199,31 @@ export default function AlertResponseScreen() {
           </Text>
           <Text variant="body">{liveAlert.message ?? 'Emergency assistance requested'}</Text>
         </GlassCard>
+
+        {showsMedicalProfileOnAlert(liveAlert.type) &&
+        (liveAlert.creatorBloodGroup || liveAlert.creatorMedicalBackground) ? (
+          <GlassCard className="mb-6">
+            <Text variant="label" className="mb-2">
+              Medical info
+            </Text>
+            {liveAlert.creatorBloodGroup ? (
+              <View className="mb-3">
+                <Text variant="caption" muted>
+                  Blood group
+                </Text>
+                <Text variant="body">{liveAlert.creatorBloodGroup}</Text>
+              </View>
+            ) : null}
+            {liveAlert.creatorMedicalBackground ? (
+              <View>
+                <Text variant="caption" muted>
+                  Medical background
+                </Text>
+                <Text variant="body">{liveAlert.creatorMedicalBackground}</Text>
+              </View>
+            ) : null}
+          </GlassCard>
+        ) : null}
 
         {actionError && (
           <Text variant="caption" className="mb-4 text-emergency">

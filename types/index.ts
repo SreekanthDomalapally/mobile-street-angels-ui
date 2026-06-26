@@ -46,6 +46,7 @@ export interface ResponderProfile {
   certifications: string[];
   languages: string[];
   vehicleAvailable: boolean;
+  bloodGroup?: string;
   medicalBackground?: string;
   availableForEmergencies: boolean;
   locationVisibility: string;
@@ -205,6 +206,8 @@ export interface SOSAlert {
   userId: string;
   creatorName?: string;
   creatorPhone?: string;
+  creatorBloodGroup?: string;
+  creatorMedicalBackground?: string;
   type: EmergencyType;
   status: AlertStatus;
   createdAt: string;
