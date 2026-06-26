@@ -11,17 +11,18 @@ import { useSOSStore } from '@/stores/sosStore';
 export function useSOSRecovery() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const userId = useAuthStore((s) => s.user?.id);
   const activeAlert = useSOSStore((s) => s.activeAlert);
   const setActiveAlert = useSOSStore((s) => s.setActiveAlert);
 
   useEffect(() => {
-    if (!isAuthenticated || isLoading || activeAlert) return;
+    if (!isAuthenticated || isLoading || activeAlert || !userId) return;
 
     let cancelled = false;
 
     (async () => {
       try {
-        const alert = await findActiveAlert();
+        const alert = await findActiveAlert(userId);
         if (cancelled || !alert) return;
         setActiveAlert(alert);
         router.replace('/sos/active');
@@ -33,5 +34,5 @@ export function useSOSRecovery() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, isLoading, activeAlert, setActiveAlert]);
+  }, [isAuthenticated, isLoading, activeAlert, setActiveAlert, userId]);
 }

@@ -126,10 +126,16 @@ export default function AlertResponseScreen() {
       ? distanceKm(responderLocation, liveAlert.location)
       : null;
 
-  const navigate = () =>
-    Linking.openURL(
-      `https://maps.google.com/?q=${liveAlert.location.latitude},${liveAlert.location.longitude}`
-    );
+  const openInAppNavigation = () => {
+    router.push({
+      pathname: '/alert/navigation',
+      params: {
+        lat: String(liveAlert.location.latitude),
+        lng: String(liveAlert.location.longitude),
+        label: liveAlert.creatorName ?? 'SOS location',
+      },
+    });
+  };
 
   const callUser = () => {
     if (!liveAlert.creatorPhone) return;
@@ -230,7 +236,7 @@ export default function AlertResponseScreen() {
             title="Open navigation"
             variant="secondary"
             icon={<Ionicons name="navigate" size={20} color="#fff" style={{ marginRight: 8 }} />}
-            onPress={navigate}
+            onPress={openInAppNavigation}
           />
           <Button
             title="Unable to help"

@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Group } from '@/types';
 import { createGroup, fetchGroups, removeGroupMember, updateGroup } from '@/services/api/groups';
 import type { CreateGroupParams, UpdateGroupParams } from '@/services/api/groups';
 
@@ -30,6 +31,12 @@ export function useUpdateGroup() {
     mutationFn: ({ groupId, params }: { groupId: string; params: UpdateGroupParams }) =>
       updateGroup(groupId, params),
     onSuccess: (group) => {
+      queryClient.setQueryData<Group[]>(['groups'], (existing) =>
+        existing?.map((item) => (item.id === group.id ? { ...item, ...group } : item)),
+      );
+      queryClient.setQueryData(['group', group.id], (existing: Group | undefined) =>
+        existing ? { ...existing, ...group } : group,
+      );
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['group', group.id] });
       queryClient.invalidateQueries({ queryKey: ['activity'] });

@@ -157,6 +157,12 @@ export default function GroupsScreen() {
       setRenameError('Name must be at least 2 characters');
       return;
     }
+    const currentName =
+      selectedGroup?.name ?? groups?.find((g) => g.id === selectedGroupId)?.name ?? '';
+    if (trimmed.toLowerCase() === currentName.trim().toLowerCase()) {
+      closeRename();
+      return;
+    }
     const clash = (groups ?? []).some(
       (group) =>
         group.id !== selectedGroupId &&
@@ -240,6 +246,7 @@ export default function GroupsScreen() {
   const selectedRole =
     selectedGroup?.myRole ?? groups?.find((g) => g.id === selectedGroupId)?.myRole;
   const canManageMembers = selectedRole === 'owner' || selectedRole === 'admin';
+  const canRenameCircle = canManageMembers;
 
   const onCreate = async (data: GroupForm) => {
     setFormError(null);
@@ -345,66 +352,56 @@ export default function GroupsScreen() {
                 <View className="mt-4 border-t border-glass-border pt-6">
                   <TripWatchGroupSection groupId={selectedGroupId} />
 
-                  {(() => {
-                    const role =
-                      selectedGroup?.myRole ??
-                      groups?.find((g) => g.id === selectedGroupId)?.myRole;
-                    if (role !== 'owner') return null;
-                    const groupName =
-                      selectedGroup?.name ??
-                      groups?.find((g) => g.id === selectedGroupId)?.name ??
-                      '';
-                    return (
-                      <Pressable
-                        onPress={() => openRename(groupName)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Rename circle"
-                        className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
-                      >
-                        <Ionicons name="create-outline" size={20} color="#a0a0a8" />
-                        <View className="flex-1">
-                          <Text variant="body">Rename circle</Text>
-                          <Text variant="caption" muted>
-                            Change the name of this circle you created
-                          </Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
-                      </Pressable>
-                    );
-                  })()}
+                  {canRenameCircle && (
+                    <Pressable
+                      onPress={() => {
+                        const groupName =
+                          selectedGroup?.name ??
+                          groups?.find((g) => g.id === selectedGroupId)?.name ??
+                          '';
+                        openRename(groupName);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Rename circle"
+                      className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
+                    >
+                      <Ionicons name="create-outline" size={20} color="#a0a0a8" />
+                      <View className="flex-1">
+                        <Text variant="body">Rename circle</Text>
+                        <Text variant="caption" muted>
+                          Change this circle&apos;s name
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
+                    </Pressable>
+                  )}
 
-                  {(() => {
-                    const role =
-                      selectedGroup?.myRole ??
-                      groups?.find((g) => g.id === selectedGroupId)?.myRole;
-                    if (role !== 'owner' && role !== 'admin') return null;
-                    const groupName =
-                      selectedGroup?.name ??
-                      groups?.find((g) => g.id === selectedGroupId)?.name ??
-                      '';
-                    return (
-                      <Pressable
-                        onPress={() =>
-                          router.push({
-                            pathname: '/group/emergency-types',
-                            params: { groupId: selectedGroupId, name: groupName },
-                          })
-                        }
-                        accessibilityRole="button"
-                        accessibilityLabel="Configure emergency types"
-                        className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
-                      >
-                        <Ionicons name="git-branch-outline" size={20} color="#a0a0a8" />
-                        <View className="flex-1">
-                          <Text variant="body">Emergency types</Text>
-                          <Text variant="caption" muted>
-                            Choose which emergencies this circle responds to
-                          </Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
-                      </Pressable>
-                    );
-                  })()}
+                  {canManageMembers && (
+                    <Pressable
+                      onPress={() => {
+                        const groupName =
+                          selectedGroup?.name ??
+                          groups?.find((g) => g.id === selectedGroupId)?.name ??
+                          '';
+                        router.push({
+                          pathname: '/group/emergency-types',
+                          params: { groupId: selectedGroupId, name: groupName },
+                        });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Configure emergency types"
+                      className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
+                    >
+                      <Ionicons name="git-branch-outline" size={20} color="#a0a0a8" />
+                      <View className="flex-1">
+                        <Text variant="body">Emergency types</Text>
+                        <Text variant="caption" muted>
+                          Choose which emergencies this circle responds to
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
+                    </Pressable>
+                  )}
 
                   <GroupMembersSection
                     group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}
@@ -497,21 +494,26 @@ export default function GroupsScreen() {
       <Modal visible={renameVisible} animationType="slide" transparent onRequestClose={closeRename}>
         <KeyboardAvoidingView
           className="flex-1"
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable className="flex-1 justify-end bg-black/70" onPress={closeRename}>
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View className="flex-1 justify-end">
             <Pressable
+              className="absolute inset-0 bg-black/70"
+              onPress={updateGroupMutation.isPending ? undefined : closeRename}
+              accessibilityRole="button"
+              accessibilityLabel="Close rename dialog"
+            />
+            <View
               className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
               style={{
                 paddingBottom:
                   keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
-              }}
-              onPress={(e) => e.stopPropagation()}>
+              }}>
               <Text variant="title" className="mb-6">
                 Rename circle
               </Text>
               <TextInput
                 className="mb-2 min-h-[52px] rounded-2xl border border-glass-border bg-charcoal-800 px-4 text-base text-white"
-                placeholder="Group name"
+                placeholder="Circle name"
                 placeholderTextColor="#6d6d75"
                 value={renameValue}
                 onChangeText={(text) => {
@@ -519,7 +521,10 @@ export default function GroupsScreen() {
                   if (renameError) setRenameError(null);
                 }}
                 autoFocus
-                accessibilityLabel="Group name"
+                returnKeyType="done"
+                onSubmitEditing={() => void onRename()}
+                editable={!updateGroupMutation.isPending}
+                accessibilityLabel="Circle name"
               />
               {renameError && (
                 <Text variant="caption" className="mb-4 text-emergency">
@@ -530,10 +535,11 @@ export default function GroupsScreen() {
                 title="Save"
                 className="mt-4"
                 loading={updateGroupMutation.isPending}
-                onPress={onRename}
+                disabled={updateGroupMutation.isPending}
+                onPress={() => void onRename()}
               />
-            </Pressable>
-          </Pressable>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>

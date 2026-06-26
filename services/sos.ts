@@ -1,4 +1,7 @@
-import { getSelectedSosGroupId } from '@/components/home/SosGroupPicker';
+import {
+  getSelectedSosGroupId,
+  getSosGroupForEmergencyType,
+} from '@/lib/groupLabels';
 import { evaluateSOSReadiness } from '@/lib/sosReadiness';
 import { getOnboardingFlagsSnapshot } from '@/stores/authStore';
 import { ApiError } from '@/services/api/client';
@@ -53,6 +56,7 @@ export async function triggerSOS({
   const settingsGroupId = useSettingsStore.getState().emergency.defaultSosGroupId;
   const groupId =
     preferredGroupId ??
+    getSosGroupForEmergencyType(groups, emergencyType, settingsGroupId) ??
     getSelectedSosGroupId(groups, settingsGroupId);
   if (!groupId) {
     throw new ApiError('Select a group for SOS alerts.', 400, 'no_group');

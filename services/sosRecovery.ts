@@ -6,13 +6,19 @@ export function isLiveSOSAlert(alert: SOSAlert): boolean {
   return alert.status === 'active' || alert.status === 'responding';
 }
 
-/** Restore an in-progress SOS from local storage or the alerts API. */
-export async function findActiveAlert(): Promise<SOSAlert | null> {
+function isOwnLiveAlert(alert: SOSAlert, creatorUserId: string): boolean {
+  return alert.userId === creatorUserId && isLiveSOSAlert(alert);
+}
+
+/** Restore an in-progress SOS the current user sent (not alerts they received). */
+export async function findActiveAlert(creatorUserId?: string | null): Promise<SOSAlert | null> {
+  if (!creatorUserId) return null;
+
   const persistedId = await getPersistedActiveAlertId();
   if (persistedId) {
     try {
       const alert = await fetchAlert(persistedId);
-      if (isLiveSOSAlert(alert)) {
+      if (isOwnLiveAlert(alert, creatorUserId)) {
         return alert;
       }
       await clearPersistedActiveAlert();
@@ -23,7 +29,7 @@ export async function findActiveAlert(): Promise<SOSAlert | null> {
 
   try {
     const alerts = await fetchAlerts();
-    const live = alerts.find(isLiveSOSAlert);
+    const live = alerts.find((alert) => isOwnLiveAlert(alert, creatorUserId));
     return live ?? null;
   } catch {
     return null;

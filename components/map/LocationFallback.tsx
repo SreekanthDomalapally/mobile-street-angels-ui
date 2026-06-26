@@ -1,6 +1,7 @@
+import { confirmOpenExternalNavigation } from '@/lib/openExternalNavigation';
 import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
-import { Linking, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import type { Coordinates } from '@/types';
 
 interface LocationFallbackProps {
@@ -10,9 +11,7 @@ interface LocationFallbackProps {
 
 export function LocationFallback({ location, label = 'Your location' }: LocationFallbackProps) {
   const openMaps = () => {
-    Linking.openURL(
-      `https://maps.google.com/?q=${location.latitude},${location.longitude}`
-    );
+    confirmOpenExternalNavigation(location, { mode: 'view', title: 'Open in Maps?' });
   };
 
   return (
@@ -41,7 +40,8 @@ export function LocationFallback({ location, label = 'Your location' }: Location
         </Text>
       </Pressable>
       <Text variant="caption" muted className="mt-4 text-center leading-relaxed">
-        Live map unavailable on this build. Location is still shared with your group.
+        Live map unavailable on this build. Location is still shared with your group. Opening Maps
+        will leave the app — use Back to return.
       </Text>
     </View>
   );

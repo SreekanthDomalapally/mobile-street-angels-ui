@@ -16,6 +16,26 @@ export function formatRelativeTime(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString();
 }
 
+/** Clock time plus relative label — used on active SOS timelines. */
+export function formatSosEventTime(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return formatRelativeTime(isoDate);
+
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const relative = formatRelativeTime(isoDate);
+
+  if (relative === time || relative.includes('/')) {
+    return relative;
+  }
+
+  return `${time} · ${relative}`;
+}
+
+/** When an SOS is live — e.g. "4:41 PM · 12m ago". */
+export function formatSosStartedAt(isoDate: string): string {
+  return formatSosEventTime(isoDate);
+}
+
 export function formatEta(minutes?: number): string {
   if (minutes == null) return 'Calculating…';
   if (minutes < 1) return 'Arriving now';

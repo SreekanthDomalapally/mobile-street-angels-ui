@@ -1,8 +1,7 @@
-import { TripWatchBanner } from "@/components/home/TripWatchBanner";
-import { NearbyResponders } from "@/components/home/NearbyResponders";
 import { ReadinessBanner } from "@/components/home/ReadinessBanner";
-import { SosGroupPicker, getSelectedSosGroupId } from "@/components/home/SosGroupPicker";
+import { SosNotifyContacts } from "@/components/home/SosNotifyContacts";
 import { StatusIndicator } from "@/components/home/StatusIndicator";
+import { TripWatchBanner } from "@/components/home/TripWatchBanner";
 import { CountdownOverlay } from "@/components/sos/CountdownOverlay";
 import { EmergencyDisclaimer } from "@/components/sos/EmergencyDisclaimer";
 import { EmergencyTypePicker } from "@/components/sos/EmergencyTypePicker";
@@ -11,36 +10,35 @@ import { AppLogo } from "@/components/ui/AppLogo";
 import { Text } from "@/components/ui/Text";
 import { useGroups } from "@/hooks/useGroups";
 import { useSOSReadiness } from "@/hooks/useSOSReadiness";
+import {
+  countUsersForEmergencyType,
+  getSosGroupForEmergencyType,
+} from "@/lib/groupLabels";
 import { markPerf } from "@/lib/perf";
+import { formatSosStartedAt } from "@/lib/utils";
 import { logSosEvent } from "@/lib/sosLog";
 import { ApiError } from "@/services/api/client";
 import { getSOSLocation } from "@/services/location";
 import { triggerSOS } from "@/services/sos";
-import { useSettingsStore } from "@/stores/settingsStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { isSOSLive, useSOSStore } from "@/stores/sosStore";
-import type { Group } from "@/types";
-import { useFocusEffect, router, type Href } from "expo-router";
+import { router, useFocusEffect, type Href } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function countPotentialRecipients(groups: Group[], groupId: string | undefined): number {
-  if (!groupId) return 0;
-  const group = groups.find((g) => g.id === groupId);
-  if (!group) return 0;
-  const members = group.memberCount ?? group.members?.length ?? 0;
-  return Math.max(0, members - 1);
-}
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const userId = useAuthStore((s) => s.user?.id);
   const { readiness } = useSOSReadiness();
   const { data: groups } = useGroups();
   const countdownSeconds = useSettingsStore(
     (s) => s.emergency.countdownSeconds,
   );
-  const defaultSosGroupId = useSettingsStore((s) => s.emergency.defaultSosGroupId);
+  const defaultSosGroupId = useSettingsStore(
+    (s) => s.emergency.defaultSosGroupId,
+  );
   const emergencyType = useSOSStore((s) => s.emergencyType);
   const status = useSOSStore((s) => s.status);
   const countdown = useSOSStore((s) => s.countdown);
@@ -78,7 +76,11 @@ export default function HomeScreen() {
       }
 
       // Abandoned mid-hold only — do not reset during countdown overlay.
-      if (!state.activeAlert && state.status === "arming" && state.countdown === null) {
+      if (
+        !state.activeAlert &&
+        state.status === "arming" &&
+        state.countdown === null
+      ) {
         resetSOS();
       }
     }, [resetSOS]),
@@ -94,7 +96,9 @@ export default function HomeScreen() {
   const handleCountdownComplete = async () => {
     try {
       if (!readiness.ready) {
-        setActivationError(readiness.reason ?? "Complete setup before sending SOS.");
+        setActivationError(
+          readiness.reason ?? "Complete setup before sending SOS.",
+        );
         setCountdown(null);
         cancelArming();
         return;
@@ -107,20 +111,30 @@ export default function HomeScreen() {
 
       const groupsList = groups ?? [];
       if (!groupsList.length) {
-        setActivationError("Create a trusted group before sending an SOS alert.");
+        setActivationError(
+          "Create a trusted group before sending an SOS alert.",
+        );
         setCountdown(null);
         cancelArming();
         return;
       }
 
-      const selectedGroupId = getSelectedSosGroupId(groupsList, defaultSosGroupId);
-      const recipientCount = countPotentialRecipients(groupsList, selectedGroupId);
+      const selectedGroupId = getSosGroupForEmergencyType(
+        groupsList,
+        emergencyType,
+        defaultSosGroupId,
+      );
+      const recipientCount = countUsersForEmergencyType(
+        groupsList,
+        emergencyType,
+        userId,
+      );
       if (recipientCount < 1) {
         setActivating(false);
         setCountdown(null);
         cancelArming();
         setActivationError(
-          "Add at least one other active member to your group before sending SOS.",
+          "Add at least one contact to a circle linked to this emergency type before sending SOS.",
         );
         return;
       }
@@ -149,7 +163,7 @@ export default function HomeScreen() {
           location,
         });
         markPerf("alert_created");
-        logSosEvent('ALERT_CREATED', {
+        logSosEvent("ALERT_CREATED", {
           alert_id: alert.id,
           sender_user_id: alert.userId,
           recipient_count: alert.recipientCount,
@@ -182,7 +196,9 @@ export default function HomeScreen() {
       setCountdown(null);
       cancelArming();
       setActivationError(
-        error instanceof Error ? error.message : "SOS failed. Please try again.",
+        error instanceof Error
+          ? error.message
+          : "SOS failed. Please try again.",
       );
     }
   };
@@ -224,15 +240,14 @@ export default function HomeScreen() {
 
         <EmergencyDisclaimer compact className="mb-4" />
 
-        {sosInProgress && (
+        {sosInProgress && activeAlert?.createdAt && (
           <Text variant="body" muted className="mb-4">
-            Return to your active alert to see responders and end the alert.
+            SOS started {formatSosStartedAt(activeAlert.createdAt)}. Return to your
+            active alert to see responders and end the alert.
           </Text>
         )}
 
         <EmergencyTypePicker />
-
-        <SosGroupPicker />
 
         <View className="my-6 items-center">
           <SOSButton
@@ -247,12 +262,10 @@ export default function HomeScreen() {
           </Text>
         )}
 
+        <SosNotifyContacts />
+
         <View className="mt-6">
           <TripWatchBanner />
-        </View>
-
-        <View className="mt-10">
-          <NearbyResponders />
         </View>
       </ScrollView>
 

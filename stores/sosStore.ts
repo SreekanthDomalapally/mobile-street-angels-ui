@@ -1,9 +1,24 @@
-import { clearPersistedActiveAlert, persistActiveAlertId } from '@/services/sosSession';
-import { create } from 'zustand';
-import type { Coordinates, EmergencyType, Responder, SOSAlert, TimelineEvent } from '@/types';
+import {
+  clearPersistedActiveAlert,
+  persistActiveAlertId,
+} from "@/services/sosSession";
+import type {
+  Coordinates,
+  EmergencyType,
+  Responder,
+  SOSAlert,
+  TimelineEvent,
+} from "@/types";
+import { create } from "zustand";
 
 interface SOSState {
-  status: 'idle' | 'arming' | 'active' | 'responding' | 'resolved' | 'cancelled';
+  status:
+    | "idle"
+    | "arming"
+    | "active"
+    | "responding"
+    | "resolved"
+    | "cancelled";
   emergencyType: EmergencyType;
   holdProgress: number;
   countdown: number | null;
@@ -31,7 +46,7 @@ interface SOSState {
 }
 
 const idleState = {
-  status: 'idle' as const,
+  status: "idle" as const,
   holdProgress: 0,
   countdown: null,
   activeAlert: null,
@@ -46,22 +61,23 @@ function clearSession() {
 
 export const useSOSStore = create<SOSState>((set, get) => ({
   ...idleState,
-  emergencyType: 'personal_safety',
+  emergencyType: "personal_safety",
   isOffline: false,
   setEmergencyType: (emergencyType) => set({ emergencyType }),
   setHoldProgress: (holdProgress) => set({ holdProgress }),
   setCountdown: (countdown) => set({ countdown }),
-  startArming: () => set({ status: 'arming', holdProgress: 0, activationError: null }),
-  finishArming: () => set({ status: 'idle', holdProgress: 0 }),
-  cancelArming: () => set({ status: 'idle', holdProgress: 0, countdown: null }),
+  startArming: () =>
+    set({ status: "arming", holdProgress: 0, activationError: null }),
+  finishArming: () => set({ status: "idle", holdProgress: 0 }),
+  cancelArming: () => set({ status: "idle", holdProgress: 0, countdown: null }),
   setActivating: (isActivating) => set({ isActivating }),
   setActivationError: (activationError) => set({ activationError }),
   setActiveAlert: (alert) => {
-    if (alert.id !== 'pending') {
+    if (alert.id !== "pending") {
       void persistActiveAlertId(alert.id);
     }
     set({
-      status: alert.status === 'responding' ? 'responding' : 'active',
+      status: alert.status === "responding" ? "responding" : "active",
       holdProgress: 1,
       countdown: null,
       activeAlert: alert,
@@ -79,14 +95,25 @@ export const useSOSStore = create<SOSState>((set, get) => ({
     const alert = get().activeAlert;
     if (!alert) return;
     set({
-      status: 'responding',
-      activeAlert: { ...alert, status: 'responding', responders },
+      status: "responding",
+      activeAlert: { ...alert, status: "responding", responders },
     });
   },
   addTimelineEvent: (event) => {
     const alert = get().activeAlert;
     if (!alert) return;
-    set({ activeAlert: { ...alert, timeline: [event, ...alert.timeline] } });
+
+    const existingIndex = alert.timeline.findIndex((item) => item.id === event.id);
+    let timeline =
+      existingIndex >= 0
+        ? alert.timeline.map((item, index) => (index === existingIndex ? event : item))
+        : [event, ...alert.timeline];
+
+    timeline.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+    set({ activeAlert: { ...alert, timeline } });
   },
   setOffline: (isOffline) => set({ isOffline }),
   resolveAlert: () => {
@@ -103,6 +130,7 @@ export const useSOSStore = create<SOSState>((set, get) => ({
 export function isSOSLive(): boolean {
   const { activeAlert, status } = useSOSStore.getState();
   return Boolean(
-    activeAlert && (status === 'active' || status === 'responding' || status === 'arming')
+    activeAlert &&
+    (status === "active" || status === "responding" || status === "arming"),
   );
 }

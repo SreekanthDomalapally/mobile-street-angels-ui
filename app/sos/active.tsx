@@ -1,32 +1,41 @@
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { AppState, BackHandler, Modal, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LiveMap } from '@/components/map/LiveMap';
-import { EventTimeline } from '@/components/sos/EventTimeline';
-import { EmergencyDisclaimer } from '@/components/sos/EmergencyDisclaimer';
-import { ResponderList } from '@/components/sos/ResponderList';
-import { Button } from '@/components/ui/Button';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { LoadingState } from '@/components/common/LoadingState';
-import { Text } from '@/components/ui/Text';
-import { openAppSettings } from '@/lib/openAppSettings';
-import { markPerf } from '@/lib/perf';
-import { ApiError } from '@/services/api/client';
-import { fetchAlert, updateAlertLocation } from '@/services/api/alerts';
-import { getAccessToken } from '@/services/tokens';
+import { LoadingState } from "@/components/common/LoadingState";
+import { LiveMap } from "@/components/map/LiveMap";
+import { EmergencyDisclaimer } from "@/components/sos/EmergencyDisclaimer";
+import { EventTimeline } from "@/components/sos/EventTimeline";
+import { ResponderList } from "@/components/sos/ResponderList";
+import { Button } from "@/components/ui/Button";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { Text } from "@/components/ui/Text";
+import { openAppSettings } from "@/lib/openAppSettings";
+import { formatSosStartedAt } from "@/lib/utils";
+import { markPerf } from "@/lib/perf";
+import { fetchAlert, updateAlertLocation } from "@/services/api/alerts";
+import { ApiError } from "@/services/api/client";
+import { startBackgroundLocationUpdates } from "@/services/backgroundLocation";
 import {
   getCurrentLocationIfPermitted,
   requestBackgroundLocationPermission,
   watchLocation,
-} from '@/services/location';
-import { startBackgroundLocationUpdates } from '@/services/backgroundLocation';
-import { scheduleEmergencyNotification } from '@/services/notifications';
-import { findActiveAlert } from '@/services/sosRecovery';
-import { endSOSAlert } from '@/services/sos';
-import { alertSocket } from '@/services/websocket';
-import { useSOSStore } from '@/stores/sosStore';
-import type { Coordinates } from '@/types';
+} from "@/services/location";
+import { scheduleEmergencyNotification } from "@/services/notifications";
+import { endSOSAlert } from "@/services/sos";
+import { findActiveAlert } from "@/services/sosRecovery";
+import { getAccessToken } from "@/services/tokens";
+import { alertSocket } from "@/services/websocket";
+import { useAuthStore } from "@/stores/authStore";
+import { useSOSStore } from "@/stores/sosStore";
+import type { Coordinates } from "@/types";
+import { router } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  AppState,
+  BackHandler,
+  Modal,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SOSActiveScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +43,7 @@ export default function SOSActiveScreen() {
   const liveLocation = useSOSStore((s) => s.liveLocation);
   const isActivating = useSOSStore((s) => s.isActivating);
   const resetSOS = useSOSStore((s) => s.resetSOS);
+  const userId = useAuthStore((s) => s.user?.id);
   const updateResponders = useSOSStore((s) => s.updateResponders);
   const addTimelineEvent = useSOSStore((s) => s.addTimelineEvent);
   const setActiveAlert = useSOSStore((s) => s.setActiveAlert);
@@ -50,12 +60,12 @@ export default function SOSActiveScreen() {
 
   const exitToHome = useCallback(() => {
     resetSOS();
-    router.replace('/(tabs)');
+    router.replace("/(tabs)");
   }, [resetSOS]);
 
   useEffect(() => {
     if (activeAlert && !recovering) {
-      markPerf('alert_screen_ready');
+      markPerf("alert_screen_ready");
     }
   }, [activeAlert, recovering]);
 
@@ -69,17 +79,17 @@ export default function SOSActiveScreen() {
 
     (async () => {
       try {
-        const recovered = await findActiveAlert();
+        const recovered = await findActiveAlert(userId);
         if (cancelled) return;
         if (recovered) {
           setActiveAlert(recovered);
           return;
         }
-        router.replace('/(tabs)');
+        router.replace("/(tabs)");
       } catch (error) {
-        console.warn('[sos] Active screen recovery failed:', error);
+        console.warn("[sos] Active screen recovery failed:", error);
         if (!cancelled) {
-          router.replace('/(tabs)');
+          router.replace("/(tabs)");
         }
       } finally {
         if (!cancelled) {
@@ -91,10 +101,10 @@ export default function SOSActiveScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activeAlert, setActiveAlert]);
+  }, [activeAlert, setActiveAlert, userId]);
 
   useEffect(() => {
-    if (!activeAlert || activeAlert.id === 'pending' || wsConnected) return;
+    if (!activeAlert || activeAlert.id === "pending" || wsConnected) return;
 
     const interval = setInterval(() => {
       void fetchAlert(activeAlert.id)
@@ -110,7 +120,10 @@ export default function SOSActiveScreen() {
   useEffect(() => {
     if (!activeAlert) return;
 
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => true,
+    );
     return () => subscription.remove();
   }, [activeAlert]);
 
@@ -118,11 +131,11 @@ export default function SOSActiveScreen() {
     (coords: Coordinates) => {
       setLiveLocation(coords);
     },
-    [setLiveLocation]
+    [setLiveLocation],
   );
 
   useEffect(() => {
-    if (!activeAlert || activeAlert.id === 'pending') return;
+    if (!activeAlert || activeAlert.id === "pending") return;
 
     let cancelled = false;
     let stopWatching: (() => void) | undefined;
@@ -131,10 +144,10 @@ export default function SOSActiveScreen() {
     let appStateSub: { remove: () => void } | undefined;
 
     scheduleEmergencyNotification(
-      'SOS Active',
-      'Your trusted contacts have been notified. Help is on the way.'
+      "SOS Active",
+      "Your trusted contacts have been notified. Help is on the way.",
     ).catch((error) => {
-      console.warn('[sos] Local notification failed:', error);
+      console.warn("[sos] Local notification failed:", error);
     });
 
     (async () => {
@@ -146,7 +159,7 @@ export default function SOSActiveScreen() {
         alertSocket.onRespondersUpdate(updateResponders);
         alertSocket.onTimelineEvent(addTimelineEvent);
         alertSocket.onStatusChange((status) => {
-          if (status === 'resolved') {
+          if (status === "resolved") {
             exitToHome();
           }
         });
@@ -159,9 +172,13 @@ export default function SOSActiveScreen() {
 
         const pushLocation = async (coords: Coordinates) => {
           const current = useSOSStore.getState().activeAlert;
-          if (!current || cancelled || current.id === 'pending') return;
+          if (!current || cancelled || current.id === "pending") return;
           try {
-            await updateAlertLocation(current.id, coords, coords.accuracyMeters);
+            await updateAlertLocation(
+              current.id,
+              coords,
+              coords.accuracyMeters,
+            );
             setLiveLocation(coords);
             setLocationPushFailed(false);
           } catch (error) {
@@ -171,12 +188,15 @@ export default function SOSActiveScreen() {
           }
         };
 
-        void getCurrentLocationIfPermitted({ highAccuracy: true, timeoutMs: 8000 })
+        void getCurrentLocationIfPermitted({
+          highAccuracy: true,
+          timeoutMs: 8000,
+        })
           .then((freshLocation) => {
             if (!freshLocation || cancelled) {
               if (!freshLocation && !cancelled) {
                 setLocationWarning(
-                  'Location unavailable — responders may not see your latest position. Check location permissions.'
+                  "Location unavailable — responders may not see your latest position. Check location permissions.",
                 );
               }
               return;
@@ -188,39 +208,48 @@ export default function SOSActiveScreen() {
         bgGranted = await requestBackgroundLocationPermission();
         if (!bgGranted && !cancelled) {
           setLocationWarning(
-            'Background location is off — your position may stop updating if you leave the app.'
+            "Background location is off — your position may stop updating if you leave the app.",
           );
         }
 
         if (!cancelled) {
-          stopWatching = await watchLocation(pushLocation, { mode: 'active_sos' });
+          stopWatching = await watchLocation(pushLocation, {
+            mode: "active_sos",
+          });
 
-          appStateSub = AppState.addEventListener('change', (nextState) => {
+          appStateSub = AppState.addEventListener("change", (nextState) => {
             if (cancelled) return;
             void (async () => {
-              if (nextState === 'background' && bgGranted && !stopBackground) {
+              if (nextState === "background" && bgGranted && !stopBackground) {
                 stopWatching?.();
                 stopWatching = undefined;
                 try {
-                  stopBackground = await startBackgroundLocationUpdates(pushLocation);
+                  stopBackground =
+                    await startBackgroundLocationUpdates(pushLocation);
                 } catch {
                   if (!stopWatching) {
-                    stopWatching = await watchLocation(pushLocation, { mode: 'active_sos' });
+                    stopWatching = await watchLocation(pushLocation, {
+                      mode: "active_sos",
+                    });
                   }
                 }
-              } else if (nextState === 'active' && stopBackground) {
+              } else if (nextState === "active" && stopBackground) {
                 await stopBackground();
                 stopBackground = undefined;
                 if (!stopWatching) {
-                  stopWatching = await watchLocation(pushLocation, { mode: 'active_sos' });
+                  stopWatching = await watchLocation(pushLocation, {
+                    mode: "active_sos",
+                  });
                 }
               }
             })();
           });
         }
       } catch (error) {
-        console.warn('[sos] Active alert setup failed:', error);
-        setLocationWarning('Could not start live location sharing. Check permissions in Settings.');
+        console.warn("[sos] Active alert setup failed:", error);
+        setLocationWarning(
+          "Could not start live location sharing. Check permissions in Settings.",
+        );
       }
     })();
 
@@ -252,7 +281,7 @@ export default function SOSActiveScreen() {
   }, [endingAlert]);
 
   const handleEndAlert = async () => {
-    if (!activeAlert || activeAlert.id === 'pending') return;
+    if (!activeAlert || activeAlert.id === "pending") return;
     setEndingAlert(true);
     setEndSheetError(null);
     try {
@@ -260,11 +289,11 @@ export default function SOSActiveScreen() {
       setEndSheetOpen(false);
       exitToHome();
     } catch (error) {
-      console.warn('[sos] Failed to resolve alert on server:', error);
+      console.warn("[sos] Failed to resolve alert on server:", error);
       setEndSheetError(
         error instanceof ApiError
           ? error.message
-          : 'Could not reach the server. Check your connection and try again.',
+          : "Could not reach the server. Check your connection and try again.",
       );
     } finally {
       setEndingAlert(false);
@@ -281,8 +310,10 @@ export default function SOSActiveScreen() {
     return <LoadingState message="Restoring your active alert…" />;
   }
 
-  const enRouteCount = activeAlert.responders.filter((r) => r.status === 'en_route').length;
-  const sending = isActivating || activeAlert.id === 'pending';
+  const enRouteCount = activeAlert.responders.filter(
+    (r) => r.status === "en_route",
+  ).length;
+  const sending = isActivating || activeAlert.id === "pending";
 
   return (
     <View className="flex-1 bg-charcoal-950">
@@ -295,20 +326,32 @@ export default function SOSActiveScreen() {
         />
         <View
           className="absolute left-0 right-0 flex-row items-center justify-between px-4"
-          style={{ top: insets.top + 8 }}>
+          style={{ top: insets.top + 8 }}
+        >
           <GlassCard className="px-4 py-2">
             <View className="flex-row items-center gap-2">
               <View className="h-2 w-2 rounded-full bg-emergency" />
-              <Text variant="caption" className="font-semibold text-emergency-glow">
-                {sending ? 'Sending SOS…' : 'SOS Active'}
-              </Text>
+              <View>
+                <Text
+                  variant="caption"
+                  className="font-semibold text-emergency-glow"
+                >
+                  {sending ? "Sending SOS…" : "SOS Active"}
+                </Text>
+                {!sending && activeAlert.createdAt ? (
+                  <Text variant="label" muted className="normal-case text-[10px]">
+                    {formatSosStartedAt(activeAlert.createdAt)}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           </GlassCard>
           <Pressable
             onPress={openEndSheet}
             className="rounded-full bg-charcoal-900/90 px-4 py-2"
             accessibilityRole="button"
-            accessibilityLabel="End SOS alert">
+            accessibilityLabel="End SOS alert"
+          >
             <Text variant="caption">End alert</Text>
           </Pressable>
         </View>
@@ -317,16 +360,26 @@ export default function SOSActiveScreen() {
       <ScrollView
         className="flex-1 rounded-t-3xl bg-charcoal-950 px-5"
         style={{ marginTop: -24 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: 20 }}>
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 24,
+          paddingTop: 20,
+        }}
+      >
         <Text variant="title" className="mb-1">
-          {sending ? 'Sending your alert…' : 'Help is coming'}
+          {sending ? "Sending your alert…" : "Help is coming"}
         </Text>
         <Text variant="body" muted className="mb-4">
           {sending
-            ? 'Notifying your trusted contacts now.'
-            : activeAlert.recipientCount != null
-              ? `${activeAlert.recipientCount} contact${activeAlert.recipientCount === 1 ? '' : 's'} notified · ${enRouteCount} responder${enRouteCount === 1 ? '' : 's'} on the way`
-              : `${enRouteCount} responder${enRouteCount === 1 ? '' : 's'} on the way`}
+            ? "Notifying your trusted contacts now."
+            : activeAlert.createdAt
+              ? `Started ${formatSosStartedAt(activeAlert.createdAt)} · ${
+                  activeAlert.recipientCount != null
+                    ? `${activeAlert.recipientCount} contact${activeAlert.recipientCount === 1 ? "" : "s"} notified`
+                    : `${enRouteCount} responder${enRouteCount === 1 ? "" : "s"} on the way`
+                }`
+              : activeAlert.recipientCount != null
+                ? `${activeAlert.recipientCount} contact${activeAlert.recipientCount === 1 ? "" : "s"} notified · ${enRouteCount} responder${enRouteCount === 1 ? "" : "s"} on the way`
+                : `${enRouteCount} responder${enRouteCount === 1 ? "" : "s"} on the way`}
         </Text>
 
         <EmergencyDisclaimer compact className="mb-4" />
@@ -335,11 +388,14 @@ export default function SOSActiveScreen() {
           <View className="mb-4 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
             <Text variant="caption" className="text-warning">
               {locationPushFailed
-                ? 'Failed to share your location with responders. Check your connection.'
+                ? "Failed to share your location with responders. Check your connection."
                 : locationWarning}
             </Text>
             {locationWarning ? (
-              <Pressable onPress={() => void openAppSettings()} className="mt-2">
+              <Pressable
+                onPress={() => void openAppSettings()}
+                className="mt-2"
+              >
                 <Text variant="caption" className="text-responder-light">
                   Open Settings
                 </Text>
@@ -379,22 +435,29 @@ export default function SOSActiveScreen() {
         visible={endSheetOpen}
         transparent
         animationType="fade"
-        onRequestClose={closeEndSheet}>
+        onRequestClose={closeEndSheet}
+      >
         <Pressable
           className="flex-1 justify-end bg-black/60"
           onPress={closeEndSheet}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss">
+          accessibilityLabel="Dismiss"
+        >
           <Pressable
             className="rounded-t-3xl bg-charcoal-900 px-5 pt-6"
             style={{ paddingBottom: insets.bottom + 24 }}
-            onPress={(event) => event.stopPropagation()}>
+            onPress={(event) => event.stopPropagation()}
+          >
             <Text variant="title" className="mb-2 text-center">
-              {endSheetError ? 'Could not end alert' : "You're safe?"}
+              {endSheetError ? "Could not end alert" : "You're safe?"}
             </Text>
-            <Text variant="body" muted className="mb-6 text-center leading-relaxed">
+            <Text
+              variant="body"
+              muted
+              className="mb-6 text-center leading-relaxed"
+            >
               {endSheetError ??
-                'Your trusted contacts will be notified that this alert has ended. Only continue if you are safe.'}
+                "Your trusted contacts will be notified that this alert has ended. Only continue if you are safe."}
             </Text>
             <View className="gap-3">
               {endSheetError ? (

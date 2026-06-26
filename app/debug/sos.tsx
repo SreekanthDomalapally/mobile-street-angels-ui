@@ -1,4 +1,7 @@
-import { getSelectedSosGroupId } from '@/components/home/SosGroupPicker';
+import {
+  countUsersForEmergencyType,
+  getSosGroupForEmergencyType,
+} from '@/lib/groupLabels';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useGroups } from '@/hooks/useGroups';
@@ -21,11 +24,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function countRecipients(groups: ReturnType<typeof useGroups>['data'], groupId?: string): number {
-  if (!groups?.length || !groupId) return 0;
-  const group = groups.find((g) => g.id === groupId);
-  if (!group) return 0;
-  return Math.max(0, (group.memberCount ?? group.members?.length ?? 0) - 1);
+function countRecipients(
+  groups: ReturnType<typeof useGroups>['data'],
+  emergencyType: ReturnType<typeof useSOSStore.getState>['emergencyType'],
+  userId?: string,
+): number {
+  return countUsersForEmergencyType(groups, emergencyType, userId);
 }
 
 export default function SosDebugScreen() {
@@ -46,8 +50,12 @@ export default function SosDebugScreen() {
   const [wsStatus, setWsStatus] = useState<'idle' | 'connected' | 'error'>('idle');
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
 
-  const selectedGroupId = getSelectedSosGroupId(groups ?? [], defaultGroupId);
-  const recipientCount = countRecipients(groups, selectedGroupId);
+  const selectedGroupId = getSosGroupForEmergencyType(
+    groups ?? [],
+    emergencyType,
+    defaultGroupId,
+  );
+  const recipientCount = countRecipients(groups, emergencyType, user?.id);
 
   useEffect(() => {
     void registerForPushNotifications().then(setPushToken).catch(() => setPushToken(null));

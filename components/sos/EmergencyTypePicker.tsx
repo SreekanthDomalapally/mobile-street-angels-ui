@@ -1,23 +1,19 @@
 import { Text } from "@/components/ui/Text";
-import { getSelectedSosGroupId } from "@/components/home/SosGroupPicker";
 import { fallbackEmergencyTypes, useEmergencyTypes } from "@/hooks/useEmergencyCatalog";
 import { useGroups } from "@/hooks/useGroups";
 import {
   countCirclesForEmergencyType,
   countUsersForEmergencyType,
-  countUsersForEmergencyTypeInGroup,
   formatEmergencyTypeCircleCount,
   formatEmergencyTypeCircleCountBadge,
 } from "@/lib/groupLabels";
 import { getEmergencyTypeLabel } from "@/lib/emergencyTypeLabels";
 import { getEmergencyTypeColors } from "@/lib/emergencyTypeColors";
 import { useAuthStore } from "@/stores/authStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 import { useSOSStore } from "@/stores/sosStore";
 import type { EmergencyType } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useMemo } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -34,17 +30,10 @@ export function EmergencyTypePicker() {
   const { data: typesCatalog } = useEmergencyTypes();
   const { data: groups, isLoading: groupsLoading } = useGroups();
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const preferredGroupId = useSettingsStore((s) => s.emergency.defaultSosGroupId);
   const types = (typesCatalog ?? fallbackEmergencyTypes).filter((type) =>
     fallbackEmergencyTypes.some((fallback) => fallback.code === type.code)
   );
   const disabled = status !== "idle";
-
-  const selectedGroup = useMemo(() => {
-    if (!groups?.length) return undefined;
-    const id = getSelectedSosGroupId(groups, preferredGroupId);
-    return groups.find((g) => g.id === id);
-  }, [groups, preferredGroupId]);
 
   return (
     <View>
@@ -57,9 +46,7 @@ export function EmergencyTypePicker() {
           const code = type.code as EmergencyType;
           const circleCount = groups ? countCirclesForEmergencyType(groups, code) : null;
           const userCount = groups
-            ? selectedGroup
-              ? countUsersForEmergencyTypeInGroup(selectedGroup, code, currentUserId)
-              : countUsersForEmergencyType(groups, code, currentUserId)
+            ? countUsersForEmergencyType(groups, code, currentUserId)
             : null;
           const countLabel =
             circleCount !== null

@@ -109,3 +109,78 @@ export function hasOwnedGroupNamed(groups: Group[] | undefined, name: string): b
     (group) => group.myRole === 'owner' && group.name.trim().toLowerCase() === normalized
   );
 }
+
+function pickDefaultGroup(groups: Group[], preferredId?: string | null): Group | undefined {
+  if (preferredId) {
+    const match = groups.find((g) => g.id === preferredId);
+    if (match) return match;
+  }
+  return groups[0];
+}
+
+export function getSelectedSosGroupId(
+  groups: Group[],
+  preferredId?: string | null,
+): string | undefined {
+  return pickDefaultGroup(groups, preferredId)?.id;
+}
+
+/** Primary circle used when creating an SOS for a given emergency type. */
+export function getSosGroupForEmergencyType(
+  groups: Group[],
+  emergencyType: EmergencyType,
+  preferredId?: string | null,
+): string | undefined {
+  if (!groups.length) return undefined;
+
+  if (preferredId) {
+    const preferred = groups.find((g) => g.id === preferredId);
+    if (preferred && groupHandlesEmergencyType(preferred, emergencyType)) {
+      return preferred.id;
+    }
+  }
+
+  const matching = groups.filter((g) => groupHandlesEmergencyType(g, emergencyType));
+  return matching[0]?.id ?? groups[0]?.id;
+}
+
+export type EmergencyNotifyContact = {
+  userId: string;
+  displayName: string;
+  email: string;
+  groupNames: string[];
+};
+
+/** Unique people (excluding sender) notified across circles linked to this emergency type. */
+export function getUniqueMembersForEmergencyType(
+  groups: Group[] | undefined,
+  code: EmergencyType,
+  excludeUserId?: string,
+): EmergencyNotifyContact[] {
+  if (!groups?.length) return [];
+
+  const byUserId = new Map<string, EmergencyNotifyContact>();
+  for (const group of groups) {
+    if (!groupHandlesEmergencyType(group, code)) continue;
+    for (const member of group.members) {
+      if (excludeUserId && member.userId === excludeUserId) continue;
+      const existing = byUserId.get(member.userId);
+      if (existing) {
+        if (!existing.groupNames.includes(group.name)) {
+          existing.groupNames.push(group.name);
+        }
+      } else {
+        byUserId.set(member.userId, {
+          userId: member.userId,
+          displayName: member.displayName,
+          email: member.email,
+          groupNames: [group.name],
+        });
+      }
+    }
+  }
+
+  return Array.from(byUserId.values()).sort((a, b) =>
+    a.displayName.localeCompare(b.displayName),
+  );
+}

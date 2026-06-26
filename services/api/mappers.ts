@@ -1,3 +1,4 @@
+import { getEmergencyTypeLabel } from "@/lib/emergencyTypeLabels";
 import type {
   ActivityItem,
   AlertStatus,
@@ -9,19 +10,18 @@ import type {
   ResponderStatus,
   SOSAlert,
   TimelineEvent,
-} from '@/types';
-import { getEmergencyTypeLabel } from '@/lib/emergencyTypeLabels';
+} from "@/types";
 
 /** API alert_type enum values — canonical vocabulary shared with the app. */
 export type ApiAlertType =
-  | 'medical'
-  | 'personal_safety'
-  | 'car_breakdown'
-  | 'need_pickup'
-  | 'lost_or_stranded'
-  | 'custom';
+  | "medical"
+  | "personal_safety"
+  | "car_breakdown"
+  | "need_pickup"
+  | "lost_or_stranded"
+  | "custom";
 
-export type ApiAlertStatus = 'active' | 'resolved' | 'cancelled';
+export type ApiAlertStatus = "active" | "resolved" | "cancelled";
 
 export interface ApiAlertResponseItem {
   id: string;
@@ -100,32 +100,32 @@ export interface ApiContactDirectoryItem {
   email: string | null;
   phone: string | null;
   group_ids: string[];
-  status: 'member' | 'invited';
+  status: "member" | "invited";
 }
 
 const EMERGENCY_TYPES: readonly EmergencyType[] = [
-  'medical',
-  'personal_safety',
-  'car_breakdown',
-  'need_pickup',
-  'lost_or_stranded',
-  'custom',
+  "medical",
+  "personal_safety",
+  "car_breakdown",
+  "need_pickup",
+  "lost_or_stranded",
+  "custom",
 ];
 
 /** Legacy API values mapped to the canonical vocabulary. */
 const LEGACY_API_TO_EMERGENCY: Record<string, EmergencyType> = {
-  unsafe_situation: 'personal_safety',
-  medical_help: 'medical',
-  pickup_request: 'need_pickup',
-  general_help: 'need_pickup',
-  my_neighbourhood: 'need_pickup',
+  unsafe_situation: "personal_safety",
+  medical_help: "medical",
+  pickup_request: "need_pickup",
+  general_help: "need_pickup",
+  my_neighbourhood: "need_pickup",
 };
 
 const RESPONSE_TO_STATUS: Record<string, ResponderStatus> = {
-  i_can_help: 'notified',
-  on_my_way: 'en_route',
-  calling_now: 'en_route',
-  unable_to_help: 'completed',
+  i_can_help: "notified",
+  on_my_way: "en_route",
+  calling_now: "en_route",
+  unable_to_help: "completed",
 };
 
 export function mapEmergencyTypeToApi(type: EmergencyType): ApiAlertType {
@@ -136,11 +136,13 @@ export function mapApiAlertTypeToEmergency(type: string): EmergencyType {
   if ((EMERGENCY_TYPES as readonly string[]).includes(type)) {
     return type as EmergencyType;
   }
-  return LEGACY_API_TO_EMERGENCY[type] ?? 'custom';
+  return LEGACY_API_TO_EMERGENCY[type] ?? "custom";
 }
 
 /** Normalize group/API emergency type lists (maps retired codes, dedupes). */
-export function normalizeEmergencyTypes(types: string[] | undefined): EmergencyType[] {
+export function normalizeEmergencyTypes(
+  types: string[] | undefined,
+): EmergencyType[] {
   if (!types?.length) return [];
   const seen = new Set<EmergencyType>();
   const normalized: EmergencyType[] = [];
@@ -155,20 +157,21 @@ export function normalizeEmergencyTypes(types: string[] | undefined): EmergencyT
 
 export function mapApiStatusToAlertStatus(
   status: string,
-  hasResponses: boolean
+  hasResponses: boolean,
 ): AlertStatus {
-  if (status === 'resolved') return 'resolved';
-  if (status === 'cancelled') return 'cancelled';
-  if (status === 'active' && hasResponses) return 'responding';
-  if (status === 'active') return 'active';
-  return 'active';
+  if (status === "resolved") return "resolved";
+  if (status === "cancelled") return "cancelled";
+  if (status === "active" && hasResponses) return "responding";
+  if (status === "active") return "active";
+  return "active";
 }
 
 function mapResponseToResponder(item: ApiAlertResponseItem): Responder {
-  const status = RESPONSE_TO_STATUS[item.response_type] ?? 'notified';
+  const status = RESPONSE_TO_STATUS[item.response_type] ?? "notified";
   return {
     id: item.user_id,
-    name: item.responder_name?.trim() || `Responder ${item.user_id.slice(0, 8)}`,
+    name:
+      item.responder_name?.trim() || `Responder ${item.user_id.slice(0, 8)}`,
     status,
     etaMinutes: item.eta_minutes ?? undefined,
     distanceKm: item.distance_km ?? undefined,
@@ -185,9 +188,9 @@ function buildTimelineFromAlert(alert: ApiAlertOut): TimelineEvent[] {
     {
       id: `created-${alert.id}`,
       timestamp: alert.created_at,
-      title: 'SOS alert sent',
-      description: 'Your trusted contacts have been notified',
-      type: 'system',
+      title: "SOS alert sent",
+      description: "Your trusted contacts have been notified",
+      type: "system",
     },
   ];
 
@@ -197,24 +200,26 @@ function buildTimelineFromAlert(alert: ApiAlertOut): TimelineEvent[] {
       timestamp: response.created_at,
       title: responseLabel(response.response_type),
       description:
-        response.eta_minutes != null ? `ETA ~${response.eta_minutes} min` : undefined,
-      type: 'responder',
+        response.eta_minutes != null
+          ? `ETA ~${response.eta_minutes} min`
+          : undefined,
+      type: "responder",
     });
   }
 
   return events.sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
 }
 
 function responseLabel(responseType: string): string {
   const labels: Record<string, string> = {
-    i_can_help: 'Someone can help',
-    on_my_way: 'Responder is on the way',
-    calling_now: 'Responder is calling now',
-    unable_to_help: 'Unable to help',
+    i_can_help: "Someone can help",
+    on_my_way: "Responder is on the way",
+    calling_now: "Responder is calling now",
+    unable_to_help: "Unable to help",
   };
-  return labels[responseType] ?? 'New response';
+  return labels[responseType] ?? "New response";
 }
 
 export function mapApiAlertToSOSAlert(alert: ApiAlertOut): SOSAlert {
@@ -279,13 +284,15 @@ export function mapApiGroupInvite(invite: ApiGroupInviteOut): GroupInvite {
   };
 }
 
-export function mapApiContactDirectoryItem(item: ApiContactDirectoryItem): CircleContact {
+export function mapApiContactDirectoryItem(
+  item: ApiContactDirectoryItem,
+): CircleContact {
   const email = item.email ?? undefined;
   const userId = item.user_id ?? undefined;
   return {
-    id: userId ?? `invite:${email ?? 'unknown'}`,
+    id: userId ?? `invite:${email ?? "unknown"}`,
     userId,
-    displayName: item.display_name ?? email ?? 'Invited contact',
+    displayName: item.display_name ?? email ?? "Invited contact",
     email,
     phone: item.phone ?? undefined,
     groupIds: item.group_ids,
@@ -297,9 +304,9 @@ export function mapApiContactDirectoryItem(item: ApiContactDirectoryItem): Circl
 export function mapGroupToActivityItem(group: ApiGroupOut): ActivityItem {
   return {
     id: `group-${group.id}`,
-    type: 'group_update',
+    type: "group_update",
     title: group.name,
-    subtitle: group.is_temporary ? 'Temporary group' : 'Trusted group',
+    subtitle: group.is_temporary ? "Temporary group" : "Trusted group",
     timestamp: group.created_at,
   };
 }
@@ -311,62 +318,70 @@ export function mapAlertToActivityItem(alert: ApiAlertOut): ActivityItem {
   return {
     id: `alert-${alert.id}`,
     alertId: alert.id,
-    type: 'alert',
+    type: "alert",
     title: `SOS — ${getEmergencyTypeLabel(emergency)}`,
-    subtitle: alert.message ?? 'Emergency alert in your trusted group',
+    subtitle: alert.message ?? "Emergency alert in your trusted group",
     timestamp: alert.created_at ?? new Date().toISOString(),
     status,
   };
 }
 
-export function buildTimelineFromWsEvent(payload: Record<string, unknown>): TimelineEvent | null {
-  const type = String(payload.type ?? '');
+export function buildTimelineFromWsEvent(
+  payload: Record<string, unknown>,
+): TimelineEvent | null {
+  const type = String(payload.type ?? "");
 
-  if (type === 'alert_response') {
+  if (type === "alert_response") {
+    const userId = String(payload.user_id ?? "unknown");
     return {
-      id: `ws-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      title: responseLabel(String(payload.response_type ?? '')),
+      id: `response-${userId}-${String(payload.response_type ?? "")}`,
+      timestamp: String(payload.created_at ?? new Date().toISOString()),
+      title: responseLabel(String(payload.response_type ?? "")),
       description:
-        payload.eta_minutes != null ? `ETA ~${payload.eta_minutes} min` : undefined,
-      type: 'responder',
+        payload.eta_minutes != null
+          ? `ETA ~${payload.eta_minutes} min`
+          : undefined,
+      type: "responder",
     };
   }
 
-  if (type === 'location_update') {
+  if (type === "location_update") {
+    const recordedAt = String(payload.recorded_at ?? new Date().toISOString());
     return {
-      id: `loc-${Date.now()}`,
-      timestamp: String(payload.recorded_at ?? new Date().toISOString()),
-      title: 'Location updated',
-      type: 'system',
+      id: `loc-${recordedAt}`,
+      timestamp: recordedAt,
+      title: "Location updated",
+      type: "system",
     };
   }
 
-  if (type === 'alert_resolved') {
+  if (type === "alert_resolved") {
     return {
-      id: `resolved-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      title: 'Alert resolved',
-      type: 'system',
+      id: `resolved-${String(payload.resolved_at ?? payload.alert_id ?? Date.now())}`,
+      timestamp: String(payload.resolved_at ?? new Date().toISOString()),
+      title: "Alert resolved",
+      type: "system",
     };
   }
 
   return null;
 }
 
-export function mapWsResponseToResponder(payload: Record<string, unknown>): Responder | null {
-  if (payload.type !== 'alert_response') return null;
-  const userId = String(payload.user_id ?? 'unknown');
-  const responseType = String(payload.response_type ?? '');
+export function mapWsResponseToResponder(
+  payload: Record<string, unknown>,
+): Responder | null {
+  if (payload.type !== "alert_response") return null;
+  const userId = String(payload.user_id ?? "unknown");
+  const responseType = String(payload.response_type ?? "");
   const displayName =
-    typeof payload.full_name === 'string' && payload.full_name.trim()
+    typeof payload.full_name === "string" && payload.full_name.trim()
       ? payload.full_name
       : `Responder ${userId.slice(0, 8)}`;
   return {
     id: userId,
     name: displayName,
-    status: RESPONSE_TO_STATUS[responseType] ?? 'notified',
+    status: RESPONSE_TO_STATUS[responseType] ?? "notified",
     etaMinutes:
-      typeof payload.eta_minutes === 'number' ? payload.eta_minutes : undefined,
+      typeof payload.eta_minutes === "number" ? payload.eta_minutes : undefined,
   };
 }
