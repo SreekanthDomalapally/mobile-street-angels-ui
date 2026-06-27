@@ -33,6 +33,7 @@ export interface SosLogFields {
   token_preview?: string;
   push_token_registered?: boolean;
   error?: string;
+  push_failure_reason?: string;
 }
 
 export function logSosEvent(event: SosLogEvent, fields: SosLogFields = {}): void {

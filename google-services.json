@@ -50,6 +50,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1065150630879-2dtq5ql5s91ing58cqokl1ll3jjt6sgv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.youhooalert.com",
+            "certificate_hash": "82e20f6e35cf7f40fbfc1e0197afdcf74c791167"
+          }
+        },
+        {
           "client_id": "1065150630879-5h10usgoj8ortntijpua8331mk536jd7.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

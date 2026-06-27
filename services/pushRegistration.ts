@@ -6,7 +6,7 @@ import {
   getStoredPushToken,
   setStoredPushToken,
 } from '@/services/pushTokenStorage';
-import { registerForPushNotifications, hasNotificationPermission } from '@/services/notifications';
+import { registerForPushNotificationsDetailed, hasNotificationPermission } from '@/services/notifications';
 import { getAccessToken } from '@/services/tokens';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -23,14 +23,17 @@ export async function syncPushTokenWithServer(): Promise<string | null> {
     return null;
   }
 
-  const pushToken = await registerForPushNotifications();
-  if (!pushToken) {
+  const pushResult = await registerForPushNotificationsDetailed();
+  if (!pushResult.ok) {
     logSosEvent('PUSH_TOKEN_REGISTRATION_RESPONSE', {
       push_token_registered: false,
-      error: 'no_expo_push_token',
+      error: pushResult.code,
+      push_failure_reason: pushResult.message,
     });
-    return null;
+    throw new Error(pushResult.message);
   }
+
+  const pushToken = pushResult.token;
 
   const previous = await getStoredPushToken();
   if (previous && previous !== pushToken) {

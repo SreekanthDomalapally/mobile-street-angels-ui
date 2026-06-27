@@ -13,15 +13,36 @@ export function arePushNotificationsSupported(): boolean {
 
 type NotificationsModule = typeof import('expo-notifications');
 
+export type PushTokenFailureCode =
+  | 'unsupported_runtime'
+  | 'permission_denied'
+  | 'missing_project_id'
+  | 'token_failed';
+
+export type PushTokenResult =
+  | { ok: true; token: string }
+  | { ok: false; code: PushTokenFailureCode; message: string };
+
 let notificationHandlerConfigured = false;
 let categoriesConfigured = false;
+
+async function loadNotificationsModule(): Promise<NotificationsModule | null> {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  return import('expo-notifications');
+}
 
 async function loadNotifications(): Promise<NotificationsModule | null> {
   if (!arePushNotificationsSupported()) {
     return null;
   }
 
-  const Notifications = await import('expo-notifications');
+  const Notifications = await loadNotificationsModule();
+  if (!Notifications) {
+    return null;
+  }
 
   if (!notificationHandlerConfigured) {
     Notifications.setNotificationHandler({
@@ -128,11 +149,29 @@ function resolveEasProjectId(): string | undefined {
   return extra?.eas?.projectId?.trim() || undefined;
 }
 
-/** Returns true when notification permission is granted (or unavailable in dev). */
+export function getPushEnvironmentDiagnostics(): {
+  pushSupported: boolean;
+  runtime: 'native' | 'expo_go' | 'web';
+  easProjectId: string | null;
+} {
+  if (Platform.OS === 'web') {
+    return { pushSupported: false, runtime: 'web', easProjectId: resolveEasProjectId() ?? null };
+  }
+  if (isRunningInExpoGo()) {
+    return { pushSupported: false, runtime: 'expo_go', easProjectId: resolveEasProjectId() ?? null };
+  }
+  return {
+    pushSupported: true,
+    runtime: 'native',
+    easProjectId: resolveEasProjectId() ?? null,
+  };
+}
+
+/** Returns true when the OS notification permission is granted. */
 export async function hasNotificationPermission(): Promise<boolean> {
-  const Notifications = await loadNotifications();
+  const Notifications = await loadNotificationsModule();
   if (!Notifications) {
-    return __DEV__;
+    return false;
   }
   try {
     const { status } = await Notifications.getPermissionsAsync();
@@ -145,10 +184,9 @@ export async function hasNotificationPermission(): Promise<boolean> {
 
 /** Request notification permission. Required for onboarding — separate from FCM token. */
 export async function ensureNotificationPermission(): Promise<boolean> {
-  const Notifications = await loadNotifications();
+  const Notifications = await loadNotificationsModule();
   if (!Notifications) {
-    // Expo Go / web: treat as granted so dev flow can continue.
-    return __DEV__;
+    return false;
   }
 
   try {
@@ -171,26 +209,46 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 }
 
 export async function registerForPushNotifications(): Promise<string | null> {
+  const result = await registerForPushNotificationsDetailed();
+  return result.ok ? result.token : null;
+}
+
+export async function registerForPushNotificationsDetailed(): Promise<PushTokenResult> {
+  if (!arePushNotificationsSupported()) {
+    const runtime = Platform.OS === 'web' ? 'web' : 'Expo Go';
+    return {
+      ok: false,
+      code: 'unsupported_runtime',
+      message: `Push tokens are not available in ${runtime}. Install the Play Store / internal testing build.`,
+    };
+  }
+
   const Notifications = await loadNotifications();
   if (!Notifications) {
-    if (__DEV__) {
-      console.info(
-        '[notifications] Skipped on web / Expo Go. Use a development or store build on a device for push tokens.'
-      );
-    }
-    return null;
+    return {
+      ok: false,
+      code: 'unsupported_runtime',
+      message: 'Push notifications module unavailable on this device.',
+    };
   }
 
   try {
     const granted = await ensureNotificationPermission();
     if (!granted) {
-      return null;
+      return {
+        ok: false,
+        code: 'permission_denied',
+        message: 'Notification permission is not granted. Enable it in Android Settings → Apps → YouHoo Alert → Notifications.',
+      };
     }
 
     const projectId = resolveEasProjectId();
     if (!projectId) {
-      console.warn('[notifications] EAS project ID missing; skipping push token.');
-      return null;
+      return {
+        ok: false,
+        code: 'missing_project_id',
+        message: 'EAS project ID is missing from this build. Rebuild with EXPO_PUBLIC_EAS_PROJECT_ID configured.',
+      };
     }
 
     const token = await withTimeout(
@@ -200,10 +258,18 @@ export async function registerForPushNotifications(): Promise<string | null> {
     logSosEvent('EXPO_PUSH_TOKEN_GENERATED', {
       token_preview: token.data ? `${token.data.slice(0, 28)}…` : undefined,
     });
-    return token.data;
+    return { ok: true, token: token.data };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.warn('[notifications] Push token unavailable:', error);
-    return null;
+    return {
+      ok: false,
+      code: 'token_failed',
+      message:
+        message.includes('Firebase') || message.includes('FCM')
+          ? `${message} — upload FCM credentials in EAS and rebuild the Android app.`
+          : message,
+    };
   }
 }
 

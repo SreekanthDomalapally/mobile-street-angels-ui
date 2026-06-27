@@ -9,9 +9,14 @@ import { signOut as authSignOut } from "@/services/auth";
 import { updateNotificationPreferences } from "@/services/api/preferences";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import {
+  areDebugToolsEnabled,
+  DEBUG_UNLOCK_TAPS,
+  useDebugStore,
+} from "@/stores/debugStore";
 import { router } from "expo-router";
-import { useCallback } from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
+import { useCallback, useRef } from "react";
+import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
@@ -19,6 +24,28 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const { notifications, emergency, updateNotifications, updateEmergency } =
     useSettingsStore();
+  const debugUnlocked = useDebugStore((s) => s.unlocked);
+  const setDebugUnlocked = useDebugStore((s) => s.setUnlocked);
+  const debugToolsEnabled = areDebugToolsEnabled(debugUnlocked);
+  const versionTapCount = useRef(0);
+
+  const handleVersionTap = useCallback(() => {
+    if (debugToolsEnabled) {
+      return;
+    }
+    versionTapCount.current += 1;
+    const remaining = DEBUG_UNLOCK_TAPS - versionTapCount.current;
+    if (remaining <= 0) {
+      versionTapCount.current = 0;
+      setDebugUnlocked(true);
+      Alert.alert("Debug tools unlocked", "SOS debug tools are now available.");
+    } else if (remaining <= 3) {
+      Alert.alert(
+        "Developer mode",
+        `${remaining} more tap${remaining === 1 ? "" : "s"} to unlock debug tools.`
+      );
+    }
+  }, [debugToolsEnabled, setDebugUnlocked]);
 
   const handleNotificationToggle = useCallback(
     async (key: "responderUpdates" | "groupUpdates", value: boolean) => {
@@ -70,7 +97,7 @@ export default function ProfileScreen() {
           showChevron
           onPress={() => router.push("/responder-profile")}
         />
-        {__DEV__ ? (
+        {debugToolsEnabled ? (
           <SettingsRow
             label="SOS debug tools"
             description="Location, push, WebSocket tests"
@@ -172,9 +199,11 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <Text variant="caption" muted className="text-center">
-        {APP_NAME} v{getAppVersionLabel()} · Free to use
-      </Text>
+      <Pressable onPress={handleVersionTap} accessibilityRole="text">
+        <Text variant="caption" muted className="text-center">
+          {APP_NAME} v{getAppVersionLabel()} · Free to use
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }

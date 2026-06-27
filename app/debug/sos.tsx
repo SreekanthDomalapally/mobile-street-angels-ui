@@ -19,14 +19,16 @@ import {
 import { getApiOrigin } from '@/services/api/http';
 import { getSOSLocation } from '@/services/location';
 import {
+  getPushEnvironmentDiagnostics,
   hasNotificationPermission,
-  registerForPushNotifications,
+  registerForPushNotificationsDetailed,
 } from '@/services/notifications';
 import { syncPushTokenWithServer } from '@/services/pushRegistration';
 import { getStoredPushToken } from '@/services/pushTokenStorage';
 import { getAccessToken } from '@/services/tokens';
 import { alertSocket } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
+import { areDebugToolsEnabled, useDebugStore } from '@/stores/debugStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useSOSStore } from '@/stores/sosStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +47,8 @@ function countRecipients(
 
 export default function SosDebugScreen() {
   const insets = useSafeAreaInsets();
+  const debugUnlocked = useDebugStore((s) => s.unlocked);
+  const debugToolsEnabled = areDebugToolsEnabled(debugUnlocked);
   const user = useAuthStore((s) => s.user);
   const flags = useAuthStore((s) => s.onboardingFlags);
   const { readiness, locationGranted, notificationsGranted, refreshPermissions } =
@@ -74,8 +78,12 @@ export default function SosDebugScreen() {
   const recipientCount = countRecipients(groups, emergencyType, user?.id);
   const activeMembersCount = groups?.reduce((sum, g) => sum + (g.memberCount ?? g.members.length), 0) ?? 0;
 
+  const pushEnv = getPushEnvironmentDiagnostics();
+
   useEffect(() => {
-    void registerForPushNotifications().then(setPushToken).catch(() => setPushToken(null));
+    void registerForPushNotificationsDetailed().then((result) => {
+      setPushToken(result.ok ? result.token : null);
+    });
     void getStoredPushToken().then((stored) => setPushTokenOnServer(Boolean(stored)));
   }, []);
 
@@ -107,11 +115,11 @@ export default function SosDebugScreen() {
     return () => subscription.remove();
   }, [goBack]);
 
-  if (!__DEV__) {
+  if (!debugToolsEnabled) {
     return (
       <View className="flex-1 items-center justify-center bg-charcoal-950 px-6">
         <Text variant="body" muted>
-          SOS debug tools are only available in development builds.
+          SOS debug tools are locked. Unlock them from Profile by tapping the version label.
         </Text>
         <Button title="Go back" variant="secondary" className="mt-4" onPress={goBack} />
       </View>
@@ -148,6 +156,15 @@ export default function SosDebugScreen() {
         </Text>
         <Text variant="caption" muted>
           Readiness: {readiness.ready ? 'ready' : readiness.reason ?? 'not ready'}
+        </Text>
+        <Text variant="caption" muted>
+          Push runtime: {pushEnv.runtime === 'native' ? 'native build (OK)' : pushEnv.runtime}
+        </Text>
+        <Text variant="caption" muted>
+          Push supported: {pushEnv.pushSupported ? 'yes' : 'no'}
+        </Text>
+        <Text variant="caption" muted>
+          EAS project ID: {pushEnv.easProjectId ? `${pushEnv.easProjectId.slice(0, 8)}…` : 'missing'}
         </Text>
         <Text variant="caption" muted>
           Location permission: {locationGranted ? 'granted' : 'denied'}
@@ -234,7 +251,6 @@ export default function SosDebugScreen() {
               const token = await syncPushTokenWithServer();
               setPushToken(token);
               setPushTokenOnServer(Boolean(token));
-              if (!token) throw new Error('Failed to sync push token');
             })
           }
         />
@@ -244,10 +260,16 @@ export default function SosDebugScreen() {
           onPress={() =>
             void runAction('Push token', async () => {
               const granted = await hasNotificationPermission();
-              if (!granted) throw new Error('Notification permission not granted');
-              const token = await registerForPushNotifications();
-              setPushToken(token);
-              if (!token) throw new Error('No push token returned');
+              if (!granted) {
+                throw new Error(
+                  'Notification permission not granted. Enable in Settings → Apps → YouHoo Alert → Notifications.',
+                );
+              }
+              const result = await registerForPushNotificationsDetailed();
+              setPushToken(result.ok ? result.token : null);
+              if (!result.ok) {
+                throw new Error(result.message);
+              }
             })
           }
         />
