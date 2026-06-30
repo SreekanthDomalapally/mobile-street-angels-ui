@@ -3,6 +3,11 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
 import { GroupCard } from '@/components/groups/GroupCard';
+import {
+  CreateGroupEmergencyTypesPicker,
+  GroupEmergencyTypesSection,
+  type AssignmentMode,
+} from '@/components/groups/GroupEmergencyTypesSection';
 import { GroupInvitesSection } from '@/components/groups/GroupInvitesSection';
 import { GroupMembersSection } from '@/components/groups/GroupMembersSection';
 import { TripWatchGroupSection } from '@/components/trip/TripWatchGroupSection';
@@ -13,12 +18,13 @@ import { useCreateGroup, useGroups, useRemoveGroupMember, useUpdateGroup } from 
 import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
+import { setGroupEmergencyTypes } from '@/services/api/groups';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import type { GroupMember } from '@/types';
+import type { EmergencyType, GroupMember } from '@/types';
 import {
   Alert,
   Keyboard,
@@ -58,6 +64,8 @@ export default function GroupsScreen() {
   );
   const [modalVisible, setModalVisible] = useState(false);
   const [isTemporary, setIsTemporary] = useState(false);
+  const [createEmergencyMode, setCreateEmergencyMode] = useState<AssignmentMode>('all');
+  const [createEmergencyTypes, setCreateEmergencyTypes] = useState<Set<EmergencyType>>(new Set());
   const [formError, setFormError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -135,6 +143,8 @@ export default function GroupsScreen() {
     setKeyboardHeight(0);
     setModalVisible(false);
     setFormError(null);
+    setCreateEmergencyMode('all');
+    setCreateEmergencyTypes(new Set());
   };
 
   const openRename = (currentName: string) => {
@@ -254,14 +264,26 @@ export default function GroupsScreen() {
       setFormError(`You already have a circle named "${data.name.trim()}". Open it to add people.`);
       return;
     }
+    if (createEmergencyMode === 'specific' && createEmergencyTypes.size === 0) {
+      setFormError('Select at least one emergency type, or choose All types.');
+      return;
+    }
     try {
       const group = await createGroupMutation.mutateAsync({
         name: data.name,
         isTemporary,
         expiresAt: isTemporary ? temporaryGroupExpiryIso() : undefined,
       });
+      if (
+        createEmergencyMode === 'specific' &&
+        createEmergencyTypes.size > 0
+      ) {
+        await setGroupEmergencyTypes(group.id, Array.from(createEmergencyTypes));
+      }
       reset();
       setIsTemporary(false);
+      setCreateEmergencyMode('all');
+      setCreateEmergencyTypes(new Set());
       setModalVisible(false);
       setSelectedGroupId(group.id);
       handleGroupUpdated();
@@ -313,11 +335,10 @@ export default function GroupsScreen() {
           ) : (
             <>
               <Text variant="label" className="mb-1">
-                Your circles
+                Your groups
               </Text>
               <Text variant="caption" muted className="mb-3">
-                Each circle is private. People you invite only join this circle — they may have
-                their own with the same name.
+                Tap a group to manage members and choose which emergencies it responds to.
               </Text>
               <FlatList
                 data={groups ?? []}
@@ -362,46 +383,31 @@ export default function GroupsScreen() {
                         openRename(groupName);
                       }}
                       accessibilityRole="button"
-                      accessibilityLabel="Rename circle"
-                      className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
+                      accessibilityLabel="Rename group"
+                      className="mb-4 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-3"
                     >
                       <Ionicons name="create-outline" size={20} color="#a0a0a8" />
                       <View className="flex-1">
-                        <Text variant="body">Rename circle</Text>
+                        <Text variant="body">Rename group</Text>
                         <Text variant="caption" muted>
-                          Change this circle&apos;s name
+                          {selectedGroup?.name ??
+                            groups?.find((g) => g.id === selectedGroupId)?.name}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
                     </Pressable>
                   )}
 
-                  {canManageMembers && (
-                    <Pressable
-                      onPress={() => {
-                        const groupName =
-                          selectedGroup?.name ??
-                          groups?.find((g) => g.id === selectedGroupId)?.name ??
-                          '';
-                        router.push({
-                          pathname: '/group/emergency-types',
-                          params: { groupId: selectedGroupId, name: groupName },
-                        });
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Configure emergency types"
-                      className="mb-2 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-4"
-                    >
-                      <Ionicons name="git-branch-outline" size={20} color="#a0a0a8" />
-                      <View className="flex-1">
-                        <Text variant="body">Emergency types</Text>
-                        <Text variant="caption" muted>
-                          Choose which emergencies this circle responds to
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
-                    </Pressable>
-                  )}
+                  <GroupEmergencyTypesSection
+                    key={selectedGroupId}
+                    groupId={selectedGroupId}
+                    canEdit={canManageMembers}
+                    seedTypes={
+                      selectedGroup?.emergencyTypes ??
+                      groups?.find((g) => g.id === selectedGroupId)?.emergencyTypes
+                    }
+                    onSaved={handleGroupUpdated}
+                  />
 
                   <GroupMembersSection
                     group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}
@@ -473,7 +479,7 @@ export default function GroupsScreen() {
               )}
               <Pressable
                 onPress={() => setIsTemporary(!isTemporary)}
-                className="mb-6 flex-row items-center gap-3 py-2"
+                className="mb-4 flex-row items-center gap-3 py-2"
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: isTemporary }}>
                 <View
@@ -481,6 +487,20 @@ export default function GroupsScreen() {
                 />
                 <Text variant="body">Temporary group (expires in 1 hour)</Text>
               </Pressable>
+              <CreateGroupEmergencyTypesPicker
+                mode={createEmergencyMode}
+                onModeChange={setCreateEmergencyMode}
+                selected={createEmergencyTypes}
+                onSelectedChange={(types) => setCreateEmergencyTypes(new Set(types))}
+                onToggle={(code) => {
+                  setCreateEmergencyTypes((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(code)) next.delete(code);
+                    else next.add(code);
+                    return next;
+                  });
+                }}
+              />
               <Button
                 title="Create"
                 loading={createGroupMutation.isPending}

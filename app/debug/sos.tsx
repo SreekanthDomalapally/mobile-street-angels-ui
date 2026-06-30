@@ -119,7 +119,8 @@ export default function SosDebugScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-charcoal-950 px-6">
         <Text variant="body" muted>
-          SOS debug tools are locked. Unlock them from Profile by tapping the version label.
+          SOS debug tools are locked on this build. Internal builds can unlock them from Profile
+          by tapping the version label (when enabled at build time).
         </Text>
         <Button title="Go back" variant="secondary" className="mt-4" onPress={goBack} />
       </View>

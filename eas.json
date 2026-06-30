@@ -25,6 +25,7 @@
       "extends": "base",
       "distribution": "internal",
       "env": {
+        "EXPO_PUBLIC_ENABLE_SOS_DEBUG": "true"
       },
       "android": {
         "buildType": "apk"
@@ -33,6 +34,9 @@
     "production": {
       "extends": "base",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_ENABLE_SOS_DEBUG": "false"
+      },
       "android": {
         "buildType": "app-bundle"
       },

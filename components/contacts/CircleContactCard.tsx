@@ -1,3 +1,4 @@
+import { EmergencyTypeSummary } from '@/components/groups/EmergencyTypeSummary';
 import { Text } from '@/components/ui/Text';
 import type { CircleContact, Group } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,16 +11,17 @@ interface CircleContactCardProps {
 }
 
 export function CircleContactCard({ contact, groups, onPress }: CircleContactCardProps) {
-  const groupNames = contact.groupIds
-    .map((groupId) => groups.find((group) => group.id === groupId)?.name)
-    .filter((name): name is string => Boolean(name));
+  const memberGroups = contact.groupIds
+    .map((groupId) => groups.find((group) => group.id === groupId))
+    .filter((group): group is Group => Boolean(group));
 
   return (
     <Pressable
       onPress={onPress}
       className="mb-3 rounded-2xl border border-glass-border bg-charcoal-900 p-4 active:opacity-90"
       accessibilityRole="button"
-      accessibilityLabel={`Manage circles for ${contact.displayName}`}>
+      accessibilityLabel={`Manage groups for ${contact.displayName}`}
+    >
       <View className="flex-row items-start justify-between gap-3">
         <View className="flex-1">
           <Text variant="body">{contact.displayName}</Text>
@@ -30,18 +32,24 @@ export function CircleContactCard({ contact, groups, onPress }: CircleContactCar
         <Ionicons name="chevron-forward" size={18} color="#6d6d75" />
       </View>
 
-      <View className="mt-3 flex-row flex-wrap gap-2">
-        {groupNames.length > 0 ? (
-          groupNames.map((name) => (
-            <View key={name} className="rounded-full bg-responder/15 px-3 py-1">
+      <View className="mt-3 gap-2">
+        {memberGroups.length > 0 ? (
+          memberGroups.map((group) => (
+            <View
+              key={group.id}
+              className="rounded-xl border border-glass-border bg-charcoal-800 px-3 py-2"
+            >
               <Text variant="caption" className="text-responder-light">
-                {name}
+                {group.name}
               </Text>
+              <View className="mt-1.5">
+                <EmergencyTypeSummary types={group.emergencyTypes} maxVisible={4} />
+              </View>
             </View>
           ))
         ) : (
           <Text variant="caption" muted>
-            No circles yet
+            Not in any groups yet — tap to add
           </Text>
         )}
       </View>

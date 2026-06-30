@@ -1,3 +1,4 @@
+import { EmergencyTypeSummary } from '@/components/groups/EmergencyTypeSummary';
 import { Text } from '@/components/ui/Text';
 import type { Group } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,6 +53,9 @@ export function GroupMultiSelect({
               <Text variant="caption" muted className="mt-1">
                 {group.isTemporary ? 'Temporary group' : 'Group'} · {group.memberCount} members
               </Text>
+              <View className="mt-2">
+                <EmergencyTypeSummary types={group.emergencyTypes} maxVisible={3} />
+              </View>
             </View>
             <Ionicons
               name={selected ? 'checkmark-circle' : 'ellipse-outline'}

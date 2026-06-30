@@ -28,6 +28,9 @@ module.exports = {
           muted: "#3a6f55",
           light: "#6bb892",
         },
+        warning: {
+          DEFAULT: '#c9a04a',
+        },
         glass: {
           DEFAULT: "rgba(255,255,255,0.08)",
           border: "rgba(255,255,255,0.12)",

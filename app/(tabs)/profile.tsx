@@ -11,6 +11,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import {
   areDebugToolsEnabled,
+  canUnlockSosDebugWithGesture,
   DEBUG_UNLOCK_TAPS,
   useDebugStore,
 } from "@/stores/debugStore";
@@ -30,6 +31,9 @@ export default function ProfileScreen() {
   const versionTapCount = useRef(0);
 
   const handleVersionTap = useCallback(() => {
+    if (!canUnlockSosDebugWithGesture()) {
+      return;
+    }
     if (debugToolsEnabled) {
       return;
     }
