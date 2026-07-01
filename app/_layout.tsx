@@ -65,7 +65,7 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="group/[id]"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen name="responder-profile" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="group/emergency-types" options={{ animation: 'slide_from_right' }} />

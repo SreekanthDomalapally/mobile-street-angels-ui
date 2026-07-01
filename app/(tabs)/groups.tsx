@@ -1,32 +1,25 @@
-import { GroupContactList } from '@/components/contacts/GroupContactList';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
 import { GroupCard } from '@/components/groups/GroupCard';
 import {
   CreateGroupEmergencyTypesPicker,
-  GroupEmergencyTypesSection,
   type AssignmentMode,
 } from '@/components/groups/GroupEmergencyTypesSection';
 import { GroupInvitesSection } from '@/components/groups/GroupInvitesSection';
-import { GroupMembersSection } from '@/components/groups/GroupMembersSection';
-import { TripWatchGroupSection } from '@/components/trip/TripWatchGroupSection';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { useGroup } from '@/hooks/useGroup';
-import { useCreateGroup, useGroups, useRemoveGroupMember, useUpdateGroup } from '@/hooks/useGroups';
+import { useCreateGroup, useGroups } from '@/hooks/useGroups';
 import { hasOwnedGroupNamed } from '@/lib/groupLabels';
 import { temporaryGroupExpiryIso } from '@/lib/utils';
 import { ApiError } from '@/services/api/client';
 import { setGroupEmergencyTypes } from '@/services/api/groups';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import type { EmergencyType, GroupMember } from '@/types';
+import type { EmergencyType } from '@/types';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -53,15 +46,6 @@ export default function GroupsScreen() {
   const { selected: selectedParam } = useLocalSearchParams<{ selected?: string }>();
   const { data: groups, isLoading, isError, refetch } = useGroups();
   const createGroupMutation = useCreateGroup();
-  const updateGroupMutation = useUpdateGroup();
-  const removeMemberMutation = useRemoveGroupMember();
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [renameVisible, setRenameVisible] = useState(false);
-  const [renameValue, setRenameValue] = useState('');
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const { data: selectedGroup, isLoading: isGroupLoading, refetch: refetchGroup } = useGroup(
-    selectedGroupId ?? undefined
-  );
   const [modalVisible, setModalVisible] = useState(false);
   const [isTemporary, setIsTemporary] = useState(false);
   const [createEmergencyMode, setCreateEmergencyMode] = useState<AssignmentMode>('all');
@@ -71,18 +55,12 @@ export default function GroupsScreen() {
 
   useEffect(() => {
     if (typeof selectedParam === 'string' && selectedParam) {
-      setSelectedGroupId(selectedParam);
+      router.replace(`/group/${selectedParam}`);
     }
   }, [selectedParam]);
 
   useEffect(() => {
-    if (!selectedGroupId && groups && groups.length > 0) {
-      setSelectedGroupId(groups[0].id);
-    }
-  }, [groups, selectedGroupId]);
-
-  useEffect(() => {
-    if (!modalVisible && !renameVisible) {
+    if (!modalVisible) {
       return;
     }
 
@@ -97,46 +75,14 @@ export default function GroupsScreen() {
       showSub.remove();
       hideSub.remove();
     };
-  }, [modalVisible, renameVisible]);
+  }, [modalVisible]);
 
   useFocusEffect(
     useCallback(() => {
       void refetch();
       queryClient.invalidateQueries({ queryKey: ['group-invites'] });
-      if (selectedGroupId) {
-        void refetchGroup();
-      }
-    }, [refetch, refetchGroup, selectedGroupId, queryClient])
+    }, [refetch, queryClient])
   );
-
-  const memberEmails = useMemo(() => {
-    const listGroup = groups?.find((group) => group.id === selectedGroupId);
-    const members =
-      selectedGroup?.members?.length ? selectedGroup.members : (listGroup?.members ?? []);
-    return members.map((member) => member.email?.toLowerCase() ?? '').filter(Boolean);
-  }, [selectedGroup, groups, selectedGroupId]);
-
-  const pendingEmails = useMemo(() => {
-    const listGroup = groups?.find((group) => group.id === selectedGroupId);
-    const pending =
-      selectedGroup?.pendingInvites?.length
-        ? selectedGroup.pendingInvites
-        : (listGroup?.pendingInvites ?? []);
-    return pending
-      .map((invite) => invite.inviteeEmail.toLowerCase())
-      .filter((email) => !email.endsWith('@phone.pending'));
-  }, [selectedGroup, groups, selectedGroupId]);
-
-  const pendingPhones = useMemo(() => {
-    const listGroup = groups?.find((group) => group.id === selectedGroupId);
-    const pending =
-      selectedGroup?.pendingInvites?.length
-        ? selectedGroup.pendingInvites
-        : (listGroup?.pendingInvites ?? []);
-    return pending
-      .map((invite) => invite.inviteePhone)
-      .filter((phone): phone is string => Boolean(phone));
-  }, [selectedGroup, groups, selectedGroupId]);
 
   const closeModal = () => {
     Keyboard.dismiss();
@@ -145,58 +91,6 @@ export default function GroupsScreen() {
     setFormError(null);
     setCreateEmergencyMode('all');
     setCreateEmergencyTypes(new Set());
-  };
-
-  const openRename = (currentName: string) => {
-    setRenameValue(currentName);
-    setRenameError(null);
-    setRenameVisible(true);
-  };
-
-  const closeRename = () => {
-    Keyboard.dismiss();
-    setKeyboardHeight(0);
-    setRenameVisible(false);
-    setRenameError(null);
-  };
-
-  const onRename = async () => {
-    if (!selectedGroupId) return;
-    const trimmed = renameValue.trim();
-    if (trimmed.length < 2) {
-      setRenameError('Name must be at least 2 characters');
-      return;
-    }
-    const currentName =
-      selectedGroup?.name ?? groups?.find((g) => g.id === selectedGroupId)?.name ?? '';
-    if (trimmed.toLowerCase() === currentName.trim().toLowerCase()) {
-      closeRename();
-      return;
-    }
-    const clash = (groups ?? []).some(
-      (group) =>
-        group.id !== selectedGroupId &&
-        group.myRole === 'owner' &&
-        group.name.trim().toLowerCase() === trimmed.toLowerCase()
-    );
-    if (clash) {
-      setRenameError(`You already have a circle named "${trimmed}".`);
-      return;
-    }
-    try {
-      await updateGroupMutation.mutateAsync({
-        groupId: selectedGroupId,
-        params: { name: trimmed },
-      });
-      closeRename();
-      handleGroupUpdated();
-    } catch (error) {
-      setRenameError(
-        error instanceof ApiError
-          ? error.message
-          : 'Could not rename group. Please try again.'
-      );
-    }
   };
 
   const {
@@ -214,49 +108,7 @@ export default function GroupsScreen() {
     queryClient.invalidateQueries({ queryKey: ['groups'] });
     queryClient.invalidateQueries({ queryKey: ['contacts'] });
     queryClient.invalidateQueries({ queryKey: ['group-invites'] });
-    if (selectedGroupId) {
-      queryClient.invalidateQueries({ queryKey: ['group', selectedGroupId] });
-      void refetchGroup();
-    }
   };
-
-  const handleRemoveMember = (member: GroupMember) => {
-    if (!selectedGroupId) return;
-    Alert.alert(
-      'Remove from circle?',
-      `Remove ${member.displayName} from this circle? They will no longer receive SOS alerts from it.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              try {
-                await removeMemberMutation.mutateAsync({
-                  groupId: selectedGroupId,
-                  userId: member.userId,
-                });
-                handleGroupUpdated();
-              } catch (error) {
-                Alert.alert(
-                  'Could not remove member',
-                  error instanceof ApiError
-                    ? error.message
-                    : 'Please try again in a moment.'
-                );
-              }
-            })();
-          },
-        },
-      ]
-    );
-  };
-
-  const selectedRole =
-    selectedGroup?.myRole ?? groups?.find((g) => g.id === selectedGroupId)?.myRole;
-  const canManageMembers = selectedRole === 'owner' || selectedRole === 'admin';
-  const canRenameCircle = canManageMembers;
 
   const onCreate = async (data: GroupForm) => {
     setFormError(null);
@@ -274,10 +126,7 @@ export default function GroupsScreen() {
         isTemporary,
         expiresAt: isTemporary ? temporaryGroupExpiryIso() : undefined,
       });
-      if (
-        createEmergencyMode === 'specific' &&
-        createEmergencyTypes.size > 0
-      ) {
+      if (createEmergencyMode === 'specific' && createEmergencyTypes.size > 0) {
         await setGroupEmergencyTypes(group.id, Array.from(createEmergencyTypes));
       }
       reset();
@@ -285,13 +134,11 @@ export default function GroupsScreen() {
       setCreateEmergencyMode('all');
       setCreateEmergencyTypes(new Set());
       setModalVisible(false);
-      setSelectedGroupId(group.id);
       handleGroupUpdated();
+      router.push(`/group/${group.id}`);
     } catch (error) {
       setFormError(
-        error instanceof ApiError
-          ? error.message
-          : 'Could not create group. Please try again.'
+        error instanceof ApiError ? error.message : 'Could not create group. Please try again.'
       );
     }
   };
@@ -300,14 +147,10 @@ export default function GroupsScreen() {
     <View className="flex-1 bg-charcoal-950">
       <View
         className="flex-row items-center justify-between px-5"
-        style={{ paddingTop: insets.top + 16 }}>
+        style={{ paddingTop: insets.top + 16 }}
+      >
         <Text variant="title">Groups</Text>
-        <Button
-          title="+ New"
-          size="sm"
-          variant="secondary"
-          onPress={() => setModalVisible(true)}
-        />
+        <Button title="+ New" size="sm" variant="secondary" onPress={() => setModalVisible(true)} />
       </View>
 
       {isLoading && <LoadingState message="Loading groups…" />}
@@ -320,7 +163,8 @@ export default function GroupsScreen() {
             paddingTop: 16,
           }}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+        >
           <GroupInvitesSection />
 
           {groups?.length === 0 ? (
@@ -328,9 +172,7 @@ export default function GroupsScreen() {
               icon="people-outline"
               title="No groups yet"
               description="Create a group before sending SOS alerts."
-              action={
-                <Button title="Create group" onPress={() => setModalVisible(true)} />
-              }
+              action={<Button title="Create group" onPress={() => setModalVisible(true)} />}
             />
           ) : (
             <>
@@ -338,99 +180,19 @@ export default function GroupsScreen() {
                 Your groups
               </Text>
               <Text variant="caption" muted className="mb-3">
-                Tap a group to manage members and choose which emergencies it responds to.
+                Tap a group to manage members, emergency types, and invites.
               </Text>
               <FlatList
                 data={groups ?? []}
                 keyExtractor={(group) => group.id}
                 scrollEnabled={false}
-                renderItem={({ item: group }) => {
-                  const enriched =
-                    selectedGroupId === group.id && selectedGroup
-                      ? {
-                          ...group,
-                          memberCount: Math.max(
-                            group.memberCount,
-                            selectedGroup.memberCount,
-                            selectedGroup.members.length
-                          ),
-                          members: selectedGroup.members,
-                          pendingInvites: selectedGroup.pendingInvites,
-                        }
-                      : group;
-
-                  return (
-                    <GroupCard
-                      group={enriched}
-                      selected={selectedGroupId === group.id}
-                      onPress={() => setSelectedGroupId(group.id)}
-                    />
-                  );
-                }}
+                renderItem={({ item: group }) => (
+                  <GroupCard
+                    group={group}
+                    onPress={() => router.push(`/group/${group.id}`)}
+                  />
+                )}
               />
-
-              {selectedGroupId && (
-                <View className="mt-4 border-t border-glass-border pt-6">
-                  <TripWatchGroupSection groupId={selectedGroupId} />
-
-                  {canRenameCircle && (
-                    <Pressable
-                      onPress={() => {
-                        const groupName =
-                          selectedGroup?.name ??
-                          groups?.find((g) => g.id === selectedGroupId)?.name ??
-                          '';
-                        openRename(groupName);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Rename group"
-                      className="mb-4 flex-row items-center gap-3 rounded-2xl border border-glass-border bg-charcoal-900 px-4 py-3"
-                    >
-                      <Ionicons name="create-outline" size={20} color="#a0a0a8" />
-                      <View className="flex-1">
-                        <Text variant="body">Rename group</Text>
-                        <Text variant="caption" muted>
-                          {selectedGroup?.name ??
-                            groups?.find((g) => g.id === selectedGroupId)?.name}
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={20} color="#6d6d75" />
-                    </Pressable>
-                  )}
-
-                  <GroupEmergencyTypesSection
-                    key={selectedGroupId}
-                    groupId={selectedGroupId}
-                    canEdit={canManageMembers}
-                    seedTypes={
-                      selectedGroup?.emergencyTypes ??
-                      groups?.find((g) => g.id === selectedGroupId)?.emergencyTypes
-                    }
-                    onSaved={handleGroupUpdated}
-                  />
-
-                  <GroupMembersSection
-                    group={selectedGroup ?? groups?.find((group) => group.id === selectedGroupId)}
-                    loading={isGroupLoading}
-                    canManageMembers={canManageMembers}
-                    removingUserId={
-                      removeMemberMutation.isPending
-                        ? (removeMemberMutation.variables?.userId ?? null)
-                        : null
-                    }
-                    onRemoveMember={canManageMembers ? handleRemoveMember : undefined}
-                  />
-
-                  <GroupContactList
-                    groupId={selectedGroupId}
-                    groupName={selectedGroup?.name ?? groups?.find((g) => g.id === selectedGroupId)?.name}
-                    memberEmails={memberEmails}
-                    pendingEmails={pendingEmails}
-                    pendingPhones={pendingPhones}
-                    onUpdated={handleGroupUpdated}
-                  />
-                </View>
-              )}
             </>
           )}
         </ScrollView>
@@ -439,15 +201,16 @@ export default function GroupsScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView
           className="flex-1"
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <Pressable className="flex-1 justify-end bg-black/70" onPress={closeModal}>
             <Pressable
               className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
               style={{
-                paddingBottom:
-                  keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
+                paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
               }}
-              onPress={(e) => e.stopPropagation()}>
+              onPress={(e) => e.stopPropagation()}
+            >
               <Text variant="title" className="mb-6">
                 New group
               </Text>
@@ -481,7 +244,8 @@ export default function GroupsScreen() {
                 onPress={() => setIsTemporary(!isTemporary)}
                 className="mb-4 flex-row items-center gap-3 py-2"
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: isTemporary }}>
+                accessibilityState={{ checked: isTemporary }}
+              >
                 <View
                   className={`h-6 w-6 rounded-md border ${isTemporary ? 'border-responder bg-responder' : 'border-charcoal-500'}`}
                 />
@@ -508,58 +272,6 @@ export default function GroupsScreen() {
               />
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal visible={renameVisible} animationType="slide" transparent onRequestClose={closeRename}>
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View className="flex-1 justify-end">
-            <Pressable
-              className="absolute inset-0 bg-black/70"
-              onPress={updateGroupMutation.isPending ? undefined : closeRename}
-              accessibilityRole="button"
-              accessibilityLabel="Close rename dialog"
-            />
-            <View
-              className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
-              style={{
-                paddingBottom:
-                  keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
-              }}>
-              <Text variant="title" className="mb-6">
-                Rename circle
-              </Text>
-              <TextInput
-                className="mb-2 min-h-[52px] rounded-2xl border border-glass-border bg-charcoal-800 px-4 text-base text-white"
-                placeholder="Circle name"
-                placeholderTextColor="#6d6d75"
-                value={renameValue}
-                onChangeText={(text) => {
-                  setRenameValue(text);
-                  if (renameError) setRenameError(null);
-                }}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={() => void onRename()}
-                editable={!updateGroupMutation.isPending}
-                accessibilityLabel="Circle name"
-              />
-              {renameError && (
-                <Text variant="caption" className="mb-4 text-emergency">
-                  {renameError}
-                </Text>
-              )}
-              <Button
-                title="Save"
-                className="mt-4"
-                loading={updateGroupMutation.isPending}
-                disabled={updateGroupMutation.isPending}
-                onPress={() => void onRename()}
-              />
-            </View>
-          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>

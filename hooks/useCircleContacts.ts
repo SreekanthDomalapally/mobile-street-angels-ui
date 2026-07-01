@@ -1,4 +1,5 @@
 import { useGroups } from '@/hooks/useGroups';
+import { enrichCircleContacts } from '@/lib/enrichCircleContacts';
 import { fetchContactDirectory } from '@/services/api/contacts';
 import { fetchGroup, fetchGroups } from '@/services/api/groups';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +16,8 @@ export function useCircleContacts() {
     queryKey: ['contacts', 'directory', groups?.map((group) => group.id).join(',') ?? ''],
     queryFn: async () => {
       const detailed = await loadGroupsWithMembers();
-      return fetchContactDirectory(detailed);
+      const directory = await fetchContactDirectory(detailed);
+      return enrichCircleContacts(directory);
     },
     enabled: groups !== undefined,
     retry: 1,

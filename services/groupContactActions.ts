@@ -1,4 +1,5 @@
 import { buildInviteShareMessage } from '@/constants/invites';
+import { saveInviteContactName } from '@/lib/enrichCircleContacts';
 import { assignInviteToGroups } from '@/services/api/contacts';
 import { createPhoneInvite } from '@/services/api/invites';
 import { ApiError } from '@/services/api/client';
@@ -151,6 +152,10 @@ export async function inviteContactToGroup(
 ) {
   const inviterName = options.inviterName ?? 'A friend';
   const groupNames = options.groupName ? [options.groupName] : undefined;
+
+  if (contact.phone && contact.displayName.trim()) {
+    await saveInviteContactName(contact.phone, contact.displayName);
+  }
 
   if (contact.userId) {
     await inviteExistingUserToGroup(contact.userId, groupId);

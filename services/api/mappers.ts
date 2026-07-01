@@ -296,7 +296,7 @@ export function mapApiContactDirectoryItem(
   return {
     id: userId ?? `invite:${email ?? "unknown"}`,
     userId,
-    displayName: item.display_name ?? email ?? "Invited contact",
+    displayName: item.display_name ?? item.phone ?? email ?? 'Invited contact',
     email,
     phone: item.phone ?? undefined,
     groupIds: item.group_ids,
