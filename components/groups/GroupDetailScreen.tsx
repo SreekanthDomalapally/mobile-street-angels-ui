@@ -40,6 +40,7 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
   const updateGroupMutation = useUpdateGroup();
   const removeMemberMutation = useRemoveGroupMember();
 
+  const [addMembersVisible, setAddMembersVisible] = useState(false);
   const [renameVisible, setRenameVisible] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -53,14 +54,10 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
 
   useEffect(() => {
     if (!renameVisible) return;
-
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-    });
+    const showSub = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
     const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -77,7 +74,7 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
 
   const memberEmails = useMemo(() => {
     const members = group?.members?.length ? group.members : (listGroup?.members ?? []);
-    return members.map((member) => member.email?.toLowerCase() ?? '').filter(Boolean);
+    return members.map((m) => m.email?.toLowerCase() ?? '').filter(Boolean);
   }, [group, listGroup]);
 
   const pendingEmails = useMemo(() => {
@@ -85,17 +82,15 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
       ? group.pendingInvites
       : (listGroup?.pendingInvites ?? []);
     return pending
-      .map((invite) => invite.inviteeEmail.toLowerCase())
-      .filter((email) => !email.endsWith('@phone.pending'));
+      .map((i) => i.inviteeEmail.toLowerCase())
+      .filter((e) => !e.endsWith('@phone.pending'));
   }, [group, listGroup]);
 
   const pendingPhones = useMemo(() => {
     const pending = group?.pendingInvites?.length
       ? group.pendingInvites
       : (listGroup?.pendingInvites ?? []);
-    return pending
-      .map((invite) => invite.inviteePhone)
-      .filter((phone): phone is string => Boolean(phone));
+    return pending.map((i) => i.inviteePhone).filter((p): p is string => Boolean(p));
   }, [group, listGroup]);
 
   const handleGroupUpdated = () => {
@@ -107,19 +102,6 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
     void refetchGroup();
   };
 
-  const openRename = () => {
-    setRenameValue(groupName);
-    setRenameError(null);
-    setRenameVisible(true);
-  };
-
-  const closeRename = () => {
-    Keyboard.dismiss();
-    setKeyboardHeight(0);
-    setRenameVisible(false);
-    setRenameError(null);
-  };
-
   const onRename = async () => {
     const trimmed = renameValue.trim();
     if (trimmed.length < 2) {
@@ -127,29 +109,16 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
       return;
     }
     if (trimmed.toLowerCase() === groupName.trim().toLowerCase()) {
-      closeRename();
-      return;
-    }
-    const clash = (groups ?? []).some(
-      (item) =>
-        item.id !== groupId &&
-        item.myRole === 'owner' &&
-        item.name.trim().toLowerCase() === trimmed.toLowerCase()
-    );
-    if (clash) {
-      setRenameError(`You already have a group named "${trimmed}".`);
+      setRenameVisible(false);
       return;
     }
     try {
-      await updateGroupMutation.mutateAsync({
-        groupId,
-        params: { name: trimmed },
-      });
-      closeRename();
+      await updateGroupMutation.mutateAsync({ groupId, params: { name: trimmed } });
+      setRenameVisible(false);
       handleGroupUpdated();
     } catch (error) {
       setRenameError(
-        error instanceof ApiError ? error.message : 'Could not rename group. Please try again.'
+        error instanceof ApiError ? error.message : 'Could not rename group.'
       );
     }
   };
@@ -157,27 +126,22 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
   const handleRemoveMember = (member: GroupMember) => {
     Alert.alert(
       'Remove from group?',
-      `Remove ${member.displayName} from this group? They will no longer receive SOS alerts from it.`,
+      `Remove ${member.displayName}? They will no longer get SOS alerts from this group.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
           onPress: () => {
-            void (async () => {
-              try {
-                await removeMemberMutation.mutateAsync({
-                  groupId,
-                  userId: member.userId,
-                });
-                handleGroupUpdated();
-              } catch (error) {
+            void removeMemberMutation
+              .mutateAsync({ groupId, userId: member.userId })
+              .then(handleGroupUpdated)
+              .catch((error) =>
                 Alert.alert(
-                  'Could not remove member',
-                  error instanceof ApiError ? error.message : 'Please try again in a moment.'
-                );
-              }
-            })();
+                  'Could not remove',
+                  error instanceof ApiError ? error.message : 'Try again.'
+                )
+              );
           },
         },
       ]
@@ -187,7 +151,6 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
   if (isLoading && !resolvedGroup) {
     return <LoadingState message="Loading group…" />;
   }
-
   if (isError && !resolvedGroup) {
     return <ErrorState onRetry={() => refetchGroup()} />;
   }
@@ -200,53 +163,61 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
       >
         <Pressable
           onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
           className="h-10 w-10 items-center justify-center rounded-xl bg-charcoal-800"
         >
           <Ionicons name="chevron-back" size={22} color="#a0a0a8" />
         </Pressable>
-        <View className="min-w-0 flex-1">
-          <View className="flex-row items-center gap-2">
-            <Text variant="title" numberOfLines={1} className="flex-1">
-              {groupName}
-            </Text>
-            {canManageMembers ? (
-              <Pressable
-                onPress={openRename}
-                accessibilityRole="button"
-                accessibilityLabel="Rename group"
-                hitSlop={8}
-                className="h-9 w-9 items-center justify-center rounded-xl bg-charcoal-800"
-              >
-                <Ionicons name="create-outline" size={18} color="#a0a0a8" />
-              </Pressable>
-            ) : null}
-          </View>
+        <Pressable
+          className="min-w-0 flex-1"
+          onPress={canManageMembers ? () => {
+            setRenameValue(groupName);
+            setRenameError(null);
+            setRenameVisible(true);
+          } : undefined}
+        >
+          <Text variant="title" numberOfLines={1}>
+            {groupName}
+          </Text>
           {resolvedGroup ? (
-            <View className="mt-2">
-              <EmergencyTypeSummary types={resolvedGroup.emergencyTypes} maxVisible={6} />
+            <View className="mt-1">
+              <EmergencyTypeSummary types={resolvedGroup.emergencyTypes} maxVisible={4} />
             </View>
           ) : null}
-        </View>
+        </Pressable>
+        {canManageMembers ? (
+          <Pressable
+            onPress={() => setAddMembersVisible(true)}
+            className="h-10 w-10 items-center justify-center rounded-xl bg-responder/20"
+          >
+            <Ionicons name="person-add-outline" size={20} color="#6bb892" />
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView
         className="flex-1 px-5"
-        contentContainerStyle={{
-          paddingTop: 20,
-          paddingBottom: insets.bottom + 32,
-        }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 32 }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <GroupEmergencyTypesSection
-          key={groupId}
-          groupId={groupId}
-          canEdit={canManageMembers}
-          seedTypes={resolvedGroup?.emergencyTypes}
-          onSaved={handleGroupUpdated}
-        />
+        {canManageMembers ? (
+          <Pressable
+            onPress={() => setAddMembersVisible(true)}
+            className="mb-5 flex-row items-center gap-3 rounded-2xl border border-responder/40 bg-responder/10 px-4 py-4"
+          >
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-responder/25">
+              <Ionicons name="person-add" size={20} color="#6bb892" />
+            </View>
+            <View className="flex-1">
+              <Text variant="body" className="text-responder-light">
+                Add people
+              </Text>
+              <Text variant="caption" muted>
+                From your phone contacts — like WhatsApp
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#6bb892" />
+          </Pressable>
+        ) : null}
 
         <GroupMembersSection
           group={group ?? listGroup}
@@ -260,66 +231,77 @@ export function GroupDetailScreen({ groupId }: GroupDetailScreenProps) {
           onRemoveMember={canManageMembers ? handleRemoveMember : undefined}
         />
 
-        <GroupContactList
-          groupId={groupId}
-          groupName={groupName}
-          memberEmails={memberEmails}
-          pendingEmails={pendingEmails}
-          pendingPhones={pendingPhones}
-          onUpdated={handleGroupUpdated}
-        />
+        {canManageMembers ? (
+          <GroupEmergencyTypesSection
+            key={groupId}
+            groupId={groupId}
+            canEdit
+            seedTypes={resolvedGroup?.emergencyTypes}
+            onSaved={handleGroupUpdated}
+            compact
+          />
+        ) : (
+          <GroupEmergencyTypesSection
+            groupId={groupId}
+            canEdit={false}
+            seedTypes={resolvedGroup?.emergencyTypes}
+          />
+        )}
 
         <TripWatchGroupSection groupId={groupId} />
       </ScrollView>
 
-      <Modal visible={renameVisible} animationType="slide" transparent onRequestClose={closeRename}>
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <Modal visible={addMembersVisible} animationType="slide" presentationStyle="pageSheet">
+        <View
+          className="flex-1 bg-charcoal-950"
+          style={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }}
         >
-          <View className="flex-1 justify-end">
-            <Pressable
-              className="absolute inset-0 bg-black/70"
-              onPress={updateGroupMutation.isPending ? undefined : closeRename}
-              accessibilityRole="button"
-              accessibilityLabel="Close rename dialog"
+          <View className="mb-4 flex-row items-center justify-between px-5">
+            <Text variant="title">Add to {groupName}</Text>
+            <Pressable onPress={() => setAddMembersVisible(false)}>
+              <Text variant="body" className="text-responder-light">
+                Done
+              </Text>
+            </Pressable>
+          </View>
+          <ScrollView className="flex-1 px-5" keyboardShouldPersistTaps="handled">
+            <GroupContactList
+              groupId={groupId}
+              groupName={groupName}
+              memberEmails={memberEmails}
+              pendingEmails={pendingEmails}
+              pendingPhones={pendingPhones}
+              compact
+              onUpdated={handleGroupUpdated}
             />
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal visible={renameVisible} animationType="slide" transparent onRequestClose={() => setRenameVisible(false)}>
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View className="flex-1 justify-end">
+            <Pressable className="absolute inset-0 bg-black/70" onPress={() => setRenameVisible(false)} />
             <View
               className="rounded-t-3xl bg-charcoal-900 px-6 pt-6"
-              style={{
-                paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24,
-              }}
+              style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 24 }}
             >
               <Text variant="title" className="mb-6">
-                Rename group
+                Group name
               </Text>
               <TextInput
                 className="mb-2 min-h-[52px] rounded-2xl border border-glass-border bg-charcoal-800 px-4 text-base text-white"
-                placeholder="Group name"
-                placeholderTextColor="#6d6d75"
                 value={renameValue}
-                onChangeText={(text) => {
-                  setRenameValue(text);
-                  if (renameError) setRenameError(null);
-                }}
+                onChangeText={setRenameValue}
                 autoFocus
-                returnKeyType="done"
                 onSubmitEditing={() => void onRename()}
-                editable={!updateGroupMutation.isPending}
-                accessibilityLabel="Group name"
               />
               {renameError ? (
-                <Text variant="caption" className="mb-4 text-emergency">
+                <Text variant="caption" className="text-emergency">
                   {renameError}
                 </Text>
               ) : null}
-              <Button
-                title="Save"
-                className="mt-4"
-                loading={updateGroupMutation.isPending}
-                disabled={updateGroupMutation.isPending}
-                onPress={() => void onRename()}
-              />
+              <Button title="Save" className="mt-4" loading={updateGroupMutation.isPending} onPress={() => void onRename()} />
             </View>
           </View>
         </KeyboardAvoidingView>

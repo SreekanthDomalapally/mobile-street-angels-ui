@@ -62,7 +62,7 @@ export default function ContactsScreen() {
             </View>
 
             <Text variant="body" muted className="mb-4">
-              People in your safety groups. Tap a contact to add or remove groups.
+              People in your groups. Tap a contact to move them between groups.
             </Text>
 
             <TrustedContactsPanel />

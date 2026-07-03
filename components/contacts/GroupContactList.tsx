@@ -5,8 +5,9 @@ import { ApiError } from '@/services/api/client';
 import { normalizePhoneE164 } from '@/services/phone';
 import { inviteContactToGroup } from '@/services/groupContactActions';
 import { useAuthStore } from '@/stores/authStore';
+import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Platform, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Platform, Pressable, TextInput, View } from 'react-native';
 
 interface GroupContactListProps {
   groupId: string;
@@ -14,6 +15,8 @@ interface GroupContactListProps {
   memberEmails?: string[];
   pendingEmails?: string[];
   pendingPhones?: string[];
+  /** WhatsApp-style compact rows with + on the right */
+  compact?: boolean;
   onUpdated: () => void;
 }
 
@@ -67,6 +70,7 @@ export function GroupContactList({
   memberEmails = [],
   pendingEmails = [],
   pendingPhones = [],
+  compact = false,
   onUpdated,
 }: GroupContactListProps) {
   const {
@@ -195,16 +199,20 @@ export function GroupContactList({
 
   return (
     <View>
-      <Text variant="label" className="mb-2">
-        {groupName ? `Invite people to ${groupName}` : 'Invite people'}
-      </Text>
-      <Text variant="caption" muted className="mb-3">
-        Send a request to YouHoo Alert users. They must accept before joining the group.
-      </Text>
+      {!compact ? (
+        <>
+          <Text variant="label" className="mb-2">
+            {groupName ? `Invite people to ${groupName}` : 'Invite people'}
+          </Text>
+          <Text variant="caption" muted className="mb-3">
+            Tap + to add someone. They accept before joining.
+          </Text>
+        </>
+      ) : null}
 
       <TextInput
         className="mb-4 min-h-[48px] rounded-2xl border border-glass-border bg-charcoal-900 px-4 text-base text-white"
-        placeholder="Search contacts"
+        placeholder="Search name or number"
         placeholderTextColor="#6d6d75"
         value={search}
         onChangeText={setSearch}
@@ -261,9 +269,53 @@ export function GroupContactList({
           data={filtered}
           keyExtractor={(row) => row.id}
           scrollEnabled={false}
-          ItemSeparatorComponent={() => <View className="h-3" />}
+          ItemSeparatorComponent={() => (compact ? null : <View className="h-3" />)}
           renderItem={({ item: row }) => {
             const status = resolveStatus(row, memberSet, pendingEmailSet, pendingPhoneSet);
+            const busy = busyId === row.id;
+
+            if (compact) {
+              return (
+                <View className="flex-row items-center gap-3 border-b border-glass-border py-3">
+                  <View className="h-11 w-11 items-center justify-center rounded-full bg-charcoal-800">
+                    <Text variant="label" className="text-responder-light">
+                      {row.name.slice(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text variant="body" numberOfLines={1}>
+                      {row.name}
+                    </Text>
+                    <Text variant="caption" muted numberOfLines={1}>
+                      {status === 'member'
+                        ? 'In group'
+                        : status === 'pending'
+                          ? 'Invite sent'
+                          : row.onPlatform
+                            ? 'On YouHoo Alert'
+                            : 'Invite to install'}
+                    </Text>
+                  </View>
+                  {status === 'member' ? (
+                    <Ionicons name="checkmark-circle" size={24} color="#6bb892" />
+                  ) : status === 'pending' ? (
+                    <Ionicons name="time-outline" size={22} color="#c9a04a" />
+                  ) : (
+                    <Pressable
+                      onPress={() => (row.onPlatform ? handleAdd(row) : handleInvite(row))}
+                      disabled={busy || (!row.userId && !row.inviteEmail && !row.canReach)}
+                      className="h-9 w-9 items-center justify-center rounded-full bg-responder/20"
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color="#6bb892" />
+                      ) : (
+                        <Ionicons name="add" size={22} color="#6bb892" />
+                      )}
+                    </Pressable>
+                  )}
+                </View>
+              );
+            }
 
             return (
               <View className="rounded-2xl border border-glass-border bg-charcoal-900 p-4">
