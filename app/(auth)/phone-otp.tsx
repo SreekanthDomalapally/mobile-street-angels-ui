@@ -130,8 +130,8 @@ export default function OtpVerificationScreen() {
       ) : usesBackendPhoneOtp() ? (
         <View className="mt-4 rounded-2xl border border-emergency/40 bg-emergency/10 px-4 py-3">
           <Text variant="body" className="text-center text-emergency-glow">
-            No test code from the server. Ask the admin to set DEV_OTP_ENABLED=true on Railway,
-            redeploy the API, then tap Resend code.
+            No test code from the server. For local dev, set DEV_OTP_ENABLED=true on Railway or use
+            an EAS preview/production build with Firebase Phone enabled.
           </Text>
         </View>
       ) : null}

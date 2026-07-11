@@ -1,3 +1,5 @@
+import { isFirebasePhoneAuthEnabled } from '@/services/firebasePhoneAuth';
+
 /** Backend returns dev_otp when API ENVIRONMENT=development or DEV_OTP_ENABLED=true (no SMS). */
 export function testOtpHint(devOtp?: string | null): string | null {
   const code = devOtp?.trim();
@@ -5,8 +7,7 @@ export function testOtpHint(devOtp?: string | null): string | null {
   return `Test code (no SMS sent): ${code}`;
 }
 
+/** Local dev / Expo Go uses backend OTP; EAS preview+production use Firebase SMS when enabled. */
 export function usesBackendPhoneOtp(): boolean {
-  const useFirebasePhone =
-    process.env.EXPO_PUBLIC_USE_FIREBASE_PHONE === 'true' && !__DEV__;
-  return !useFirebasePhone;
+  return !isFirebasePhoneAuthEnabled();
 }

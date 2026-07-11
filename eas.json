@@ -18,6 +18,7 @@
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "youhoo-alert-app.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1065150630879",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1065150630879:android:83296463ab35f7f73f526a",
+        "EXPO_PUBLIC_USE_FIREBASE_PHONE": "true",
         "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
       }
     },
@@ -25,7 +26,8 @@
       "extends": "base",
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_ENABLE_SOS_DEBUG": "true"
+        "EXPO_PUBLIC_ENABLE_SOS_DEBUG": "true",
+        "EXPO_PUBLIC_USE_FIREBASE_PHONE": "true"
       },
       "android": {
         "buildType": "apk"
@@ -35,7 +37,8 @@
       "extends": "base",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_ENABLE_SOS_DEBUG": "false"
+        "EXPO_PUBLIC_ENABLE_SOS_DEBUG": "false",
+        "EXPO_PUBLIC_USE_FIREBASE_PHONE": "true"
       },
       "android": {
         "buildType": "app-bundle"
