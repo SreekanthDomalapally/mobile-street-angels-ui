@@ -49,9 +49,26 @@
     }
   },
   "submit": {
-    "production": {
+    "internal": {
+      "extends": "base-submit",
       "android": {
-        "track": "internal",
+        "track": "internal"
+      }
+    },
+    "closed": {
+      "extends": "base-submit",
+      "android": {
+        "track": "alpha"
+      }
+    },
+    "production": {
+      "extends": "base-submit",
+      "android": {
+        "track": "production"
+      }
+    },
+    "base-submit": {
+      "android": {
         "releaseStatus": "completed",
         "serviceAccountKeyPath": "./google-service-account.json"
       },

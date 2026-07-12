@@ -1,8 +1,12 @@
 import { Text } from '@/components/ui/Text';
+import {
+  enrichPendingInvites,
+  type ResolvedPendingInvite,
+} from '@/lib/enrichCircleContacts';
 import { useAuthStore } from '@/stores/authStore';
-import type { Group, GroupMember, GroupPendingInvite } from '@/types';
+import type { Group, GroupMember } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
 function initials(name: string): string {
@@ -71,7 +75,7 @@ function MemberRow({
   );
 }
 
-function PendingRow({ invite }: { invite: GroupPendingInvite }) {
+function PendingRow({ invite }: { invite: ResolvedPendingInvite }) {
   return (
     <View className="flex-row items-center gap-3 rounded-2xl border border-warning/30 bg-warning/5 p-4">
       <View className="h-11 w-11 items-center justify-center rounded-full bg-warning/15">
@@ -79,10 +83,10 @@ function PendingRow({ invite }: { invite: GroupPendingInvite }) {
       </View>
       <View className="min-w-0 flex-1">
         <Text variant="body" numberOfLines={1}>
-          {invite.inviteeEmail}
+          {invite.displayName}
         </Text>
-        <Text variant="caption" muted>
-          Request sent · waiting to accept
+        <Text variant="caption" muted numberOfLines={1}>
+          {invite.subtitle} · waiting to accept
         </Text>
       </View>
       <Text variant="label" className="text-warning">
@@ -134,6 +138,29 @@ export function GroupMembersSection({
   }, [group, currentUser]);
 
   const pendingInvites = group?.pendingInvites ?? [];
+  const pendingInviteKey = pendingInvites
+    .map((invite) => `${invite.id}:${invite.inviteeEmail}:${invite.inviteePhone ?? ''}`)
+    .join('|');
+  const [resolvedPending, setResolvedPending] = useState<ResolvedPendingInvite[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (pendingInvites.length === 0) {
+      setResolvedPending([]);
+      return;
+    }
+
+    void enrichPendingInvites(pendingInvites).then((resolved) => {
+      if (!cancelled) setResolvedPending(resolved);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // pendingInviteKey captures invite identity/content; pendingInvites is derived from group.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingInviteKey]);
+
   const memberCount = Math.max(group?.memberCount ?? 0, members.length);
   const awaitingDetail =
     !loading && Boolean(group) && members.length === 0 && (group?.memberCount ?? 0) > 0;
@@ -194,7 +221,13 @@ export function GroupMembersSection({
             Pending requests ({pendingInvites.length})
           </Text>
           <View className="gap-3">
-            {pendingInvites.map((invite) => (
+            {(resolvedPending.length > 0 ? resolvedPending : pendingInvites.map((invite) => ({
+              ...invite,
+              displayName: invite.inviteeEmail.endsWith('@phone.pending')
+                ? 'Invited contact'
+                : invite.inviteeEmail,
+              subtitle: 'Request sent · waiting to accept',
+            }))).map((invite) => (
               <PendingRow key={invite.id} invite={invite} />
             ))}
           </View>

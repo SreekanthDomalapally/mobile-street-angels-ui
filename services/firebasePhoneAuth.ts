@@ -1,10 +1,7 @@
 import {
-  PhoneAuthProvider,
-  signInWithCredential,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-} from 'firebase/auth';
-import { getFirebaseAuth } from '@/services/firebase';
+  getAuth as getNativeAuth,
+  signInWithPhoneNumber as nativeSignInWithPhoneNumber,
+} from '@react-native-firebase/auth';
 import {
   loginWithFirebaseToken,
   startPhoneLogin,
@@ -12,35 +9,58 @@ import {
   type FirebaseLoginResponse,
 } from '@/services/api/auth';
 
+type PhoneConfirmation = {
+  confirm: (code: string) => Promise<unknown>;
+};
+
 export type PhoneSignInSession = {
   phoneE164: string;
   countryCode: string;
   useBackendOtp: boolean;
-  verificationId?: string;
-  confirmation?: ConfirmationResult;
+  confirmation?: PhoneConfirmation;
   devOtp?: string | null;
 };
 
-const useFirebasePhone =
-  process.env.EXPO_PUBLIC_USE_FIREBASE_PHONE === 'true' && !__DEV__;
+/** Production/preview EAS builds with EXPO_PUBLIC_USE_FIREBASE_PHONE=true send SMS via Firebase. */
+export function isFirebasePhoneAuthEnabled(): boolean {
+  return process.env.EXPO_PUBLIC_USE_FIREBASE_PHONE === 'true' && !__DEV__;
+}
+
+function mapFirebasePhoneError(error: unknown): Error {
+  const code = (error as { code?: string })?.code ?? '';
+  if (code === 'auth/invalid-phone-number') {
+    return new Error('Enter a valid mobile number.');
+  }
+  if (code === 'auth/too-many-requests') {
+    return new Error('Too many attempts. Try again in a few minutes.');
+  }
+  if (code === 'auth/quota-exceeded') {
+    return new Error('SMS quota exceeded. Try again later.');
+  }
+  if (code === 'auth/captcha-check-failed') {
+    return new Error('Phone verification failed. Update the app and try again.');
+  }
+  if (error instanceof Error && error.message) {
+    return error;
+  }
+  return new Error('Could not send verification code.');
+}
 
 export async function startPhoneSignIn(
   phoneE164: string,
   countryCode: string
 ): Promise<PhoneSignInSession> {
-  if (useFirebasePhone) {
+  if (isFirebasePhoneAuthEnabled()) {
     try {
-      const auth = getFirebaseAuth();
-      const confirmation = await signInWithPhoneNumber(auth, phoneE164);
+      const confirmation = await nativeSignInWithPhoneNumber(getNativeAuth(), phoneE164);
       return {
         phoneE164,
         countryCode,
         useBackendOtp: false,
         confirmation,
-        verificationId: confirmation.verificationId,
       };
     } catch (error) {
-      console.warn('[phoneAuth] Firebase phone sign-in failed, using backend OTP:', error);
+      throw mapFirebasePhoneError(error);
     }
   }
 
@@ -49,7 +69,6 @@ export async function startPhoneSignIn(
     phoneE164,
     countryCode,
     useBackendOtp: true,
-    verificationId: response.session_id,
     devOtp: response.dev_otp,
   };
 }
@@ -62,17 +81,24 @@ export async function confirmPhoneSignIn(
     return verifyPhoneLogin(session.phoneE164, otp, session.countryCode);
   }
 
-  const auth = getFirebaseAuth();
-  if (session.confirmation) {
-    await session.confirmation.confirm(otp);
-  } else if (session.verificationId) {
-    const credential = PhoneAuthProvider.credential(session.verificationId, otp);
-    await signInWithCredential(auth, credential);
-  } else {
+  if (!session.confirmation) {
     throw new Error('Phone verification session expired. Request a new code.');
   }
 
-  const user = auth.currentUser;
+  try {
+    await session.confirmation.confirm(otp);
+  } catch (error) {
+    const code = (error as { code?: string })?.code ?? '';
+    if (code === 'auth/invalid-verification-code') {
+      throw new Error('Invalid verification code.');
+    }
+    if (code === 'auth/code-expired') {
+      throw new Error('Verification code expired. Request a new one.');
+    }
+    throw mapFirebasePhoneError(error);
+  }
+
+  const user = getNativeAuth().currentUser;
   if (!user) {
     throw new Error('Firebase did not return a signed-in user.');
   }

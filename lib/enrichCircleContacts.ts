@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadDeviceContacts, requestContactsPermission } from '@/services/contacts';
-import { normalizePhoneE164 } from '@/services/phone';
-import type { CircleContact } from '@/types';
+import { formatPhoneForDisplay, normalizePhoneE164 } from '@/services/phone';
+import type { CircleContact, GroupPendingInvite } from '@/types';
 
 const CACHE_KEY = 'street-angels-invite-contact-names';
 
@@ -11,6 +11,61 @@ function isGenericDisplayName(name: string, contact: CircleContact): boolean {
   if (contact.email && trimmed.toLowerCase() === contact.email.toLowerCase()) return true;
   if (contact.phone && trimmed === contact.phone) return true;
   return false;
+}
+
+/** Recover E.164 from placeholder emails like `353892638402@phone.pending`. */
+export function phoneFromPendingInviteEmail(email: string | undefined | null): string | null {
+  if (!email) return null;
+  const match = email.trim().match(/^(\+?\d{6,15})@phone\.pending$/i);
+  if (!match) return null;
+  const digits = match[1].startsWith('+') ? match[1] : `+${match[1]}`;
+  return normalizePhoneE164(digits) ?? normalizePhoneE164(match[1]);
+}
+
+export function resolvePendingInvitePhone(invite: GroupPendingInvite): string | null {
+  if (invite.inviteePhone) {
+    return normalizePhoneE164(invite.inviteePhone) ?? invite.inviteePhone;
+  }
+  return phoneFromPendingInviteEmail(invite.inviteeEmail);
+}
+
+export type ResolvedPendingInvite = GroupPendingInvite & {
+  displayName: string;
+  subtitle: string;
+};
+
+/** Resolve pending invite labels from phone-book + invite-name cache. */
+export async function enrichPendingInvites(
+  invites: GroupPendingInvite[],
+): Promise<ResolvedPendingInvite[]> {
+  if (invites.length === 0) return [];
+
+  const phoneNames = await buildPhoneNameMap();
+
+  return invites.map((invite) => {
+    const phone = resolvePendingInvitePhone(invite);
+    const fromPhoneBook = phone ? phoneNames.get(phone) : undefined;
+    const email = invite.inviteeEmail.trim();
+    const isPhonePlaceholder = email.toLowerCase().endsWith('@phone.pending');
+
+    const displayName =
+      fromPhoneBook ??
+      (!isPhonePlaceholder && email ? email : null) ??
+      (phone ? formatPhoneForDisplay(phone) : null) ??
+      'Invited contact';
+
+    const subtitle = phone
+      ? formatPhoneForDisplay(phone)
+      : isPhonePlaceholder
+        ? 'Phone invite'
+        : email;
+
+    return {
+      ...invite,
+      displayName,
+      subtitle,
+    };
+  });
 }
 
 async function loadInviteNameCache(): Promise<Map<string, string>> {
