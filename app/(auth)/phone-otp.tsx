@@ -37,16 +37,19 @@ export default function OtpVerificationScreen() {
 
   const session = useMemo<PhoneSignInSession | null>(() => {
     if (!params.phone || !params.countryCode) return null;
-    const stored = phoneSession;
-    if (
-      stored &&
-      stored.phoneE164 === params.phone &&
-      stored.countryCode === params.countryCode
-    ) {
-      return stored;
+
+    const normalize = (value: string) => value.replace(/\D/g, '');
+    const stored = phoneSession ?? getLastPhoneSession();
+    if (stored && normalize(stored.phoneE164) === normalize(params.phone)) {
+      return {
+        ...stored,
+        // Keep URL country if present; phone/confirmation come from memory.
+        countryCode: params.countryCode || stored.countryCode,
+      };
     }
+
     return {
-      phoneE164: params.phone,
+      phoneE164: params.phone.startsWith('+') ? params.phone : `+${params.phone.replace(/\D/g, '')}`,
       countryCode: params.countryCode,
       useBackendOtp: params.useBackendOtp === '1',
     };
