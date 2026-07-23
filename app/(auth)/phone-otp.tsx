@@ -3,7 +3,11 @@ import { Button } from '@/components/ui/Button';
 import { OtpInput } from '@/components/auth/OtpInput';
 import { Text } from '@/components/ui/Text';
 import { confirmPhoneSignIn, resendPhoneSignIn, type PhoneSignInSession } from '@/services/firebasePhoneAuth';
-import { getLastDevOtp, setLastDevOtp } from '@/services/phoneAuthSession';
+import {
+  getLastDevOtp,
+  getLastPhoneSession,
+  setLastPhoneSession,
+} from '@/services/phoneAuthSession';
 import { signInWithPhoneSession } from '@/services/auth';
 import { formatPhoneForDisplay } from '@/services/phone';
 import { testOtpHint, usesBackendPhoneOtp } from '@/lib/devOtp';
@@ -27,15 +31,26 @@ export default function OtpVerificationScreen() {
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const [devHint, setDevHint] = useState<string | null>(() => testOtpHint(getLastDevOtp()));
+  const [phoneSession, setPhoneSession] = useState<PhoneSignInSession | null>(() =>
+    getLastPhoneSession(),
+  );
 
   const session = useMemo<PhoneSignInSession | null>(() => {
     if (!params.phone || !params.countryCode) return null;
+    const stored = phoneSession;
+    if (
+      stored &&
+      stored.phoneE164 === params.phone &&
+      stored.countryCode === params.countryCode
+    ) {
+      return stored;
+    }
     return {
       phoneE164: params.phone,
       countryCode: params.countryCode,
       useBackendOtp: params.useBackendOtp === '1',
     };
-  }, [params.countryCode, params.phone, params.useBackendOtp]);
+  }, [params.countryCode, params.phone, params.useBackendOtp, phoneSession]);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -72,8 +87,9 @@ export default function OtpVerificationScreen() {
     setLoading(true);
     try {
       const next = await resendPhoneSignIn(session);
+      setLastPhoneSession(next);
+      setPhoneSession(next);
       setSecondsLeft(RESEND_SECONDS);
-      setLastDevOtp(next.devOtp);
       const hint = testOtpHint(next.devOtp);
       if (hint) setDevHint(hint);
       else setDevHint(null);
